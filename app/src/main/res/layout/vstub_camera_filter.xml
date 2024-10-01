@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/colorOverlaySurface"
+    tools:background="@color/material_dynamic_neutral_variant50">
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/iv_filter_close"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:padding="5dp"
+        android:src="@drawable/ic_close"
+        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_filter_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:text="Original"
+        android:textColor="@color/textColorOnSurface"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/filter_recylerview"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/iv_filter_close" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/filter_recylerview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintTop_toBottomOf="@id/iv_filter_close"
+        tools:itemCount="5"
+        tools:listitem="@layout/item_filter"
+        tools:orientation="horizontal" />
+</androidx.constraintlayout.widget.ConstraintLayout>

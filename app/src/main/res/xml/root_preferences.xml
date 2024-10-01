@@ -1,0 +1,60 @@
+<PreferenceScreen
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:title="Photo">
+
+        <SwitchPreferenceCompat
+            app:key="@string/settings_key_photo_zsl"
+            app:title="Enable ZSL"
+            app:defaultValue="true"
+            />
+
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            app:title="@string/settings_key_preview">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+                app:key="@string/settings_key_enable_grid_line"
+                app:title="Grid Line"
+                />
+        <ListPreference
+            app:dependency="@string/settings_key_enable_grid_line"
+            app:defaultValue="4"
+            app:entries="@array/grid_line_type_entries"
+            app:entryValues="@array/grid_line_type_values"
+            app:key="@string/settings_key_grid_line_option"
+            app:useSimpleSummaryProvider="true"
+            app:summaryOff="@string/attachment_summary_off"
+            app:summaryOn="@string/attachment_summary_on"
+            app:title="Grid Line Options"
+            />
+
+
+    </PreferenceCategory>
+
+
+    <PreferenceCategory
+        app:title="@string/messages_header">
+
+        <EditTextPreference
+            app:key="signature"
+            app:title="@string/signature_title"
+            app:useSimpleSummaryProvider="true"
+            />
+
+        <ListPreference
+            app:defaultValue="reply"
+            app:entries="@array/reply_entries"
+            app:entryValues="@array/reply_values"
+            app:key="reply"
+            app:title="@string/reply_title"
+            app:useSimpleSummaryProvider="true"
+            />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -7,4 +7,12 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+
+    <color name="colorPrimary">@color/purple_200</color>
+    <color name="colorPrimaryDark">@color/purple_500</color>
+    <color name="colorAccent">#D81B60</color>
+    <color name="colorSurfaceLight">#444D51</color>
+    <color name="colorOverlaySurface">@color/surface_dark_medium</color>
+    <color name="textColorOnSurface">#ffffff</color>
 </resources>
