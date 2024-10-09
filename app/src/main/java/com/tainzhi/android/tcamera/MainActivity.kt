@@ -1200,10 +1200,7 @@ class MainActivity : AppCompatActivity() {
         private const val MY_PERMISSIONS_REQUEST = 10001
         private val PERMISSIONS_EXCLUDE_STORAGE = arrayOf(
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA,
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.ACCESS_MEDIA_LOCATION
+            Manifest.permission.CAMERA
         )
         private val PERMISSION_STORAGE = Manifest.permission.WRITE_EXTERNAL_STORAGE
 
