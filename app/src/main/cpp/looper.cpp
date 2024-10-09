@@ -16,7 +16,7 @@
 // for __android_log_print(ANDROID_LOG_INFO, "YourApp", "formatted message");
 #include <android/log.h>
 
-#define TAG "NativeCodec-looper"
+#define TAG "image-processor-looper"
 #define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, TAG, __VA_ARGS__)
 
 

@@ -7,14 +7,14 @@
 #define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, __VA_ARGS__)
-#define TAG "NativeOpenCV"
+#define TAG "image-processor"
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz) {
     cv::Mat mat;
     cv::UMat umat;
-    LOGV(TAG, "opencv init");
+    LOGV(TAG, "init");
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
     if (!ctx.ptr())
@@ -27,7 +27,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz) 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
-    LOGV(TAG, "opencv deinit");
+    LOGV(TAG, "deinit");
 }
 
 extern "C"

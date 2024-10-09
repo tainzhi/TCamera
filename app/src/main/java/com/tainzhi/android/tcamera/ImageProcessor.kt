@@ -25,9 +25,9 @@ object ImageProcessor {
     fun destroy() {
         deinit()
     }
-    external fun init()
+    private external fun init()
     private external fun processImage(yPlane: ByteBuffer, uPlane: ByteBuffer ,  vPlane: ByteBuffer,  width: Int, height: Int)
-    external fun deinit()
+    private external fun deinit()
 
     private const val TAG = "ImageProcessor"
 }
