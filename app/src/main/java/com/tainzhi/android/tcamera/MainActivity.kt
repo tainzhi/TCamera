@@ -367,6 +367,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(VERSION_CODES.R)
     override fun onResume() {
         super.onResume()
+        setBrightness(true)
         rotationChangeMonitor.enable()
         Log.i(TAG, "onResume: ")
         if (checkPermissions()) {
@@ -386,6 +387,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         Log.i(TAG, "onPause: ")
+        setBrightness(false)
         isHasSetupCameraOutputs = false
         rotationChangeMonitor.disable()
         closeCaptureSession()
@@ -1176,6 +1178,19 @@ class MainActivity : AppCompatActivity() {
                 .start()
 
         controlBar.rotate(thumbnailOrientation)
+    }
+
+    private fun setBrightness(forceMax: Boolean) {
+        val layoutAttributes = window.attributes
+        if (forceMax) {
+            // layoutAttributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+            layoutAttributes.screenBrightness = 0.7f
+        } else {
+            layoutAttributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        }
+        runOnUiThread {
+            window.attributes = layoutAttributes
+        }
     }
 
     companion object {
