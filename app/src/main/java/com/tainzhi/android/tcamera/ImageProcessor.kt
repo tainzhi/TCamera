@@ -7,8 +7,8 @@ import java.nio.ByteBuffer
 
 object ImageProcessor {
     fun create() {
-        // System.loadLibrary("image-processor")
-        // init()
+        System.loadLibrary("image-processor")
+        init()
     }
 
     fun processImage(image: Image) {
@@ -26,7 +26,7 @@ object ImageProcessor {
         deinit()
     }
     external fun init()
-    external fun processImage(yPlane: ByteBuffer, uPlane: ByteBuffer ,  vPlane: ByteBuffer,  width: Int, height: Int)
+    private external fun processImage(yPlane: ByteBuffer, uPlane: ByteBuffer ,  vPlane: ByteBuffer,  width: Int, height: Int)
     external fun deinit()
 
     private const val TAG = "ImageProcessor"
