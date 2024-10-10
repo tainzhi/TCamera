@@ -3,41 +3,62 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/core/ocl.hpp"
 #include "opencv2/core.hpp"
+#include "image-processor.h"
+#include "util.h"
 
-#define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, __VA_ARGS__)
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, __VA_ARGS__)
-#define TAG "image-processor"
+#define TAG "NativeImageProcessorJNI"
+
+std::vector<cv::Mat> imageMats;
+std::vector<float> imageExposureTimes;
+
+
+static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
+    const char *cstring = env->GetStringUTFChars(jstr, nullptr);
+    if (cstring == nullptr) {
+// 异常处理
+        return "";
+    }
+    
+    std::string result(cstring);
+    env->ReleaseStringUTFChars(jstr, cstring);
+    
+    return result;
+}
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz) {
     cv::Mat mat;
     cv::UMat umat;
-    LOGV(TAG, "init");
+    LOGV("init");
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
     if (!ctx.ptr())
     {
-        LOGV(TAG, "opencv:opencl is not available");
+        LOGV("opencv:opencl is not available");
     } else {
-        LOGV(TAG, "opencv:opencl is available");
+        LOGV("opencv:opencl is available");
     }
 }
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
-    LOGV(TAG, "deinit");
+    LOGV("deinit");
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz,
-                                                                 jobject y_plane, jobject u_plane,
-                                                                 jobject v_plane, jint width,
-                                                                 jint height) {
+Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz, jstring cache_path,
+                                                             jobject y_plane, jobject u_plane, jobject v_plane,
+                                                             jint width, jint height, jlong exposure_time) {
+    // jbyte* yPlane = (jbyte*) env->GetDirectBufferAddress(y_plane);
+    // jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
+    // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
+    // cv::Mat yuvMat(height + height/2, width, CV_8UC1);
+    // memcpy(yuvMat.data, yPlane, height * width);
+    // memcpy(yuvMat.data + width * height, uPlane, height * width / 4);
+    // memcpy(yuvMat.data + width * height + width * height / 4, vPlane, height * width / 4);
     cv::Mat yuvMat(height + height/2, width, CV_8UC1);
-    LOGD(TAG, "processImage, width:%d height:%d", width, height);
     // Get the Y plane
     jbyte* yPlane = (jbyte*) env->GetDirectBufferAddress(y_plane);
     for (int i = 0; i < height; i++) {
@@ -72,7 +93,11 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
             }
         }
     }
-    LOGD(TAG, "processImage, width_offset:%d height_offset:%d", w_offset, h_offset);
+    std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
+                                 std::to_string(Util::getCurrentTimestampMs()) + ".yuv";
+    LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
+    Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
+    // Util::dumpBinary(dump_yuv_path.c_str(),(jbyte*) env->GetDirectBufferAddress(y_plane), height * width);
 
 
     // Convert YUV to BGR
@@ -80,18 +105,21 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     // https://gist.github.com/FWStelian/4c3dcd35960d6eabbe661c3448dd5539
     cv::Mat bgrMat;
     cv::cvtColor(yuvMat, bgrMat, cv::COLOR_YUV2BGR_I420);
-
-//    // Copy the bitmap pixels
-//    env->GetDirectBufferAddress(bitmapOutput);
-//    uint8_t* bitmapPixels = reinterpret_cast<uint8_t*>(env->GetDirectBufferAddress(bitmapOutput));
-//    for (int i = 0; i < height; i++) {
-//        for (int j = 0; j < width; j++) {
-//            int bitmapIndex = (i * rowBytes + j * 3);
-//            int colorIndex = i * width * 3 + j * 3;
-//            bitmapPixels[bitmapIndex] = bgrMat.at<Vec3b>(i, j)[2];
-//            bitmapPixels[bitmapIndex + 1] = bgrMat.at<Vec3b>(i, j)[1];
-//            bitmapPixels[bitmapIndex + 2] = bgrMat.at<Vec3b>(i, j)[0];
-//        }
-//    }
+    
+    if (imageMats.size() < 3) {
+        imageMats.emplace_back(bgrMat);
+        imageExposureTimes.emplace_back(exposure_time);
+    }
+    if(imageMats.size() == 3) {
+        LOGD("complete 3 images, to process hdr");
+        auto mat = ImageProcessor::process(imageMats, imageExposureTimes);
+        auto jpeg = ImageProcessor::convertMatToJpeg(mat);
+        std::string dump_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
+                std::to_string(Util::getCurrentTimestampMs()) + ".jpeg";
+        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_jpeg_path.c_str());
+        Util::dumpBinary(dump_jpeg_path.c_str(),reinterpret_cast<uchar *>(jpeg.data()), jpeg.size());
+        imageMats.clear();
+        imageExposureTimes.clear();
+    }
 
 }

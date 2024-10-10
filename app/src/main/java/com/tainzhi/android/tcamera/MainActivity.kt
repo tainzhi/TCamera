@@ -169,9 +169,10 @@ class MainActivity : AppCompatActivity() {
 
     // handles still image capture
     private lateinit var jpgImageReader: ImageReader
-    private val jpgImageQueue = ArrayBlockingQueue<Image>(IMAGE_BUFFER_SIZE)
     private lateinit var yuvImageReader: ImageReader
     private var yuvLatestReceivedImage: Image? = null
+
+    private val capturedImageList = arrayListOf<Image>()
 
     private var isRecordingVideo = false
     private var mediaRecorder: MediaRecorder? = null
@@ -183,6 +184,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewSurface: Surface
 
     private var isAfterRequiredPermissions = false
+
+    private val hdrNeedImageSize = IMAGE_BUFFER_SIZE
+    private val hdrImageExposureTimeList = arrayListOf<Long>()
 
     private val cameraDeviceCallback = object : CameraDevice.StateCallback() {
         override fun onOpened(p0: CameraDevice) {
@@ -598,19 +602,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 jpgImageReader = ImageReader.newInstance(
                     chosenJpgSize.width, chosenJpgSize.height,
-                    ImageFormat.JPEG, IMAGE_BUFFER_SIZE
+                    ImageFormat.JPEG, 1
                 )
             }
             jpgImageReader.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireLatestImage()
-                if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
-                    ImageProcessor.processImage(image)
-                } else {
-                    jpgImageQueue.add(image)
-                }
-                // val data = YUVTool.getBytesFromImageReader(it)
-                // val myMediaRecorder =  MyMediaRecorder()
-                // myMediaRecorder.addVideoData(data)
+                handleOnImageAvailable(image)
             }, imageReaderHandler)
 //        make activity portrait, so not handle sensor rotation
 //        // device display rotation
@@ -784,11 +781,11 @@ class MainActivity : AppCompatActivity() {
                     set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
                 }
             }
-//            if (AFtrigger) {
-//                b1.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
-//                mCurrentCaptureSession.capture(b1.build(), mCaptureCallback, mOpsHandler);
-//                b1.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);
-//            }
+           // if (AFtrigger) {
+           //     b1.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+           //     mCurrentCaptureSession.capture(b1.build(), mCaptureCallback, mOpsHandler);
+           //     b1.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);
+           // }
             if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
                 val controlZsl: Boolean? = previewRequestBuilder.get(CaptureRequest.CONTROL_ENABLE_ZSL)
                 Log.d(TAG, "CaptureRequest: controlZsl=${controlZsl}")
@@ -831,6 +828,9 @@ class MainActivity : AppCompatActivity() {
     private fun captureStillPicture() {
         Log.d(TAG, "captureStillPicture: enableZsl=${isEnableZsl}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SHOT)
+        // todo: 判断是否有已经在执行的任务，队列执行
+        capturedImageList.clear()
+        hdrImageExposureTimeList.clear()
         try {
             if (isEnableZsl && yuvLatestReceivedImage == null) {
                 Log.e(TAG, "captureStillPicture: no yuv image available")
@@ -860,8 +860,8 @@ class MainActivity : AppCompatActivity() {
                 // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
                 // sign 1 for front-facing cameras, -1 for back-facing cameras
                 set(
-                        CaptureRequest.JPEG_ORIENTATION,
-                        (sensorOrientation!! - OREIENTATIONS.get(rotation) * (if (useCameraFront) 1 else -1) + 360) % 360
+                    CaptureRequest.JPEG_ORIENTATION,
+                    (sensorOrientation!! - OREIENTATIONS.get(rotation) * (if (useCameraFront) 1 else -1) + 360) % 360
                 )
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                 if (flashSupported) {
@@ -876,29 +876,8 @@ class MainActivity : AppCompatActivity() {
                         request: CaptureRequest,
                         result: TotalCaptureResult
                 ) {
-                    Log.d(TAG, "capture onCaptureCompleted: ")
-                    if ((request.tag as RequestTagObject).type == RequestTagType.CAPTURE &&
-                        !SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
-                        ) {
-                        Kpi.end(Kpi.TYPE.SHOT_TO_SHOT)
-                        Log.d(TAG, "onCaptureCompleted: jpgImageQueue.size=${jpgImageQueue.size}")
-                        val image = jpgImageQueue.take()
-                        // clear the queue of images, if there are left
-                        while (jpgImageQueue.size > 0) {
-                            jpgImageQueue.take().close()
-                        }
-                        unlockFocus()
-                        imageReaderHandler.post(
-                            ImageSaver(
-                                this@MainActivity,
-                                image,
-                                imageReaderHandler
-                            )
-                        )
-                    } else {
-
-                    }
                     super.onCaptureCompleted(session, request, result)
+                    Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
                 }
             }
             if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
@@ -921,12 +900,14 @@ class MainActivity : AppCompatActivity() {
                         if (exposureTime < cameraInfo.minExposureTime) {
                             exposureTime = cameraInfo.minExposureTime.toLong()
                         }
+                        hdrImageExposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
                         captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_BURST_IN_PROCESS))
                         requests.add(captureBuilder.build())
                     }
                 }
                 // base image
+                hdrImageExposureTimeList.add(baseExposureTime)
                 captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, baseExposureTime)
                 captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_BURST_IN_PROCESS))
                 requests.add(captureBuilder.build())
@@ -941,6 +922,7 @@ class MainActivity : AppCompatActivity() {
                         if (exposureTime > cameraInfo.maxExposureTime) {
                             exposureTime = cameraInfo.maxExposureTime.toLong()
                         }
+                        hdrImageExposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
                         if (i == halfImageSize - 1) {
                             captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE))
@@ -1191,6 +1173,37 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             window.attributes = layoutAttributes
         }
+    }
+
+    /**
+     * 不能在 onCpatureCompleted 中处理，可能captureBurst没有返回所有的request result之前返回了 captureCompleted
+     */
+    private fun handleOnImageAvailable(image: Image) {
+        Kpi.end(Kpi.TYPE.SHOT_TO_SHOT)
+        var captureType = CaptureType.JPEG
+        capturedImageList.add(image)
+        if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+        ) {
+            captureType = CaptureType.HDR
+            if (capturedImageList.size < hdrNeedImageSize) {
+                Log.d(TAG, "capture hdr, need ${hdrNeedImageSize} images, but collected ${capturedImageList.size}")
+                return
+            } else {
+                Log.d(TAG, "capture hdr, collected ${hdrNeedImageSize} images")
+            }
+        } else {
+            capturedImageList.add(image)
+        }
+        unlockFocus()
+        imageReaderHandler.post(
+            ImageSaver(
+                this@MainActivity,
+                captureType,
+                capturedImageList,
+                hdrImageExposureTimeList,
+                imageReaderHandler
+            )
+        )
     }
 
     companion object {

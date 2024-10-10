@@ -16,6 +16,9 @@
 
 #include <pthread.h>
 #include <semaphore.h>
+#include "util.h"
+
+#define TAG "NativeLooper"
 
 struct loopermessage;
 

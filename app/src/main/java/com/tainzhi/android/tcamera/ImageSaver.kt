@@ -23,13 +23,24 @@ import java.util.Locale
 
 class ImageSaver(
     private val context: Context,
-    private val image: Image,
+    private val captureType: CaptureType,
+    private val images: List<Image>,
+    private val hdrExposureTimes: List<Long>,
     private val handler: Handler
 ) : Runnable {
     override fun run() {
-        Log.d(TAG, "begin run")
+        Log.d(TAG, "begin run for $captureType")
         Kpi.start(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
         val relativeLocation = Environment.DIRECTORY_DCIM + "/Camera"
+
+        lateinit var image: Image
+        if (captureType == CaptureType.JPEG) {
+            image = images[0]
+        } else {
+            Log.d(TAG, "process hdr images, size:" + images.size)
+            ImageProcessor.processImages(images, hdrExposureTimes)
+            return
+        }
         val fileName = "IMG_${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(image.timestamp)}.jpg"
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -76,4 +87,9 @@ class ImageSaver(
     companion object {
         private val TAG = "ImageSaver"
     }
+}
+
+enum class CaptureType {
+    JPEG,
+    HDR
 }

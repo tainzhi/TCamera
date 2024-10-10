@@ -54,6 +54,10 @@ class App: Application(), ActivityLifecycleCallbacks {
         @Volatile private lateinit var INSTANCE: App
         fun getInstance() = INSTANCE
 
+        fun getCachePath(): String {
+            return getInstance().applicationContext.cacheDir.path
+        }
+
         val DEBUG = BuildConfig.DEBUG
     }
 
