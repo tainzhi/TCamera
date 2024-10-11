@@ -172,6 +172,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var yuvImageReader: ImageReader
     private var yuvLatestReceivedImage: Image? = null
 
+    private var captureType = CaptureType.JPEG
     private val capturedImageList = arrayListOf<Image>()
 
     private var isRecordingVideo = false
@@ -829,6 +830,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "captureStillPicture: enableZsl=${isEnableZsl}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SHOT)
         // todo: 判断是否有已经在执行的任务，队列执行
+        captureType =  if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) CaptureType.HDR else CaptureType.JPEG
         capturedImageList.clear()
         hdrImageExposureTimeList.clear()
         try {
@@ -840,7 +842,7 @@ class MainActivity : AppCompatActivity() {
 
             val captureBuilder =
                     if (isEnableZsl && this::zslImageWriter.isInitialized &&
-                                !SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+                                captureType != CaptureType.HDR
                         ) {
                         Log.d(TAG, "captureStillPicture: queueInput yuvLatestReceiveImage to HAL")
                         zslImageWriter.queueInputImage(yuvLatestReceivedImage)
@@ -851,21 +853,35 @@ class MainActivity : AppCompatActivity() {
                     }
             captureBuilder.apply {
                 addTarget(jpgImageReader.surface)
-                if (isEnableZsl) {
+                if (isEnableZsl && captureType != CaptureType.HDR) {
                     set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo.reprocessingNoiseMode)
                     set(CaptureRequest.EDGE_MODE, cameraInfo.reprocessingEdgeMode)
                 }
-                set(CaptureRequest.JPEG_QUALITY, 95)
-                // https://developer.android.com/training/camera2/camera-preview#orientation_calculation
-                // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
-                // sign 1 for front-facing cameras, -1 for back-facing cameras
-                set(
-                    CaptureRequest.JPEG_ORIENTATION,
-                    (sensorOrientation!! - OREIENTATIONS.get(rotation) * (if (useCameraFront) 1 else -1) + 360) % 360
-                )
-                set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                if (flashSupported) {
-                    set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
+                if (captureType != CaptureType.HDR) {
+                    set(CaptureRequest.JPEG_QUALITY, 95)
+                    // https://developer.android.com/training/camera2/camera-preview#orientation_calculation
+                    // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
+                    // sign 1 for front-facing cameras, -1 for back-facing cameras
+                    set(
+                        CaptureRequest.JPEG_ORIENTATION,
+                        (sensorOrientation!! - OREIENTATIONS.get(rotation) * (if (useCameraFront) 1 else -1) + 360) % 360
+                    )
+                    set(
+                        CaptureRequest.CONTROL_AF_MODE,
+                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+                    )
+                    if (flashSupported) {
+                        set(
+                            CaptureRequest.CONTROL_AE_MODE,
+                            CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH
+                        )
+                    } else {
+                        captureBuilder.set(
+                            CaptureRequest.CONTROL_AE_MODE,
+                            CaptureRequest.CONTROL_AE_MODE_OFF
+                        )
+                        captureBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                    }
                 }
             }
 
@@ -882,8 +898,6 @@ class MainActivity : AppCompatActivity() {
             }
             if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
                 Log.d(TAG, "captureStillPicture: HDR enable")
-                captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
-                captureBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
 
                 val baseExposureTime = 1000000000L/30
                 val halfImageSize = cameraInfo.exposureBracketingImages/2
@@ -1180,7 +1194,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun handleOnImageAvailable(image: Image) {
         Kpi.end(Kpi.TYPE.SHOT_TO_SHOT)
-        var captureType = CaptureType.JPEG
         capturedImageList.add(image)
         if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         ) {
