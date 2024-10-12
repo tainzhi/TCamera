@@ -187,6 +187,7 @@ class MainActivity : AppCompatActivity() {
     private var isAfterRequiredPermissions = false
 
     private val hdrNeedImageSize = IMAGE_BUFFER_SIZE
+    // time in nanoseconds
     private val hdrImageExposureTimeList = arrayListOf<Long>()
 
     private val cameraDeviceCallback = object : CameraDevice.StateCallback() {

@@ -6,7 +6,6 @@ import com.tainzhi.android.tcamera.App
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
-
 /**
  * @author:      tainzhi
  * @mail:        qfq61@qq.com
@@ -34,18 +33,4 @@ fun ByteBuffer.toByteArray(): ByteArray {
 object FileUtil {
     private const val TAG = "FileUtil"
 
-    fun saveYuvImage(image: Image) {
-        try {
-            val file = File(App.getCachePath() + "/" +  System.currentTimeMillis() + "_image.yuv")
-            val fos = FileOutputStream(file)
-            fos.write(image.planes[0].buffer.toByteArray())
-            fos.write(image.planes[1].buffer.toByteArray())
-            fos.write(image.planes[2].buffer.toByteArray())
-            fos.flush()
-            fos.close()
-            Log.d(TAG, "save yuv ${image.width}x${image.height} image success:${file.path}")
-        } catch (e: Exception) {
-            Log.e(TAG, "save image error:${e.message}")
-        }
-    }
 }

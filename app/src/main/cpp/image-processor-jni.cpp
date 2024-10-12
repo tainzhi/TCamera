@@ -9,6 +9,7 @@
 #define TAG "NativeImageProcessorJNI"
 
 std::vector<cv::Mat> imageMats;
+// exposureTime in second
 std::vector<float> imageExposureTimes;
 
 static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
@@ -45,6 +46,9 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz
     LOGV("deinit");
 }
 
+/**
+ * @exposure_time in nanoseconds
+ */
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz, jstring cache_path,
@@ -52,46 +56,12 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
                                                              jint width, jint height, jlong exposure_time) {
     jbyte* yPlane = (jbyte*)env->GetDirectBufferAddress(y_plane);
     jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
-    jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
+    // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
     cv::Mat yuvMat(height + height/2, width, CV_8UC1);
     memcpy(yuvMat.data, yPlane, height * width);
-    memcpy(yuvMat.data + width * height, uPlane, height * width / 4);
-    memcpy(yuvMat.data + width * height + width * height / 4, vPlane, height * width / 4);
-    // cv::Mat yuvMat(height + height/2, width, CV_8UC1);
-    // // Get the Y plane
-    // jbyte* yPlane = (jbyte*) env->GetDirectBufferAddress(y_plane);
-    // for (int i = 0; i < height; i++) {
-    //     for (int j = 0; j < width; j++) {
-    //         yuvMat.at<uchar>(i, j) = yPlane[i * width + j];
-    //     }
-    // }
-    //
-    // int h_offset = height, w_offset = 0;
-    // // Get the U plane
-    // jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
-    // for (int i = 0; i < height / 2; i++) {
-    //     for (int j = 0; j < width / 2; j++) {
-    //         yuvMat.at<uchar>(h_offset, w_offset) = uPlane[i * width / 2 + j];
-    //         w_offset++;
-    //         if (w_offset >= width) {
-    //             w_offset = 0;
-    //             h_offset++;
-    //         }
-    //     }
-    // }
-    //
-    // // Get the V plane
-    // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
-    // for (int i = 0; i < height / 2; i++) {
-    //     for (int j = 0; j < width / 2; j++) {
-    //         yuvMat.at<uchar>(h_offset, w_offset) = vPlane[i * width / 2 + j];
-    //         w_offset++;
-    //         if (w_offset >= width) {
-    //             w_offset = 0;
-    //             h_offset++;
-    //         }
-    //     }
-    // }
+    memcpy(yuvMat.data + width * height, uPlane, height * width / 2);
+    // memcpy(yuvMat.data + width * height + width * height / 4, vPlane, height * width / 4);
+    
     std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
                                  std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
                                  .size()) + ".yuv";
@@ -103,16 +73,18 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     // https://www.jianshu.com/p/11365d423d26
     // https://gist.github.com/FWStelian/4c3dcd35960d6eabbe661c3448dd5539
     cv::Mat rgbMat;
-    cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420p2RGB);
+    cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
     
     if (imageMats.size() < 3) {
         imageMats.emplace_back(rgbMat);
-        imageExposureTimes.emplace_back(exposure_time);
+        imageExposureTimes.emplace_back(exposure_time / 1000000000.0);
     }
     if(imageMats.size() == 3) {
-        LOGD("complete 3 images, to process hdr");
-        auto mat = ImageProcessor::process(imageMats, imageExposureTimes);
-        auto jpeg = ImageProcessor::convertMatToJpeg(mat);
+        LOGD("complete 3 images, to process hdr, with exposure times %f, %f, %f", imageExposureTimes[0],
+             imageExposureTimes[1], imageExposureTimes[2]);
+        Mat hdr = cv::Mat();
+        ImageProcessor::process(imageMats, imageExposureTimes, hdr);
+        auto jpeg = ImageProcessor::convertMatToJpeg(hdr);
         std::string dump_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
                 std::to_string(Util::getCurrentTimestampMs()) + ".jpeg";
         LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_jpeg_path.c_str());

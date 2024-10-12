@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Message
 import android.provider.MediaStore
 import android.util.Log
+import com.tainzhi.android.tcamera.util.FileUtil
 import com.tainzhi.android.tcamera.util.Kpi
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -29,6 +30,7 @@ class ImageSaver(
     private val handler: Handler
 ) : Runnable {
     override fun run() {
+
         Log.d(TAG, "begin run for $captureType")
         Kpi.start(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
         val relativeLocation = Environment.DIRECTORY_DCIM + "/Camera"
@@ -37,7 +39,7 @@ class ImageSaver(
         if (captureType == CaptureType.JPEG) {
             image = images[0]
         } else {
-            Log.d(TAG, "process hdr images, size:" + images.size)
+            Log.d(TAG, "process hdr images, size: ${images.size}, with 3 exposure times: ${hdrExposureTimes[0]}, ${hdrExposureTimes[1]}, ${hdrExposureTimes[2]}")
             ImageProcessor.processImages(images, hdrExposureTimes)
             return
         }

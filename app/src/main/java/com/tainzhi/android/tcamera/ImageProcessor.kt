@@ -14,9 +14,15 @@ object ImageProcessor {
     }
 
 
+    // exposureTime in nanoseconds
     fun processImages(images: List<Image>, exposureTimes: List<Long>) {
         assert(images.size == exposureTimes.size){ "imageSize:${images.size}, exposureTimes:${exposureTimes.size}" }
-        Log.d(TAG, "processImage, imageSize:" + images.size + ", exposureTimesSize:" + exposureTimes.size + ", image.format is YUV_420_888:${images[0].format == ImageFormat.YUV_420_888}, planes:${images[0].planes.size}")
+        assert(images[0].format == ImageFormat.YUV_420_888) { "imageFormat:${images[0].format}" }
+        Log.d(TAG, "processImage, imageSize:" + images.size + ", exposureTimesSize:" + exposureTimes.size )
+        Log.d(TAG, "processImage, imageWidth:" + images[0].width + ", imageHeight:" + images[0].height )
+        Log.d(TAG, "processImage, imagePlane0Size:${images[0].planes[0].buffer.remaining()}, rowStride:${images[0].planes[0].rowStride}, pixelStride:${images[0].planes[0].pixelStride}")
+        Log.d(TAG, "processImage, imagePlane1Size:${images[0].planes[1].buffer.remaining()}, rowStride:${images[0].planes[1].rowStride}, pixelStride:${images[0].planes[1].pixelStride}")
+        Log.d(TAG, "processImage, imagePlane2Size:${images[0].planes[2].buffer.remaining()}, rowStride:${images[0].planes[2].rowStride}, pixelStride:${images[0].planes[2].pixelStride}")
         images.zip(exposureTimes).forEach { (image, exposureTime) ->
             processImage(
                 App.getCachePath(),
