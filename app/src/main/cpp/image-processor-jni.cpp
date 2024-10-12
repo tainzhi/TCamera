@@ -62,16 +62,13 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     memcpy(yuvMat.data + width * height, uPlane, height * width / 2);
     // memcpy(yuvMat.data + width * height + width * height / 4, vPlane, height * width / 4);
     
-    std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
-                                 std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
-                                 .size()) + ".yuv";
-    LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
-    Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
+    // std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
+    //                              std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
+    //                              .size()) + ".yuv";
+    // LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
+    // Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
 
 
-    // Convert YUV to BGR
-    // https://www.jianshu.com/p/11365d423d26
-    // https://gist.github.com/FWStelian/4c3dcd35960d6eabbe661c3448dd5539
     cv::Mat rgbMat;
     cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
     
@@ -82,13 +79,37 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     if(imageMats.size() == 3) {
         LOGD("complete 3 images, to process hdr, with exposure times %f, %f, %f", imageExposureTimes[0],
              imageExposureTimes[1], imageExposureTimes[2]);
+        // cv 处理生成后的 hdr 不能用普通的图像格式比如jpeg存储，比如用 Radiance Image(.hdr)格式村此时
+        // 处理后返回的hdr 的值在 [0,1]之间，所以需要乘以 255
         Mat hdr = cv::Mat();
-        ImageProcessor::process(imageMats, imageExposureTimes, hdr);
-        auto jpeg = ImageProcessor::convertMatToJpeg(hdr);
-        std::string dump_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
-                std::to_string(Util::getCurrentTimestampMs()) + ".jpeg";
-        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_jpeg_path.c_str());
-        Util::dumpBinary(dump_jpeg_path.c_str(),reinterpret_cast<uchar *>(jpeg.data()), jpeg.size());
+        Mat ldr = cv::Mat();
+        Mat fusion = cv::Mat();
+        ImageProcessor::process(imageMats, imageExposureTimes, hdr, ldr, fusion);
+        
+        // cv 生成的 hdr 不能直接保存为 jpeg, 只能保存为 hdr 格式。
+        // hdr = hdr * 255;
+        // auto hdr_jpeg = ImageProcessor::convertMatToJpeg(hdr);
+        // std::string dump_hdr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
+        //         std::to_string(Util::getCurrentTimestampMs()) + ".hdr_.jpeg";
+        // LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_hdr_jpeg_path.c_str());
+        // Util::dumpBinary(dump_hdr_jpeg_path.c_str(),reinterpret_cast<uchar *>(hdr_jpeg.data()), hdr_jpeg.size());
+        
+        // // 要把 hdr 映射成 ldr，才能保存为 jpeg 格式
+        // ldr = ldr * 255;
+        // auto ldr_jpeg = ImageProcessor::convertMatToJpeg(ldr);
+        // std::string dump_ldr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
+        //                                  std::to_string(Util::getCurrentTimestampMs()) + ".ldr_.jpeg";
+        // LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_ldr_jpeg_path.c_str());
+        // Util::dumpBinary(dump_ldr_jpeg_path.c_str(),reinterpret_cast<uchar *>(ldr_jpeg.data()), ldr_jpeg.size());
+        
+        
+        fusion = fusion * 255;
+        auto fusion_jpeg = ImageProcessor::convertMatToJpeg(fusion);
+        std::string dump_fusion_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
+                                         std::to_string(Util::getCurrentTimestampMs()) + ".fusion_.jpeg";
+        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_fusion_jpeg_path.c_str());
+        Util::dumpBinary(dump_fusion_jpeg_path.c_str(),reinterpret_cast<uchar *>(fusion_jpeg.data()), fusion_jpeg.size());
+        
         imageMats.clear();
         imageExposureTimes.clear();
     }

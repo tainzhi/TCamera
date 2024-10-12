@@ -4,14 +4,20 @@
 
 #include "image-processor.h"
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
-// https://docs.opencv.org/3.4/d2/df0/tutorial_py_hdr.html
-// https://learnopencv.com/high-dynamic-range-hdr-imaging-using-opencv-cpp-python/
-void ImageProcessor::process(std::vector<cv::Mat> &images,  std::vector<float> &exposure_times, cv::Mat& hdr) {
-    Mat response;
-    cv::Ptr<cv::CalibrateDebevec> calibrate = cv::createCalibrateDebevec();
-    calibrate->process(images, response, exposure_times);
-    Ptr<MergeDebevec> merge_debevec = cv::createMergeDebevec();
-    merge_debevec->process(images, hdr, exposure_times, response);
+void ImageProcessor::process(std::vector<cv::Mat> &images, std::vector<float> &exposure_times, cv::Mat &hdr, cv::Mat &ldr,
+                        cv::Mat &fusion) {
+    // // hdr 图片不能用普通的jpeg格式保存， 故在这里只生成 fusion 照片
+    // Mat response;
+    // cv::Ptr<cv::CalibrateDebevec> calibrate = cv::createCalibrateDebevec();
+    // calibrate->process(images, response, exposure_times);
+    // Ptr<MergeDebevec> merge_debevec = cv::createMergeDebevec();
+    // merge_debevec->process(images, hdr, exposure_times, response);
+    //
+    // cv::Ptr<cv::Tonemap> tonemap = cv::createTonemap(2.2f);
+    // tonemap->process(hdr, ldr);
+    
+    cv::Ptr<cv::MergeMertens> merge_mertens = cv::createMergeMertens();
+    merge_mertens->process(images, fusion);
 }
 
 std::vector<uchar> ImageProcessor::convertMatToJpeg(cv::Mat &mat, int quality)

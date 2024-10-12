@@ -19,6 +19,11 @@ using namespace cv;
 
 class ImageProcessor {
 public:
-  static Mat process(std::vector<cv::Mat> &images, std::vector<float> &exposure_times);
-  static std::vector<uchar> convertMatToJpeg(cv::Mat &mat, int quality=100);
+    /**
+     * @exposure_times 曝光时间 in seconds
+     */
+    static void process(std::vector<cv::Mat> &images, std::vector<float> &exposure_times, cv::Mat &hdr, cv::Mat &ldr,
+                        cv::Mat &fusion);
+    
+    static std::vector<uchar> convertMatToJpeg(cv::Mat &mat, int quality = 100);
 };
