@@ -344,10 +344,8 @@ class MainActivity : AppCompatActivity() {
                     RecordMode -> {
                         ivRecord.visibility = View.VISIBLE
                         ivTakePicture.visibility = View.INVISIBLE
-                    }
-
-                    BroadcastModel -> {
-                        toast("待实现录制视频推送功能")
+                        toast("待实现录制视频功能")
+                        assert(false){"待实现录制视频功能" }
                     }
                 }
             }
@@ -1236,9 +1234,8 @@ class MainActivity : AppCompatActivity() {
 
         private const val RecordMode = 0
         private const val CaptureMode = 1
-        private const val BroadcastModel = 2
         private val cameraModes = arrayOf(
-                "视频", "拍照", "主播"
+                "视频", "拍照"
         )
 
         init {
