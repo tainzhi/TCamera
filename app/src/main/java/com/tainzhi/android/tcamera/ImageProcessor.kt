@@ -18,6 +18,7 @@ object ImageProcessor {
     fun processImages(images: List<Image>, exposureTimes: List<Long>) {
         assert(images.size == exposureTimes.size){ "imageSize:${images.size}, exposureTimes:${exposureTimes.size}" }
         assert(images[0].format == ImageFormat.YUV_420_888) { "imageFormat:${images[0].format}" }
+        assert(images[0].planes[1].pixelStride == 2) {"imageFormat is not YUV420sp"}
         Log.d(TAG, "processImage, imageSize:" + images.size + ", exposureTimesSize:" + exposureTimes.size )
         Log.d(TAG, "processImage, imageWidth:" + images[0].width + ", imageHeight:" + images[0].height )
         Log.d(TAG, "processImage, imagePlane0Size:${images[0].planes[0].buffer.remaining()}, rowStride:${images[0].planes[0].rowStride}, pixelStride:${images[0].planes[0].pixelStride}")

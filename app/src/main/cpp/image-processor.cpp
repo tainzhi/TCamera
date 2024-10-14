@@ -1,5 +1,5 @@
 //
-// Created by qiufq1 on 2023/12/15.
+// Created by tainzhi(@qfq61@qq.com) on 2023/12/15.
 //
 
 #include "image-processor.h"

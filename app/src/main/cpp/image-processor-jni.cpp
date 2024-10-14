@@ -8,6 +8,8 @@
 
 #define TAG "NativeImageProcessorJNI"
 
+// #define TEST
+
 std::vector<cv::Mat> imageMats;
 // exposureTime in second
 std::vector<float> imageExposureTimes;
@@ -59,14 +61,20 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
     cv::Mat yuvMat(height + height/2, width, CV_8UC1);
     memcpy(yuvMat.data, yPlane, height * width);
-    memcpy(yuvMat.data + width * height, uPlane, height * width / 2);
-    // memcpy(yuvMat.data + width * height + width * height / 4, vPlane, height * width / 4);
-    
-    // std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
-    //                              std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
-    //                              .size()) + ".yuv";
-    // LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
-    // Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
+    // 在这里使用的是 plane[0] + plane[1]
+    // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
+    memcpy(yuvMat.data + width * height, uPlane, height * width / 2 - 1);
+    // // 当然也可以使用 plane[0] = plane[2], 那么就要使用 COLOR_YUV2RGBA_NV12
+    // // camera2 YUV420_888 的 plane[2] 存储 VUVU...VUV, 最后一个U无效，丢弃了，故需要减1
+    // // memcpy(yuvMat.data + width * height, vPlane, height * width / 2 - 1);
+
+#ifdef TEST
+    std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
+                                 std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
+                                 .size()) + ".yuv";
+    LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
+    Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
+#endif
 
 
     cv::Mat rgbMat;
@@ -74,6 +82,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     
     if (imageMats.size() < 3) {
         imageMats.emplace_back(rgbMat);
+        // java 传过来的exposure_time 是纳秒，需要转换为秒
         imageExposureTimes.emplace_back(exposure_time / 1000000000.0);
     }
     if(imageMats.size() == 3) {
@@ -85,22 +94,24 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
         Mat ldr = cv::Mat();
         Mat fusion = cv::Mat();
         ImageProcessor::process(imageMats, imageExposureTimes, hdr, ldr, fusion);
-        
+
+#ifdef TEST
         // cv 生成的 hdr 不能直接保存为 jpeg, 只能保存为 hdr 格式。
-        // hdr = hdr * 255;
-        // auto hdr_jpeg = ImageProcessor::convertMatToJpeg(hdr);
-        // std::string dump_hdr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
-        //         std::to_string(Util::getCurrentTimestampMs()) + ".hdr_.jpeg";
-        // LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_hdr_jpeg_path.c_str());
-        // Util::dumpBinary(dump_hdr_jpeg_path.c_str(),reinterpret_cast<uchar *>(hdr_jpeg.data()), hdr_jpeg.size());
+        hdr = hdr * 255;
+        auto hdr_jpeg = ImageProcessor::convertMatToJpeg(hdr);
+        std::string dump_hdr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
+                std::to_string(Util::getCurrentTimestampMs()) + ".hdr_.jpeg";
+        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_hdr_jpeg_path.c_str());
+        Util::dumpBinary(dump_hdr_jpeg_path.c_str(),reinterpret_cast<uchar *>(hdr_jpeg.data()), hdr_jpeg.size());
         
-        // // 要把 hdr 映射成 ldr，才能保存为 jpeg 格式
-        // ldr = ldr * 255;
-        // auto ldr_jpeg = ImageProcessor::convertMatToJpeg(ldr);
-        // std::string dump_ldr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
-        //                                  std::to_string(Util::getCurrentTimestampMs()) + ".ldr_.jpeg";
-        // LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_ldr_jpeg_path.c_str());
-        // Util::dumpBinary(dump_ldr_jpeg_path.c_str(),reinterpret_cast<uchar *>(ldr_jpeg.data()), ldr_jpeg.size());
+        // 要把 hdr 映射成 ldr，才能保存为 jpeg 格式
+        ldr = ldr * 255;
+        auto ldr_jpeg = ImageProcessor::convertMatToJpeg(ldr);
+        std::string dump_ldr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
+                                         std::to_string(Util::getCurrentTimestampMs()) + ".ldr_.jpeg";
+        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_ldr_jpeg_path.c_str());
+        Util::dumpBinary(dump_ldr_jpeg_path.c_str(),reinterpret_cast<uchar *>(ldr_jpeg.data()), ldr_jpeg.size());
+#endif
         
         
         fusion = fusion * 255;
