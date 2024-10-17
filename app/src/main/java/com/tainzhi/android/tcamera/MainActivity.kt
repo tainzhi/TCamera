@@ -40,6 +40,8 @@ import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.ui.CircleImageView
 import com.tainzhi.android.tcamera.ui.ControlBar
 import com.tainzhi.android.tcamera.ui.FilterBar
+import com.tainzhi.android.tcamera.ui.scrollpicker.OnSelectedListener
+import com.tainzhi.android.tcamera.ui.scrollpicker.ScrollPickerView
 import com.tainzhi.android.tcamera.util.Kpi
 import com.tainzhi.android.tcamera.util.RotationChangeListener
 import com.tainzhi.android.tcamera.util.RotationChangeMonitor
@@ -47,7 +49,6 @@ import com.tainzhi.android.tcamera.util.SettingsManager
 import com.tainzhi.android.tcamera.util.toast
 import java.io.IOException
 import java.util.*
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
@@ -335,21 +336,24 @@ class MainActivity : AppCompatActivity() {
 
         _binding.cameraModePicker.apply {
             data = cameraModes.toList()
-            setOnSelectedListener { _, position ->
-                when (position) {
-                    CaptureMode -> {
-                        ivRecord.visibility = View.INVISIBLE
-                        ivTakePicture.visibility = View.VISIBLE
-                    }
+            setOnSelectedListener(object : OnSelectedListener {
+                override fun onSelected(scrollPickerView: ScrollPickerView<*>?, position: Int) {
+                    when (position) {
+                        CaptureMode -> {
+                            ivRecord.visibility = View.INVISIBLE
+                            ivTakePicture.visibility = View.VISIBLE
+                        }
 
-                    RecordMode -> {
-                        ivRecord.visibility = View.VISIBLE
-                        ivTakePicture.visibility = View.INVISIBLE
-                        toast("待实现录制视频功能")
-                        assert(false){"待实现录制视频功能" }
+                        RecordMode -> {
+                            ivRecord.visibility = View.VISIBLE
+                            ivTakePicture.visibility = View.INVISIBLE
+                            toast("待实现录制视频功能")
+                            assert(false){"待实现录制视频功能" }
+                        }
                     }
                 }
-            }
+
+            })
         }
 
         mediaActionSound.load(MediaActionSound.SHUTTER_CLICK)

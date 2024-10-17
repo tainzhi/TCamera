@@ -46,7 +46,7 @@ object ImageProcessor {
 
     private external fun capture(captureType: Int, jobId:Int, timeStamp: String, frameSize: Int, exposureTimes: List<Int>)
     private external fun processImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer,  width: Int, height: Int)
-    private external fun updateCaptureBackupFilePath(path: String);
+    private external fun updateCaptureBackupFilePath(path: String)
     private external fun deinit()
 
     private const val TAG = "ImageProcessor"

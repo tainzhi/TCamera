@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Message
 import android.provider.MediaStore
 import android.util.Log
-import com.tainzhi.android.tcamera.util.FileUtil
 import com.tainzhi.android.tcamera.util.Kpi
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -68,6 +67,7 @@ class ImageSaver(
                     val message = Message().apply {
                         obj = uri
                     }
+                    stream.close()
                     handler.removeCallbacksAndMessages(null)
                     handler.sendMessage(message)
                 } else {
