@@ -40,7 +40,7 @@ class ImageSaver(
             image = images[0]
         } else {
             Log.d(TAG, "process hdr images, size: ${images.size}, with 3 exposure times: ${hdrExposureTimes[0]}, ${hdrExposureTimes[1]}, ${hdrExposureTimes[2]}")
-            ImageProcessor.processImages(images, hdrExposureTimes)
+//            ImageProcessor.processImages(images, hdrExposureTimes)
             return
         }
         val fileName = "IMG_${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(image.timestamp)}.jpg"

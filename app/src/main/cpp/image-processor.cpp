@@ -3,9 +3,12 @@
 //
 
 #include "image-processor.h"
+#define TAG "NativeImageProcessor"
+
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
 void ImageProcessor::process(std::vector<cv::Mat> &images, std::vector<float> &exposure_times, cv::Mat &hdr, cv::Mat &ldr,
                         cv::Mat &fusion) {
+    auto start_t = cv::getTickCount();
     // // hdr 图片不能用普通的jpeg格式保存， 故在这里只生成 fusion 照片
     // Mat response;
     // cv::Ptr<cv::CalibrateDebevec> calibrate = cv::createCalibrateDebevec();
@@ -18,6 +21,7 @@ void ImageProcessor::process(std::vector<cv::Mat> &images, std::vector<float> &e
     
     cv::Ptr<cv::MergeMertens> merge_mertens = cv::createMergeMertens();
     merge_mertens->process(images, fusion);
+    LOGD("%s, process cost %d s", __FUNCTION__, (cv::getTickCount() - start_t) / cv::getTickFrequency());
 }
 
 std::vector<uchar> ImageProcessor::convertMatToJpeg(cv::Mat &mat, int quality)

@@ -173,6 +173,7 @@ class MainActivity : AppCompatActivity() {
     private var yuvLatestReceivedImage: Image? = null
 
     private var captureType = CaptureType.JPEG
+    // todo: remove it
     private val capturedImageList = arrayListOf<Image>()
 
     private var isRecordingVideo = false
@@ -1204,7 +1205,6 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "capture hdr, collected ${hdrNeedImageSize} images")
             }
         } else {
-            capturedImageList.add(image)
         }
         unlockFocus()
         imageReaderHandler.post(

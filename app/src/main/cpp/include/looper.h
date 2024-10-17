@@ -14,40 +14,36 @@
  * limitations under the License.
  */
 
-#include <pthread.h>
-#include <semaphore.h>
 #include "util.h"
+#include <thread>
 
 #define TAG "NativeLooper"
 
-struct loopermessage;
+struct LooperMessage;
 
-class looper {
+class Looper {
 public:
-    looper();
+    Looper();
 
-    looper &operator=(const looper &) = delete;
+    Looper &operator=(const Looper &) = delete;
 
-    looper(looper &) = delete;
+    Looper(Looper &) = delete;
 
-    virtual ~looper();
+    virtual ~Looper();
 
     void post(int what, void *data, bool flush = false);
 
     void quit();
 
-    virtual void handle(int what, void *data);
+    virtual void handle(int what, void *data) = 0;
 
 private:
-    void addmsg(loopermessage *msg, bool flush);
-
-    static void *trampoline(void *p);
+    void addMsg(LooperMessage *msg, bool flush);
 
     void loop();
 
-    loopermessage *head;
-    pthread_t worker;
-    sem_t headwriteprotect;
-    sem_t headdataavailable;
+    LooperMessage *head;
+    std::thread worker;
+    std::mutex lock;
     bool running;
 };

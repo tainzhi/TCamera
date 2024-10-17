@@ -1,70 +1,46 @@
-#include "looper.h"
+# include "looper.h"
 
-#include <assert.h>
-#include <jni.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <limits.h>
-#include <semaphore.h>
+struct LooperMessage;
+typedef struct LooperMessage loopermessage;
 
-struct loopermessage;
-typedef struct loopermessage loopermessage;
-
-struct loopermessage {
+struct LooperMessage {
     int what;
     void *obj;
-    loopermessage *next;
+    LooperMessage *next;
     bool quit;
 };
 
-void *looper::trampoline(void *p) {
-    ((looper *) p)->loop();
-    return NULL;
+Looper::Looper(): running(true), worker(&Looper::loop, this){
 }
 
-looper::looper() {
-    sem_init(&headdataavailable, 0, 0);
-    sem_init(&headwriteprotect, 0, 1);
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-
-    pthread_create(&worker, &attr, trampoline, this);
-    running = true;
-}
-
-looper::~looper() {
+Looper::~Looper() {
     if (running) {
         LOGV("Looper deleted while still running. Some messages will not be processed");
         quit();
     }
 }
 
-void looper::post(int what, void *data, bool flush) {
-    loopermessage *msg = new loopermessage();
+void Looper::post(int what, void *data, bool flush) {
+    std::lock_guard _l(lock);
+    LooperMessage *msg = new LooperMessage();
     msg->what = what;
     msg->obj = data;
-    msg->next = NULL;
+    msg->next = nullptr;
     msg->quit = false;
-    addmsg(msg, flush);
+    addMsg(msg, flush);
 }
 
-void looper::addmsg(loopermessage *msg, bool flush) {
-    sem_wait(&headwriteprotect);
-    loopermessage *h = head;
+void Looper::addMsg(LooperMessage *msg, bool flush) {
+    std::lock_guard _l(lock);
+    LooperMessage *h = head;
 
     if (flush) {
         while (h) {
-            loopermessage *next = h->next;
+            LooperMessage *next = h->next;
             delete h;
             h = next;
         }
-        h = NULL;
+        h = nullptr;
     }
 
     if (h) {
@@ -76,23 +52,19 @@ void looper::addmsg(loopermessage *msg, bool flush) {
         head = msg;
     }
     LOGV("post msg %d", msg->what);
-    sem_post(&headwriteprotect);
-    sem_post(&headdataavailable);
 }
 
-void looper::loop() {
+void Looper::loop() {
     while (true) {
-        sem_wait(&headdataavailable);
-
-        sem_wait(&headwriteprotect);
-        loopermessage *msg = head;
-        if (msg == NULL) {
+        lock.lock();
+        LooperMessage *msg = head;
+        if (msg == nullptr) {
             LOGV("no msg");
-            sem_post(&headwriteprotect);
+            lock.unlock();
             continue;
         }
         head = msg->next;
-        sem_post(&headwriteprotect);
+        lock.unlock();
 
         if (msg->quit) {
             LOGV("quitting");
@@ -105,21 +77,16 @@ void looper::loop() {
     }
 }
 
-void looper::quit() {
+void Looper::quit() {
     LOGV("quit");
-    loopermessage *msg = new loopermessage();
+    auto *msg = new LooperMessage();
     msg->what = 0;
-    msg->obj = NULL;
-    msg->next = NULL;
+    msg->obj = nullptr;
+    msg->next = nullptr;
     msg->quit = true;
-    addmsg(msg, false);
-    void *retval;
-    pthread_join(worker, &retval);
-    sem_destroy(&headdataavailable);
-    sem_destroy(&headwriteprotect);
+    addMsg(msg, false);
+    if (worker.joinable()) {
+        worker.join();
+    }
     running = false;
-}
-
-void looper::handle(int what, void *obj) {
-    LOGV("dropping msg %d %p", what, obj);
 }

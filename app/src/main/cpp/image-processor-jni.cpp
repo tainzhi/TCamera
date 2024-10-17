@@ -5,33 +5,28 @@
 #include "opencv2/core.hpp"
 #include "image-processor.h"
 #include "util.h"
+#include "engine.h"
 
 #define TAG "NativeImageProcessorJNI"
 
 // #define TEST
 
-std::vector<cv::Mat> imageMats;
-// exposureTime in second
-std::vector<float> imageExposureTimes;
+Engine *engine = nullptr;
 
 static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
     const char *cstring = env->GetStringUTFChars(jstr, nullptr);
     if (cstring == nullptr) {
-// 异常处理
+        // 异常处理
         return "";
     }
     
     std::string result(cstring);
     env->ReleaseStringUTFChars(jstr, cstring);
-    
     return result;
 }
 
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz) {
-    cv::Mat mat;
-    cv::UMat umat;
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jstring cache_path) {
     LOGV("init");
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
@@ -41,21 +36,24 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz) 
     } else {
         LOGV("opencv:opencl is available");
     }
+    // cv::setUseOptimized(true); enable SIMD optimized
+    LOGV("cv use optimized: %d", cv::useOptimized());
+    engine = new Engine();
 }
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
+    delete engine;
     LOGV("deinit");
 }
 
 /**
  * @exposure_time in nanoseconds
  */
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz, jstring cache_path,
-                                                             jobject y_plane, jobject u_plane, jobject v_plane,
-                                                             jint width, jint height, jlong exposure_time) {
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
+                                                             jobject u_plane, jobject v_plane, jint width,
+                                                             jint height) {
     jbyte* yPlane = (jbyte*)env->GetDirectBufferAddress(y_plane);
     jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
     // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
@@ -80,21 +78,8 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     cv::Mat rgbMat;
     cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
     
-    if (imageMats.size() < 3) {
-        imageMats.emplace_back(rgbMat);
-        // java 传过来的exposure_time 是纳秒，需要转换为秒
-        imageExposureTimes.emplace_back(exposure_time / 1000000000.0);
-    }
-    if(imageMats.size() == 3) {
-        LOGD("complete 3 images, to process hdr, with exposure times %f, %f, %f", imageExposureTimes[0],
-             imageExposureTimes[1], imageExposureTimes[2]);
-        // cv 处理生成后的 hdr 不能用普通的图像格式比如jpeg存储，比如用 Radiance Image(.hdr)格式村此时
-        // 处理后返回的hdr 的值在 [0,1]之间，所以需要乘以 255
-        Mat hdr = cv::Mat();
-        Mat ldr = cv::Mat();
-        Mat fusion = cv::Mat();
-        ImageProcessor::process(imageMats, imageExposureTimes, hdr, ldr, fusion);
-
+    engine->processImage(job_id, rgbMat);
+    
 #ifdef TEST
         // cv 生成的 hdr 不能直接保存为 jpeg, 只能保存为 hdr 格式。
         hdr = hdr * 255;
@@ -111,9 +96,6 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
                                          std::to_string(Util::getCurrentTimestampMs()) + ".ldr_.jpeg";
         LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_ldr_jpeg_path.c_str());
         Util::dumpBinary(dump_ldr_jpeg_path.c_str(),reinterpret_cast<uchar *>(ldr_jpeg.data()), ldr_jpeg.size());
-#endif
-        
-        
         fusion = fusion * 255;
         auto fusion_jpeg = ImageProcessor::convertMatToJpeg(fusion);
         std::string dump_fusion_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
@@ -123,5 +105,32 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
         
         imageMats.clear();
         imageExposureTimes.clear();
+#endif
+    
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thiz, jint capture_type, jint job_id,
+                                                        jstring time_stamp, jint frame_size, jobject exposure_times) {
+    // java 传过来的exposure_time 是纳秒，需要转换为秒
+     // 获取List类和相关方法ID
+    jclass listClass = env->FindClass("java/util/List");
+    jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
+    jmethodID getMethod = env->GetMethodID(listClass, "get", "(I)Ljava/lang/Object;");
+    std::vector<float> exposureTimes;
+    for (int i = 0; i < frame_size; i++) {
+        jobject item = env->CallObjectMethod(exposure_times, getMethod, i);
+        jint exposureTime = env->CallIntMethod(item, env->GetMethodID(env->GetObjectClass(item), "intValue", "()I"));
+        exposureTimes.push_back(exposureTime / 1000000000.0);
     }
+    engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp),
+                       frame_size, exposureTimes);
+}
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject y_plane,
+                                                                   jobject u_plane, jobject v_plane, jint width,
+                                                                   jint height) {
+}
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_updateCaptureBackupFilePath(JNIEnv *env, jobject thiz, jstring path) {
 }
