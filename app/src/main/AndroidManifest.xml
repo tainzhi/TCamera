@@ -2,7 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
@@ -25,13 +24,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TCamera"
         android:name=".App"
-        tools:targetApi="31">
+        tools:targetApi="34">
         <activity
             android:name=".MainActivity"
             android:screenOrientation="nosensor"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|layoutDirection|keyboardHidden|keyboard|smallestScreenSize"
             android:theme="@style/AppTheme.FullScreen"
-            android:exported="true">
+            android:exported="true"
+                tools:ignore="DiscouragedApi">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

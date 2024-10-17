@@ -3,6 +3,7 @@ package com.tainzhi.android.tcamera
 import android.content.Context
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
+import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.util.Log
 import android.util.Size

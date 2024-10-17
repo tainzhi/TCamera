@@ -53,19 +53,13 @@ android {
         outputs.forEach { output ->
             check(output is com.android.build.gradle.internal.api.ApkVariantOutputImpl)
             // output.outputFileName = "TCamera_${versionName}.apk"
-            if (output is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
-                if (buildType.name == "debug") {
-                    output.outputFileName =
-                            "TCamera_${flavorName}_${versionName}_${buildType.name}.apk"
-                } else if (buildType.name == "release") {
-                    output.outputFileName = "TCamera_${flavorName}_${versionName}.apk"
-                }
+            if (buildType.name == "debug") {
+                output.outputFileName =
+                        "TCamera_${flavorName}_${versionName}_${buildType.name}.apk"
+            } else if (buildType.name == "release") {
+                output.outputFileName = "TCamera_${flavorName}_${versionName}.apk"
             }
         }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
         jvmTarget = "1.8"
