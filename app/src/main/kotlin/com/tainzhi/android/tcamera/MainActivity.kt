@@ -81,48 +81,6 @@ class MainActivity : AppCompatActivity() {
     private var isEnableZsl = SettingsManager.getInstance()
             .getBoolean(SettingsManager.KEY_PHOTO_ZSL, SettingsManager.PHOTO_ZSL_DEFAULT_VALUE)
 
-    private var surfaceTextureListener = object : CameraPreviewView.SurfaceTextureListener {
-
-        override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture?) {
-        }
-
-        override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture?): Boolean {
-            Log.d(TAG, "onSurfaceTextureDestroyed: ")
-            return true
-        }
-
-        override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
-            cameraPreviewView.requestRender()
-        }
-
-        override fun onSurfaceTextureCreated(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
-            Log.d(TAG, "onSurfaceTextureCreated: ${width}x${height}, ${surfaceTexture}, isNeedRecreateCaptureSession:" + isNeedRecreateCaptureSession)
-            if (surfaceTexture != null) {
-                previewSurface = Surface(surfaceTexture)
-                if (isNeedRecreateCaptureSession) {
-                    isNeedRecreateCaptureSession = false
-                    openCaptureSession()
-                } else {
-                    openCamera()
-                }
-            }
-        }
-
-        override fun onSurfaceTextureChanged(
-            surfaceTexture: SurfaceTexture?,
-            width: Int,
-            height: Int
-        ) {
-            Log.d(TAG, "onSurfaceTextureChanged: w${width}*h${height}")
-            if (!isHasSetupCameraOutputs) {
-                isHasSetupCameraOutputs = true
-                windowSize = Size(width, height)
-                setUpCameraOutputs()
-            }
-        }
-
-    }
-
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
     private val cameraHandler = Handler(cameraThread.looper)
     private var cameraExecutor = ExecutorCompat.create(cameraHandler)
@@ -191,6 +149,48 @@ class MainActivity : AppCompatActivity() {
     private val hdrNeedImageSize = IMAGE_BUFFER_SIZE
     // time in nanoseconds
     private val hdrImageExposureTimeList = arrayListOf<Long>()
+
+    private var surfaceTextureListener = object : CameraPreviewView.SurfaceTextureListener {
+
+        override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture?) {
+        }
+
+        override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture?): Boolean {
+            Log.d(TAG, "onSurfaceTextureDestroyed: ")
+            return true
+        }
+
+        override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
+            cameraPreviewView.requestRender()
+        }
+
+        override fun onSurfaceTextureCreated(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
+            Log.d(TAG, "onSurfaceTextureCreated: ${width}x${height}, ${surfaceTexture}, isNeedRecreateCaptureSession:" + isNeedRecreateCaptureSession)
+            if (surfaceTexture != null) {
+                previewSurface = Surface(surfaceTexture)
+                if (isNeedRecreateCaptureSession) {
+                    isNeedRecreateCaptureSession = false
+                    openCaptureSession()
+                } else {
+                    openCamera()
+                }
+            }
+        }
+
+        override fun onSurfaceTextureChanged(
+            surfaceTexture: SurfaceTexture?,
+            width: Int,
+            height: Int
+        ) {
+            Log.d(TAG, "onSurfaceTextureChanged: w${width}*h${height}")
+            if (!isHasSetupCameraOutputs) {
+                isHasSetupCameraOutputs = true
+                windowSize = Size(width, height)
+                setUpCameraOutputs()
+            }
+        }
+
+    }
 
     private val cameraDeviceCallback = object : CameraDevice.StateCallback() {
         override fun onOpened(p0: CameraDevice) {
@@ -459,9 +459,9 @@ class MainActivity : AppCompatActivity() {
                 throw RuntimeException("Time out waiting to lock camera opening.")
             }
             if (ActivityCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.CAMERA
-                    ) != PackageManager.PERMISSION_GRANTED
+                    this,
+                    Manifest.permission.CAMERA
+                ) != PackageManager.PERMISSION_GRANTED
             ) {
                 // TODO: Consider calling
                 //    ActivityCompat#requestPermissions
@@ -533,15 +533,15 @@ class MainActivity : AppCompatActivity() {
     private fun setFullScreen() {
         // todo:
         // reference https://developer.android.com/develop/ui/views/layout/edge-to-edge
-        // to  solve immersive mode mode but transparent navigation bar
-        if (false && Build.VERSION.SDK_INT >= VERSION_CODES.R) {
+        // to solve immersive mode mode but transparent navigation bar
+        if (Build.VERSION.SDK_INT >= VERSION_CODES.R) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
             val controller = WindowCompat.getInsetsController(window, rootView)
             controller.isAppearanceLightNavigationBars = true
             controller.hide(WindowInsetsCompat.Type.statusBars())
 
             ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, windowInsets ->
-                val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemGestures())
+                val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
                 // Apply the insets as padding to the view. Here we're setting all of the
                 // dimensions, but apply as appropriate to your layout. You could also
                 // update the views margin if more appropriate.
@@ -611,6 +611,7 @@ class MainActivity : AppCompatActivity() {
                 )
             }
             jpgImageReader.setOnImageAvailableListener({ reader ->
+                Log.d(TAG, "image available ")
                 val image = reader.acquireLatestImage()
                 handleOnImageAvailable(image)
             }, imageReaderHandler)

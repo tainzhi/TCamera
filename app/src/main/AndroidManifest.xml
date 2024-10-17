@@ -29,7 +29,7 @@
             android:name=".MainActivity"
             android:screenOrientation="nosensor"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|layoutDirection|keyboardHidden|keyboard|smallestScreenSize"
-            android:theme="@style/AppTheme.FullScreen"
+            android:theme="@style/Theme.TCamera.FullScreen"
             android:exported="true"
                 tools:ignore="DiscouragedApi">
             <intent-filter>
