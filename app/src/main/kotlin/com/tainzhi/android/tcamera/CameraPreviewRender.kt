@@ -15,7 +15,7 @@ import com.tainzhi.android.tcamera.gl.textures.Vertex2F
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-class CameraPreviewRender : GLSurfaceView.Renderer {
+class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvailableListener {
     private var windowWidth = 0
     private var windowHeight = 0
     private var textureWidth = 0
@@ -34,14 +34,24 @@ class CameraPreviewRender : GLSurfaceView.Renderer {
     }
     private val previewTexture = PreviewTexture()
     private val gridLine = GridLine()
-    var textureManager: TextureManager = TextureManager().apply {
+    private val textureManager: TextureManager = TextureManager().apply {
         addTextures(listOf(previewTexture, gridLine))
     }
 
     // invoked when EglContext created
     // not need to invoke surfaceTextureListener?.onSurfaceTextureCreated
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
-        Log.d(TAG, "onSurfaceCreated: ${windowWidth}x${windowHeight}")
+        Log.d(TAG, "onSurfaceCreated: SurfaceTexture is null: ${surfaceTexture == null}")
+        if (surfaceTexture == null) {
+            // texture 不能在UI thread创建，只能在其他线程创建，比如 GLThread
+            // 在 onSurfaceCreated回调就在 GLThread 被执行
+            surfaceTexture = SurfaceTexture(textureId).apply {
+                setOnFrameAvailableListener(this@CameraPreviewRender, null) }
+            // set up alpha blending and an android background color
+            GLES20.glEnable(GLES20.GL_BLEND)
+            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        }
+        surfaceTextureListener?.onSurfaceTextureCreated(surfaceTexture!!, 0, 0)
     }
 
     // first invoked after EglContext created
@@ -50,11 +60,13 @@ class CameraPreviewRender : GLSurfaceView.Renderer {
         Log.d(TAG, "onSurfaceChanged: ${width}x${height}")
         windowWidth = width
         windowHeight = height
-        surfaceTextureListener?.onSurfaceTextureChanged(surfaceTexture, width, height)
+        if (surfaceTexture != null) {
+            surfaceTextureListener?.onSurfaceTextureSizeChanged(surfaceTexture!!, width, height)
+        }
+        surfaceTexture?.setDefaultBufferSize(width, height)
     }
 
     override fun onDrawFrame(gl: GL10) {
-        surfaceTextureListener?.onSurfaceTextureUpdated(surfaceTexture)
         // set black background
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
@@ -64,8 +76,20 @@ class CameraPreviewRender : GLSurfaceView.Renderer {
         textureManager.onDraw()
     }
 
-    // camera output texture size, width > height
-    fun setTextureSize(
+
+    fun load() {
+        Log.d(TAG, "load: ")
+        textureManager.load()
+    }
+    
+    fun unload() {
+        Log.d(TAG, "unload: then release surfaceTexture")
+        textureManager.unload()
+        surfaceTexture?.release()
+        surfaceTexture = null
+    }
+
+    fun setCoordinate(
         previewTextureSize: Size,
         isTrueAspectRatio: Boolean,
         previewRectF: RectF,
@@ -73,8 +97,12 @@ class CameraPreviewRender : GLSurfaceView.Renderer {
     ) {
         Log.d(
             TAG,
-            "setTextureSize:w${previewTextureSize.width}*h${previewTextureSize.height}, trueAspectRatio:${isTrueAspectRatio}"
+            "setCoordinate:w${previewTextureSize.width}*h${previewTextureSize.height}, trueAspectRatio:${isTrueAspectRatio}"
         )
+        if (surfaceTexture != null) {
+            Log.d(TAG, "setCoordinate: set SurfaceTexture size w${previewTextureSize.width}*h${previewTextureSize.height}")
+            surfaceTexture!!.setDefaultBufferSize(previewTextureSize.width, previewTextureSize.height)
+        }
         this.textureWidth = previewTextureSize.width
         this.textureHeight = previewTextureSize.height
         this.isFrontCamera = isFrontCamera
@@ -128,29 +156,6 @@ class CameraPreviewRender : GLSurfaceView.Renderer {
         Log.d(TAG, "copyFrame: ")
     }
 
-    fun releaseSurfaceTexture() {
-        Log.d(TAG, "releaseSurfaceTexture: ")
-        surfaceTexture?.release()
-        surfaceTexture = null
-    }
-
-    fun createSurfaceTexture(width: Int, height: Int) {
-        Log.d(TAG, "createSurfaceTexture: w${width}*h${height}")
-        // texture 不能在UI thread创建，只能在其他线程创建，比如 GLThread
-        // 在 onSurfaceCreated回调就在 GLThread 被执行
-        surfaceTexture = SurfaceTexture(textureId).apply {
-            setDefaultBufferSize(width, height)
-            setOnFrameAvailableListener {
-                surfaceTextureListener?.onSurfaceTextureAvailable(surfaceTexture, width, height)
-            }
-        }
-
-        // set up alpha blending and an android background color
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        surfaceTextureListener?.onSurfaceTextureCreated(surfaceTexture, width, height)
-    }
-
     private fun calculateMatrix() {
         // 坐标轴原点在 top left
         // positive x-axis points right
@@ -182,5 +187,12 @@ class CameraPreviewRender : GLSurfaceView.Renderer {
 
     companion object {
         private val TAG = CameraPreviewRender::class.java.simpleName
+    }
+
+    override fun onFrameAvailable(surfaceTexture: SurfaceTexture?) {
+        if (surfaceTexture != null) {
+            // SurfaceTexture updated by Camera2 preview stream
+            surfaceTextureListener?.onSurfaceTextureAvailable(surfaceTexture!!)
+        }
     }
 }

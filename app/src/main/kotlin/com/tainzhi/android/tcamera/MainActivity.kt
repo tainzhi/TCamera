@@ -51,6 +51,7 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * @author:       tainzhi
@@ -103,7 +104,7 @@ class MainActivity : AppCompatActivity() {
     private val cameraOpenCloseLock = Semaphore(1)
 
     private lateinit var capturedImageUri: Uri
-    private lateinit var cameraInfo: CameraInfoCache
+    private var cameraInfo: CameraInfoCache ?= null
     private var currentCaptureSession: CameraCaptureSession? = null
     private lateinit var cameraManager: CameraManager
     private var isNeedRecreateCaptureSession = false
@@ -117,7 +118,7 @@ class MainActivity : AppCompatActivity() {
 
     // default set to full screen size
     // if set the activity full screen, then it will be full screen and never change
-    private lateinit var windowSize: Size
+    private var windowSize = Size(0, 0)
 
     private var flashSupported = false
 
@@ -130,6 +131,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var jpgImageReader: ImageReader
     private lateinit var yuvImageReader: ImageReader
     private var yuvLatestReceivedImage: Image? = null
+    private val imageReaderLock = ReentrantLock()
+    private val imageReaderCondition = imageReaderLock.newCondition()
+    private var imageReaderSetup = false
 
     private var captureType = CaptureType.JPEG
     // todo: remove it
@@ -152,41 +156,33 @@ class MainActivity : AppCompatActivity() {
 
     private var surfaceTextureListener = object : CameraPreviewView.SurfaceTextureListener {
 
-        override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture?) {
-        }
 
-        override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture?): Boolean {
-            Log.d(TAG, "onSurfaceTextureDestroyed: ")
-            return true
-        }
-
-        override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
+        override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture) {
             cameraPreviewView.requestRender()
         }
 
-        override fun onSurfaceTextureCreated(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
-            Log.d(TAG, "onSurfaceTextureCreated: ${width}x${height}, ${surfaceTexture}, isNeedRecreateCaptureSession:" + isNeedRecreateCaptureSession)
-            if (surfaceTexture != null) {
-                previewSurface = Surface(surfaceTexture)
-                if (isNeedRecreateCaptureSession) {
-                    isNeedRecreateCaptureSession = false
-                    openCaptureSession()
-                } else {
-                    openCamera()
-                }
+        override fun onSurfaceTextureCreated(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
+            Log.d(
+                TAG,
+                "onSurfaceTextureCreated: ${width}x${height}, ${surfaceTexture}, isNeedRecreateCaptureSession:" + isNeedRecreateCaptureSession
+            )
+            previewSurface = Surface(surfaceTexture)
+            openCamera()
+            if (isNeedRecreateCaptureSession) {
+                isNeedRecreateCaptureSession = false
+                setCaptureSession()
             }
         }
 
-        override fun onSurfaceTextureChanged(
-            surfaceTexture: SurfaceTexture?,
-            width: Int,
-            height: Int
+        override fun onSurfaceTextureSizeChanged(surfaceTexture: SurfaceTexture, width: Int, height: Int
         ) {
             Log.d(TAG, "onSurfaceTextureChanged: w${width}*h${height}")
-            if (!isHasSetupCameraOutputs) {
-                isHasSetupCameraOutputs = true
-                windowSize = Size(width, height)
-                setUpCameraOutputs()
+            if (width != windowSize.width || height != windowSize.height) {
+                if (!isHasSetupCameraOutputs) {
+                    isHasSetupCameraOutputs = true
+                    windowSize = Size(width, height)
+                    setUpCameraOutputs()
+                }
             }
         }
 
@@ -196,28 +192,41 @@ class MainActivity : AppCompatActivity() {
         override fun onOpened(p0: CameraDevice) {
             cameraOpenCloseLock.release()
             this@MainActivity.cameraDevice = p0
-            Log.i(TAG, "camera onOpened: ")
-            openCaptureSession()
+            Log.i(TAG, "onCameraOpened: ")
+            isCameraOpen = true
+            setCaptureSession()
         }
 
         override fun onDisconnected(p0: CameraDevice) {
-            super.onClosed(p0)
-            Log.i(TAG, "camera onDisconnected: ")
+            Log.i(TAG, "onCameraDisconnected: ${p0}")
+            p0.close()
             cameraOpenCloseLock.release()
             closeCaptureSession()
-            p0.close()
             this@MainActivity.cameraDevice = null
         }
 
         override fun onError(p0: CameraDevice, p1: Int) {
-            onDisconnected(p0)
-            Log.e(TAG, "camera onError: $p0, $p1")
+            Log.e(TAG, "onCameraError: ${p0.id}, $p1")
             finish()
         }
 
         override fun onClosed(camera: CameraDevice) {
             super.onClosed(camera)
-            Log.i(TAG, "camera onClosed: ")
+            Log.d(TAG, "onCameraClosed: then close targets.surface(ImageReader) ")
+            previewSurface.release()
+            // close target surface in CaptureSession.onClosed
+            jpgImageReader.close()
+            if (isEnableZsl) {
+                yuvImageReader.close()
+                zslImageWriter.close()
+            }
+            imageReaderSetup = false
+            if (isNeedRecreateCaptureSession) {
+                Log.d(TAG, "onCameraClosed: need to recreate CaptureSession")
+                setUpCameraOutputs()
+                setCaptureSession()
+            }
+            Log.i(TAG, "onCameraClosed: $camera")
         }
     }
 
@@ -373,40 +382,47 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "onStart: ")
     }
 
+    /**
+     * open camera in Activity.onResume, while close camera in Activity.onStop
+     */
     @RequiresApi(VERSION_CODES.R)
     override fun onResume() {
         super.onResume()
+        Log.i(TAG, "onResume: ")
         setBrightness(true)
         rotationChangeMonitor.enable()
-        Log.i(TAG, "onResume: ")
         if (checkPermissions()) {
-            Log.d(TAG, "onResume: grand all permissions")
+            Log.d(TAG, "onResume: grant all permissions")
             val rect = windowManager.currentWindowMetrics.bounds
-            windowSize = Size(rect.width(), rect.height())
             cameraPreviewView.surfaceTextureListener = surfaceTextureListener
             if (isAfterRequiredPermissions) {
                 Log.d(TAG, "onResume: require to open camera after require permissions")
-                setUpCameraOutputs()
                 openCamera()
             }
         } else {
-            Log.e(TAG, "onResume: not grand required permissions")
+            Log.e(TAG, "onResume: not grant required permissions")
         }
     }
 
     override fun onPause() {
         Log.i(TAG, "onPause: ")
-        setBrightness(false)
-        isHasSetupCameraOutputs = false
-        rotationChangeMonitor.disable()
-        closeCaptureSession()
         super.onPause()
     }
 
     override fun onStop() {
         Log.d(TAG, "onStop: ")
+        setBrightness(false)
+        isHasSetupCameraOutputs = false
+        rotationChangeMonitor.disable()
+        closeCaptureSession()
+        closeCamera()
         cameraPreviewView.onPause()
         super.onStop()
+    }
+
+    override fun onDetachedFromWindow() {
+        Log.d(TAG, "onDetachedFromWindow: ")
+        super.onDetachedFromWindow()
     }
 
     override fun onDestroy() {
@@ -430,7 +446,7 @@ class MainActivity : AppCompatActivity() {
                     Log.e(TAG, permissions[i] + " block")
                 } else {
                     grantedPermissions--
-                    Log.d(TAG, permissions[i] + " grand")
+                    Log.d(TAG, permissions[i] + " granted")
                 }
             }
             if (grantedPermissions == 0) {
@@ -450,9 +466,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openCamera() {
-        cameraId = cameraInfo.cameraId
+        cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        if (cameraInfo == null) {
+            cameraInfo = CameraInfoCache(cameraManager, useCameraFront)
+        }
+        cameraId = cameraInfo!!.cameraId
         Log.i(TAG, "openCamera: id=${cameraId}")
-        sensorOrientation = cameraInfo.sensorOrientation
+        sensorOrientation = cameraInfo!!.sensorOrientation
         try {
             // Wait for camera to open - 2.5 seconds is sufficient
             if (!cameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
@@ -470,14 +490,14 @@ class MainActivity : AppCompatActivity() {
                 //                                          int[] grantResults)
                 // to handle the case where the user grants the permission. See the documentation
                 // for ActivityCompat#requestPermissions for more details.
-                Log.e(TAG, "openCamera: not grand permission")
+                Log.e(TAG, "openCamera: not granted permission")
                 return
             }
             cameraManager.openCamera(cameraId, cameraExecutor, cameraDeviceCallback)
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
-        } catch (e: InterruptedException) {
-            throw RuntimeException("Interrupted while trying to lock camera opening.", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "$e")
         }
     }
 
@@ -497,6 +517,7 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "closeCamera: need reopen camera")
             isNeedReopenCamera = false
             setUpCameraOutputs()
+            openCamera()
         }
     }
 
@@ -564,8 +585,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun setUpCameraOutputs() {
         Log.i(TAG, "setUpCameraOutputs: ")
-        cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        cameraInfo = CameraInfoCache(cameraManager, useCameraFront)
         val previewAspectRatio = SettingsManager.getInstance().getPreviewAspectRatio()
         val ratioValue: Float = when (previewAspectRatio) {
             SettingsManager.PreviewAspectRatio.RATIO_1x1 -> 1f
@@ -576,13 +595,13 @@ class MainActivity : AppCompatActivity() {
             SettingsManager.PreviewAspectRatio.RATIO_FULL -> windowSize.height / windowSize.width.toFloat()
         }
         try {
-            isEnableZsl = cameraInfo.isSupportReproc() &&
+            isEnableZsl = cameraInfo!!.isSupportReproc() &&
                     SettingsManager.getInstance()
                             .getBoolean(SettingsManager.KEY_PHOTO_ZSL, SettingsManager.PHOTO_ZSL_DEFAULT_VALUE)
             // todo feature: for recording video
-            videoSize = cameraInfo.videoSize
+            videoSize = cameraInfo!!.videoSize
             val (chosenJpgSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
-                cameraInfo.getOutputJpgSizes(),
+                cameraInfo!!.getOutputJpgSizes(),
                 windowSize,
                 ratioValue,
                 false
@@ -590,7 +609,7 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "choose camera output jpg size:${chosenJpgSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}")
             if (isEnableZsl) {
                 yuvImageReader = ImageReader.newInstance(
-                    cameraInfo.largestYuvSize.width, cameraInfo.largestYuvSize.height,
+                    cameraInfo!!.largestYuvSize.width, cameraInfo!!.largestYuvSize.height,
                     ImageFormat.YUV_420_888,
                     YUV_IMAGE_READER_SIZE
                 )
@@ -642,7 +661,7 @@ class MainActivity : AppCompatActivity() {
             // camera output surface size, maybe smaller than viewSize
             // e.g. set camera preview 1:1 for a device 1080:2040, then previewSize 1080:1080, viewSize 1080:2040
             val (cameraOutputPreviewTextureSize, isTrueAspectRatio) = chooseOptimalSize(
-                cameraInfo.getOutputPreviewSurfaceSizes(),
+                cameraInfo!!.getOutputPreviewSurfaceSizes(),
                 windowSize,
                 ratioValue,
                 true
@@ -655,8 +674,8 @@ class MainActivity : AppCompatActivity() {
                 SettingsManager.PreviewAspectRatio.RATIO_16x9 -> RectF(0f, previewTopMargin, windowSize.width.toFloat(), previewTopMargin+ windowSize.width * 16/9f)
                 else -> RectF(0f, 0f, windowSize.width.toFloat(), windowSize.height.toFloat())
             }
-            cameraPreviewView.setTextureSize(cameraOutputPreviewTextureSize, isTrueAspectRatio, previewRect, useCameraFront)
-            flashSupported = cameraInfo.isflashSupported
+            cameraPreviewView.setCoordinate(cameraOutputPreviewTextureSize, isTrueAspectRatio, previewRect, useCameraFront)
+            flashSupported = cameraInfo!!.isflashSupported
 
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
@@ -665,46 +684,51 @@ class MainActivity : AppCompatActivity() {
             ErrorDialog.newInstance(getString(R.string.camera_error))
                     .show(supportFragmentManager, "fragment_dialog")
         }
+        // must after set ImageReader and PreviewSurface.SurfaceTexture.FrameSize
+        imageReaderLock.lock()
+        try {
+            imageReaderSetup = true
+            imageReaderCondition.signal()
+        } finally {
+            imageReaderLock.unlock()
+        }
         isHasSetupCameraOutputs = true
     }
 
-    private fun openCaptureSession() {
-        Log.i(TAG, "openCaptureSession: ")
+    private fun setCaptureSession() {
+        Log.i(TAG, "setCaptureSession: ")
         try {
+            imageReaderLock.lock()
+            try {
+                while (!imageReaderSetup) {
+                    if (App.DEBUG) {
+                        Log.d(TAG, "setCaptureSession: waiting to image reader set")
+                    }
+                    imageReaderCondition.await()
+                }
+            } finally {
+                imageReaderLock.unlock()
+            }
+            Log.d(TAG, "setCaptureSession: windowSize:${windowSize} is set")
             val captureSessionStateCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onClosed(session: CameraCaptureSession) {
                     super.onClosed(session)
-                    Log.d(TAG, "CaptureSession onClosed: ")
-
-                    jpgImageReader.close()
-                    if (isEnableZsl) {
-                        yuvImageReader.close()
-                        zslImageWriter.close()
-                    }
-
-                    previewSurface.release()
-                    cameraPreviewView.releaseSurface()
-                    if (isNeedRecreateCaptureSession) {
-                        Log.d(TAG, "need to recreate CaptureSession")
-                        setUpCameraOutputs()
-                    } else {
-                        closeCamera()
-                    }
+                    Log.d(TAG, "onSessionClosed")
                 }
 
                 override fun onSurfacePrepared(session: CameraCaptureSession, surface: Surface) {
                     super.onSurfacePrepared(session, surface)
-                    Log.d(TAG, "CaptureSession onSurfacePrepared: ")
+                    Log.d(TAG, "onSessionSurfacePrepared")
                 }
                 override fun onConfigureFailed(p0: CameraCaptureSession) {
-                    toast("Failed")
+                    Log.e(TAG, "onConfigureFailed: ")
+                    toast("Failed to configure CaptureSession")
                 }
 
                 override fun onConfigured(session: CameraCaptureSession) {
-                    Log.d(TAG, "CaptureSession onConfigured: ")
                     currentCaptureSession = session
                     updatePreview()
-                    Log.d(TAG, "openCaptureSession onConfigured isReprocessable=${session.isReprocessable} ")
+                    Log.d(TAG, "onSessionConfigured isReprocessable=${session.isReprocessable} ")
                     if (session.isReprocessable) {
                         zslImageWriter = ImageWriter.newInstance(session.inputSurface!!, ZSL_IMAGE_WRITER_SIZE)
                         zslImageWriter.setOnImageReleasedListener({ _ ->
@@ -712,14 +736,14 @@ class MainActivity : AppCompatActivity() {
                                 Log.d(TAG, "ZslImageWriter onImageReleased()")
                             }
                         }, cameraHandler)
-                        Log.d(TAG, "create ImageWriter")
+                        Log.d(TAG, "onSessionConfigured: create ImageWriter")
                     }
                 }
 
                 override fun onReady(session: CameraCaptureSession) {
                     // When the session is ready, we start displaying the preview.
                     super.onReady(session)
-                    Log.d(TAG, "CaptureSession onReady()")
+                    Log.d(TAG, "onSessionReady")
                 }
             }
             if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
@@ -735,10 +759,10 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 val sessionConfiguration = SessionConfiguration(
-                        SessionConfiguration.SESSION_REGULAR,
-                        outputConfigurations,
+                    SessionConfiguration.SESSION_REGULAR,
+                    outputConfigurations,
                     cameraExecutor,
-                        captureSessionStateCallback
+                    captureSessionStateCallback
                 )
                 if (isEnableZsl) {
                     sessionConfiguration.inputConfiguration =
@@ -756,7 +780,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
             }
-            isCameraOpen = true
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
         }
@@ -765,7 +788,7 @@ class MainActivity : AppCompatActivity() {
     private fun closeCaptureSession(switchMode:Boolean = false) {
         // closeCaptureSession -> session.onClosed() -> closeCamera()
         Log.i(TAG, "closeCaptureSession: ")
-        currentCaptureSession?.close()
+        currentCaptureSession?.stopRepeating()
         currentCaptureSession = null
     }
 
@@ -781,8 +804,8 @@ class MainActivity : AppCompatActivity() {
 
             previewRequestBuilder.apply {
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo.getCaptureNoiseMode())
-                set(CaptureRequest.EDGE_MODE, cameraInfo.getEdgeMode())
+                set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo!!.getCaptureNoiseMode())
+                set(CaptureRequest.EDGE_MODE, cameraInfo!!.getEdgeMode())
                 if (flashSupported) {
                     set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
                 }
@@ -859,8 +882,8 @@ class MainActivity : AppCompatActivity() {
             captureBuilder.apply {
                 addTarget(jpgImageReader.surface)
                 if (isEnableZsl && captureType != CaptureType.HDR) {
-                    set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo.reprocessingNoiseMode)
-                    set(CaptureRequest.EDGE_MODE, cameraInfo.reprocessingEdgeMode)
+                    set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo!!.reprocessingNoiseMode)
+                    set(CaptureRequest.EDGE_MODE, cameraInfo!!.reprocessingEdgeMode)
                 }
                 if (captureType != CaptureType.HDR) {
                     set(CaptureRequest.JPEG_QUALITY, 95)
@@ -905,19 +928,19 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "captureStillPicture: HDR enable")
 
                 val baseExposureTime = 1000000000L/30
-                val halfImageSize = cameraInfo.exposureBracketingImages/2
-                val scale = Math.pow(2.0, cameraInfo.exposureBracketingStops/halfImageSize)
+                val halfImageSize = cameraInfo!!.exposureBracketingImages/2
+                val scale = Math.pow(2.0, cameraInfo!!.exposureBracketingStops/halfImageSize)
                 val requests = ArrayList<CaptureRequest>()
                 // darker images
                 for (i in 0 until halfImageSize) {
                     var exposureTime = baseExposureTime
-                    if (cameraInfo.supportExposureTime) {
+                    if (cameraInfo!!.supportExposureTime) {
                         var currentScale = scale
                         for (j in i until halfImageSize - 1)
                             currentScale *= scale
                         exposureTime = (exposureTime / currentScale).toLong()
-                        if (exposureTime < cameraInfo.minExposureTime) {
-                            exposureTime = cameraInfo.minExposureTime.toLong()
+                        if (exposureTime < cameraInfo!!.minExposureTime) {
+                            exposureTime = cameraInfo!!.minExposureTime.toLong()
                         }
                         hdrImageExposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
@@ -933,13 +956,13 @@ class MainActivity : AppCompatActivity() {
                 // lighter images
                 for (i in 0 until halfImageSize) {
                     var exposureTime = baseExposureTime
-                    if (cameraInfo.supportExposureTime) {
+                    if (cameraInfo!!.supportExposureTime) {
                         var currentScale = scale
                         for (j in i until halfImageSize)
                             currentScale *= scale
                         exposureTime = (exposureTime * currentScale).toLong()
-                        if (exposureTime > cameraInfo.maxExposureTime) {
-                            exposureTime = cameraInfo.maxExposureTime.toLong()
+                        if (exposureTime > cameraInfo!!.maxExposureTime) {
+                            exposureTime = cameraInfo!!.maxExposureTime.toLong()
                         }
                         hdrImageExposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
@@ -1150,7 +1173,7 @@ class MainActivity : AppCompatActivity() {
         }
         toast("Video saved: $videoPath")
         videoPath = null
-        openCaptureSession()
+        setCaptureSession()
     }
 
     private fun getVideoFilePath(): String {
@@ -1166,7 +1189,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleRotation(rotateAngle: Int) {
-        Log.d(TAG, "handleRotation: thumbnailOrientation:$thumbnailOrientation")
+//        Log.d(TAG, "handleRotation: thumbnailOrientation:$thumbnailOrientation")
         thumbnailOrientation = (-rotateAngle + thumbnailOrientation +
                 (if (rotateAngle > 180) 360 else 0)) % 360
         ivThumbnail.animate()

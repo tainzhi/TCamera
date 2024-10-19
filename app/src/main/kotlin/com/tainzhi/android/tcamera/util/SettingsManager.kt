@@ -53,6 +53,15 @@ class SettingsManager(val context: Context) {
         spEditor.commit()
     }
 
+    fun getJobId(): Int {
+        return sp.getInt(JOB_ID, 0)
+    }
+
+    fun saveJobId(id: Int) {
+        spEditor.putInt(JOB_ID, id)
+        commit()
+    }
+
     companion object {
         @Volatile private lateinit var INSTANCE: SettingsManager
         fun build(context: Context) {
@@ -72,6 +81,7 @@ class SettingsManager(val context: Context) {
         val KEY_LAST_CAPTURED_MEDIA_URI = "key_last_captured_media_uri"
         val PREVIEW_RATIO_DEFAULT_VALUE = PreviewAspectRatio.RATIO_4x3
         val GRID_TYPE_DEFAULT_VALUE = GridLineType.GOLDEN_SPIRAL
+        val JOB_ID = "job_id"
     }
     enum class PreviewAspectRatio {
         RATIO_1x1,
