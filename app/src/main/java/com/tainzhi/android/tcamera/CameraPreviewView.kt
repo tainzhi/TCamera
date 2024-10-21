@@ -3,27 +3,29 @@ package com.tainzhi.android.tcamera
 import android.content.Context
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
-import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.util.Log
 import android.util.Size
 import com.tainzhi.android.tcamera.gl.EglUtil
 import com.tainzhi.android.tcamera.gl.EglUtil.makeCurrent
 import com.tainzhi.android.tcamera.gl.GlUtil
+import com.tainzhi.android.tcamera.ui.GLSurfaceView
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
 import javax.microedition.khronos.egl.EGLDisplay
 import javax.microedition.khronos.egl.EGLSurface
 
-class CameraPreviewView(context: Context, attributeSet: AttributeSet?) : GLSurfaceView(context, attributeSet) {
+class CameraPreviewView : GLSurfaceView {
     private var egl10: EGL10? = null
     private var eglDisplay = EGL10.EGL_NO_DISPLAY
     private var eglSurface = EGL10.EGL_NO_SURFACE
     private var eglContext = EGL10.EGL_NO_CONTEXT
-    private val cameraPreviewRender = CameraPreviewRender()
 
-    init {
+    private val cameraPreviewRender = CameraPreviewRender()
+    constructor(context: Context): super(context) {}
+
+    constructor(context: Context, attr: AttributeSet) : super(context, attr) {
         setEGLContextFactory(ContextFactory())
         setEGLWindowSurfaceFactory(WindowSurfaceFactory())
         setEGLConfigChooser(8, 8, 8, 8, 16, 8)
@@ -31,7 +33,6 @@ class CameraPreviewView(context: Context, attributeSet: AttributeSet?) : GLSurfa
         setEGLContextClientVersion(3)
         setRenderer(cameraPreviewRender)
         renderMode = RENDERMODE_WHEN_DIRTY
-
     }
 
     var surfaceTextureListener: SurfaceTextureListener? = null
@@ -61,6 +62,7 @@ class CameraPreviewView(context: Context, attributeSet: AttributeSet?) : GLSurfa
     }
 
     fun makeCurrent() {
+        Log.d(TAG, "makeCurrent: ")
         makeCurrent(egl10!!, eglDisplay, eglSurface, eglContext)
     }
 
@@ -76,7 +78,7 @@ class CameraPreviewView(context: Context, attributeSet: AttributeSet?) : GLSurfa
             egl10 = egl
             eglDisplay = display
             eglSurface = createSurfaceImpl(egl!!, display!!, config!!, nativeWindow!!)
-            this@CameraPreviewView.makeCurrent()
+            makeCurrent()
             return eglSurface
         }
 

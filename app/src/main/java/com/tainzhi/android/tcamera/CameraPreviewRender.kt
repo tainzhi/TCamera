@@ -3,7 +3,6 @@ package com.tainzhi.android.tcamera
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.opengl.GLES20
-import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.Log
 import android.util.Size
@@ -12,6 +11,7 @@ import com.tainzhi.android.tcamera.gl.textures.GridLine
 import com.tainzhi.android.tcamera.gl.textures.PreviewTexture
 import com.tainzhi.android.tcamera.gl.textures.TextureManager
 import com.tainzhi.android.tcamera.gl.textures.Vertex2F
+import com.tainzhi.android.tcamera.ui.GLSurfaceView
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -51,7 +51,7 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
             GLES20.glEnable(GLES20.GL_BLEND)
             GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         }
-        surfaceTextureListener?.onSurfaceTextureCreated(surfaceTexture!!, 0, 0)
+        surfaceTextureListener?.onSurfaceTextureCreated(surfaceTexture!!, windowWidth, windowHeight)
     }
 
     // first invoked after EglContext created

@@ -378,7 +378,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        cameraPreviewView.onResume()
         Log.d(TAG, "onStart: ")
     }
 
@@ -402,10 +401,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             Log.e(TAG, "onResume: not grant required permissions")
         }
+        cameraPreviewView.onResume()
     }
 
     override fun onPause() {
         Log.i(TAG, "onPause: ")
+        cameraPreviewView.onPause()
         super.onPause()
     }
 
@@ -416,7 +417,6 @@ class MainActivity : AppCompatActivity() {
         rotationChangeMonitor.disable()
         closeCaptureSession()
         closeCamera()
-        cameraPreviewView.onPause()
         super.onStop()
     }
 
@@ -431,6 +431,10 @@ class MainActivity : AppCompatActivity() {
         cameraThread.quitSafely()
         mediaActionSound.release()
         super.onDestroy()
+    }
+
+    override fun onWindowAttributesChanged(params: WindowManager.LayoutParams?) {
+        super.onWindowAttributesChanged(params)
     }
 
     override fun onRequestPermissionsResult(
