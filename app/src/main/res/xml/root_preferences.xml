@@ -4,7 +4,8 @@
 
     <PreferenceCategory
             app:iconSpaceReserved="false"
-            app:title="Photo">
+            app:title="Photo"
+            >
 
         <SwitchPreferenceCompat
                 app:defaultValue="true"
@@ -18,25 +19,25 @@
 
     <PreferenceCategory
             app:iconSpaceReserved="false"
-            app:title="@string/settings_key_preview">
+            app:title="@string/settings_key_preview"
+            >
 
         <SwitchPreferenceCompat
                 app:defaultValue="true"
+                app:iconSpaceReserved="false"
                 app:key="@string/settings_key_enable_grid_line"
                 app:title="Grid Line"
-                app:iconSpaceReserved="false"
                 />
         <ListPreference
                 app:defaultValue="4"
                 app:dependency="@string/settings_key_enable_grid_line"
                 app:entries="@array/grid_line_type_entries"
                 app:entryValues="@array/grid_line_type_values"
+                app:iconSpaceReserved="false"
                 app:key="@string/settings_key_grid_line_option"
-                app:summaryOff="@string/attachment_summary_off"
-                app:summaryOn="@string/attachment_summary_on"
+                app:summaryOn="Grid Line Options"
                 app:title="Grid Line Options"
                 app:useSimpleSummaryProvider="true"
-                app:iconSpaceReserved="false"
                 />
 
 
@@ -45,23 +46,16 @@
 
     <PreferenceCategory
             app:iconSpaceReserved="false"
-            app:title="@string/messages_header">
-
-        <EditTextPreference
-                app:key="signature"
-                app:title="@string/signature_title"
-                app:useSimpleSummaryProvider="true"
+            app:title="About"
+            >
+        <Preference
                 app:iconSpaceReserved="false"
+                app:key="@string/settings_key_version_name"
+                app:title="version 1.0"
                 />
-
-        <ListPreference
-                app:defaultValue="reply"
-                app:entries="@array/reply_entries"
-                app:entryValues="@array/reply_values"
-                app:key="reply"
-                app:title="@string/reply_title"
-                app:useSimpleSummaryProvider="true"
+        <Preference
                 app:iconSpaceReserved="false"
+                app:title="by tainzhi qfq61@qq.com"
                 />
 
     </PreferenceCategory>

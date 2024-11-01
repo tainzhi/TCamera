@@ -33,6 +33,12 @@ class SettingsActivity : AppCompatActivity() {
             findPreference<Preference>(this@SettingsFragment.requireContext().getString(R.string.settings_key_photo_zsl))?.apply {
                 onPreferenceChangeListener = this@SettingsFragment
             }
+            findPreference<Preference>(getString(R.string.settings_key_version_name))?.apply {
+                val pkgName = context.packageName
+                val pkgInfo = context.packageManager.getPackageInfo(pkgName, 0)
+                val versionName = pkgInfo.versionName
+                title = "version $versionName"
+            }
         }
 
         override fun onPreferenceChange(preference: Preference, newValue: Any?): Boolean {
