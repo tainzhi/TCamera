@@ -1,5 +1,6 @@
-package com.tainzhi.android.tcamera
+package com.tainzhi.android.tcamera.ui
 
+import android.R
 import android.app.AlertDialog
 import android.app.Dialog
 import android.os.Bundle
@@ -16,7 +17,7 @@ class ErrorDialog : DialogFragment() {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
             AlertDialog.Builder(activity)
                     .setMessage(arguments?.getString(ARG_MESSAGE))
-                    .setPositiveButton(android.R.string.ok) { _, _ -> activity?.finish() }
+                    .setPositiveButton(R.string.ok) { _, _ -> activity?.finish() }
                     .create()
 
     companion object {

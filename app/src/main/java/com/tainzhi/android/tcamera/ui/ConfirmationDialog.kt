@@ -1,10 +1,12 @@
-package com.tainzhi.android.tcamera
+package com.tainzhi.android.tcamera.ui
 
 import android.Manifest
+import android.R
 import android.app.AlertDialog
 import android.app.Dialog
 import android.os.Bundle
 import androidx.fragment.app.DialogFragment
+import com.tainzhi.android.tcamera.REQUEST_CAMERA_PERMISSION
 
 /**
  * @author:       tainzhi
@@ -17,11 +19,12 @@ class ConfirmationDialog : DialogFragment() {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
             AlertDialog.Builder(activity)
                     .setMessage("This app needs camera permission")
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                    .setPositiveButton(R.string.ok) { _, _ ->
                         parentFragment?.requestPermissions(arrayOf(Manifest.permission.CAMERA),
-                                REQUEST_CAMERA_PERMISSION)
+                            REQUEST_CAMERA_PERMISSION
+                        )
                     }
-                    .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    .setNegativeButton(R.string.cancel) { _, _ ->
                         parentFragment?.activity?.finish()
                     }
                     .create()
