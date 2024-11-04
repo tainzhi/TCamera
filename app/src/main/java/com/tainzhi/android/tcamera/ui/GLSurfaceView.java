@@ -40,18 +40,17 @@ import javax.microedition.khronos.opengles.GL10;
 
 /**
  * 完全copy {@link android.opengl.GLSurfaceView android.opengl.GLSurfaceView}
- * <p>然后添加了1467行 catch exception log
  * <p>方便打开static log 开关
  **/
 public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback2 {
     private final static String TAG = "GLSurfaceView";
-    private final static boolean LOG_ATTACH_DETACH = true;
-    private final static boolean LOG_THREADS = true;
-    private final static boolean LOG_PAUSE_RESUME = true;
-    private final static boolean LOG_SURFACE = true;
-    private final static boolean LOG_RENDERER = true;
-    private final static boolean LOG_RENDERER_DRAW_FRAME = true;
-    private final static boolean LOG_EGL = true;
+    private final static boolean LOG_ATTACH_DETACH = false;
+    private final static boolean LOG_THREADS = false;
+    private final static boolean LOG_PAUSE_RESUME = false;
+    private final static boolean LOG_SURFACE = false;
+    private final static boolean LOG_RENDERER = false;
+    private final static boolean LOG_RENDERER_DRAW_FRAME = false;
+    private final static boolean LOG_EGL = false;
     /**
      * The renderer only renders
      * when the surface is created, or when {@link #requestRender} is called.
@@ -1638,6 +1637,8 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
         public void onWindowResize(int w, int h) {
             Log.v(TAG, Log.getStackTraceString(new Throwable("")));
             synchronized (sGLThreadManager) {
+                Log.d(TAG,
+                        "onWindowResize: old:" + mWidth + "x" + mHeight + " ,new:" + w + "x" + h);
                 mWidth = w;
                 mHeight = h;
                 mSizeChanged = true;
