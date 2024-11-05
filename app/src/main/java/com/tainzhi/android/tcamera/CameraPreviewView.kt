@@ -83,7 +83,6 @@ class CameraPreviewView : GLSurfaceView {
         }
 
         override fun destroySurface(egl: EGL10?, display: EGLDisplay?, surface: EGLSurface?) {
-            Log.v(TAG, Log.getStackTraceString(Throwable("")));
             if (App.DEBUG) Log.d(TAG, "destroySurface: ")
             if (!EglUtil.destroySurface(egl, display, surface)) {
                 Log.w(TAG, "failed to destroy OpenGL ES surface")
@@ -146,9 +145,9 @@ class CameraPreviewView : GLSurfaceView {
     }
 
     interface SurfaceTextureListener {
-        fun onSurfaceTextureCreated(surface: SurfaceTexture, width: Int, height: Int)
-        fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int)
-        fun onSurfaceTextureAvailable(surface: SurfaceTexture)
+        fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int)
+        fun onSurfaceTextureSizeChanged(surfaceTexture: SurfaceTexture, width: Int, height: Int)
+        fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture, width: Int, height: Int)
     }
 
     companion object {
