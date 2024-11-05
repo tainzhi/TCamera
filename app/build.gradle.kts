@@ -52,13 +52,9 @@ android {
     applicationVariants.all {
         outputs.forEach { output ->
             check(output is com.android.build.gradle.internal.api.ApkVariantOutputImpl)
-            // output.outputFileName = "TCamera_${versionName}.apk"
-            if (buildType.name == "debug") {
-                output.outputFileName =
-                        "TCamera_${flavorName}_${versionName}_${buildType.name}.apk"
-            } else if (buildType.name == "release") {
-                output.outputFileName = "TCamera_${flavorName}_${versionName}.apk"
-            }
+            // flavorName is null, so use buildType.name instead
+            output.outputFileName =
+                "TCamera_${versionName}_${buildType.name}.apk"
         }
     }
     kotlinOptions {
@@ -83,7 +79,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.preference)
-    implementation("com.github.CymChad:BaseRecyclerViewAdapterHelper:3.0.4")
+    implementation(libs.baserecyclerviewadapterhelper)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
