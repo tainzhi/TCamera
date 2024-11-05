@@ -1488,7 +1488,7 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
                 }
 
             }  catch (Exception e) {
-                Log.v(TAG, "guardedRun:\n" + Log.getStackTraceString(e));
+                Log.e(TAG, "guardedRun:\n" + Log.getStackTraceString(e));
             }
             finally {
                 /*
@@ -1635,7 +1635,8 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
         }
 
         public void onWindowResize(int w, int h) {
-            Log.v(TAG, Log.getStackTraceString(new Throwable("")));
+            if (LOG_SURFACE)
+                Log.d(TAG, Log.getStackTraceString(new Throwable("")));
             synchronized (sGLThreadManager) {
                 Log.d(TAG,
                         "onWindowResize: old:" + mWidth + "x" + mHeight + " ,new:" + w + "x" + h);
@@ -1766,7 +1767,6 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
         private void flushBuilder() {
             if (mBuilder.length() > 0) {
-                Log.v("GLSurfaceView", mBuilder.toString());
                 mBuilder.delete(0, mBuilder.length());
             }
         }
