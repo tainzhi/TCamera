@@ -562,11 +562,12 @@ class MainActivity : AppCompatActivity() {
             controller.isAppearanceLightNavigationBars = true
             controller.hide(WindowInsetsCompat.Type.statusBars())
             ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, windowInsets ->
-                val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-                // Apply the insets as padding to the view. Here we're setting all of the
-                // dimensions, but apply as appropriate to your layout. You could also
-                // update the views margin if more appropriate.
-                view.updatePadding(insets.left, insets.top, insets.right, insets.bottom)
+//                val insets =
+//                    windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+//                // Apply the insets as padding to the view. Here we're setting all of the
+//                // dimensions, but apply as appropriate to your layout. You could also
+//                // update the views margin if more appropriate.
+//                view.updatePadding(insets.left, insets.top, insets.right, insets.bottom)
 
                 // Return CONSUMED if we don't want the window insets to keep being passed
                 // down to descendant views.
