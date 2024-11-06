@@ -43,7 +43,7 @@ class SettingsActivity : AppCompatActivity() {
 
         override fun onPreferenceChange(preference: Preference, newValue: Any?): Boolean {
             val key = preference.key
-            return false
+            return true
         }
 
         companion object {
