@@ -21,7 +21,7 @@ import java.util.Locale
  * @description:
  **/
 
-class ImageSaver(
+class MediaSaver(
     private val context: Context,
     private val captureType: CaptureType,
     private val images: List<Image>,
@@ -87,7 +87,7 @@ class ImageSaver(
     }
 
     companion object {
-        private val TAG = "ImageSaver"
+        private val TAG = MediaSaver.javaClass.simpleName
     }
 }
 

@@ -32,7 +32,6 @@ import androidx.core.os.ExecutorCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import com.tainzhi.android.tcamera.CameraInfoCache.Companion.IMAGE_BUFFER_SIZE
 import com.tainzhi.android.tcamera.CameraInfoCache.Companion.chooseOptimalSize
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
@@ -1314,7 +1313,7 @@ class MainActivity : AppCompatActivity() {
         }
         unlockFocus()
         imageReaderHandler.post(
-            ImageSaver(
+            MediaSaver(
                 this@MainActivity,
                 captureType,
                 capturedImageList,
