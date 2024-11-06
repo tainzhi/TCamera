@@ -16,8 +16,12 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvailableListener {
-    private var previewWidth = 0
-    private var previewHeight = 0
+    // CameraPreviewView 宽高
+    private var width = 0
+    private var height = 0
+    // camera2 preview output texture 的宽高
+    // 全屏则与CameraPreviewView宽高一致
+    // 其他尺寸，则小于 CameraPreviewView 宽高
     private var textureWidth = 0
     private var textureHeight = 0
     private var previewRectF: RectF = RectF()
@@ -42,6 +46,17 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
     // not need to invoke surfaceTextureListener?.onSurfaceTextureCreated
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
         Log.d(TAG, "onSurfaceCreated: SurfaceTexture is null: ${surfaceTexture == null}")
+        if (surfaceTexture == null) {
+            // texture 不能在UI thread创建，只能在其他线程创建，比如 GLThread
+            // 在 onSurfaceCreated回调就在 GLThread 被执行
+            surfaceTexture = SurfaceTexture(textureId).apply {
+                setOnFrameAvailableListener(this@CameraPreviewRender, null)
+            }
+            // set up alpha blending and an android background color
+            GLES20.glEnable(GLES20.GL_BLEND)
+            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+            surfaceTextureListener?.onSurfaceTextureAvailable(surfaceTexture!!, width, height)
+        }
     }
 
     // first invoked after EglContext created
@@ -54,27 +69,14 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
             TAG,
             "onSurfaceChanged: SurfaceTexture is null: ${surfaceTexture == null}, ${width}x${height}"
         )
-        if (surfaceTexture == null) {
-            // texture 不能在UI thread创建，只能在其他线程创建，比如 GLThread
-            // 在 onSurfaceCreated回调就在 GLThread 被执行
-            surfaceTexture = SurfaceTexture(textureId).apply {
-                setOnFrameAvailableListener(this@CameraPreviewRender, null)
-            }
-            surfaceTexture?.setDefaultBufferSize(width, height)
-            // set up alpha blending and an android background color
-            GLES20.glEnable(GLES20.GL_BLEND)
-            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-            surfaceTextureListener?.onSurfaceTextureAvailable(surfaceTexture!!, width, height)
-            previewWidth = width
-            previewHeight = height
-        } else if (surfaceTexture != null) {
-            if (previewWidth != width || previewHeight != height) {
+        if (surfaceTexture != null) {
+            if (this@CameraPreviewRender.width != width || this@CameraPreviewRender.height != height) {
                 Log.d(
                     TAG,
-                    "onSurfaceChanged: width&height change from ${previewWidth}x${previewHeight} to ${width}x${height}"
+                    "onSurfaceChanged: width&height change from ${this@CameraPreviewRender.width}x${this@CameraPreviewRender.height} to ${width}x${height}"
                 )
-                previewWidth = width
-                previewHeight = height
+                this@CameraPreviewRender.width = width
+                this@CameraPreviewRender.height = height
                 surfaceTextureListener?.onSurfaceTextureSizeChanged(surfaceTexture!!, width, height)
             } else {
                 Log.d(TAG, "onSurfaceChanged: width&height not change")
@@ -104,6 +106,8 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
         Log.d(TAG, "unload: then release surfaceTexture")
         textureManager.unload()
         surfaceTexture?.release()
+        width = 0
+        height = 0
         surfaceTexture = null
     }
 
@@ -115,7 +119,7 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
     ) {
         Log.d(
             TAG,
-            "setCoordinate:w${previewTextureSize.width}*h${previewTextureSize.height}, trueAspectRatio:${isTrueAspectRatio}"
+            "setCoordinate:w${previewTextureSize.width}*h${previewTextureSize.height}, trueAspectRatio:${isTrueAspectRatio}, previewRect:${previewRectF}"
         )
         this.textureWidth = previewTextureSize.width
         this.textureHeight = previewTextureSize.height
@@ -180,8 +184,8 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
             projectionMatrix,
             0,
             0f,
-            previewWidth.toFloat(),
-            previewHeight.toFloat(),
+            width.toFloat(),
+            height.toFloat(),
             0f,
             1f,
             3f
@@ -206,8 +210,8 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
             // SurfaceTexture updated by Camera2 preview stream, then need invoke GLSurfaceView.requestRender()
             surfaceTextureListener?.onSurfaceTextureUpdated(
                 surfaceTexture!!,
-                previewWidth,
-                previewHeight
+                width,
+                height
             )
         }
     }

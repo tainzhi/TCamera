@@ -198,10 +198,10 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
                 }
             }
             // todo: 优化空间，对于preview可以不使用最高分辨率的，只要宽高大于预览窗口宽高即可
-            if (chosenSizes.size > 0) {
+            if (chosenSizes.isNotEmpty()) {
                 Log.d(TAG, "optimal size by same w/h aspect ratio")
                 if (isPreview) {
-                    if (constraintChosenSizes.size > 0) {
+                    if (constraintChosenSizes.isNotEmpty()) {
                         return Pair(Collections.min(constraintChosenSizes, CompareSizesByArea()), true)
                     } else {
                         return Pair(Collections.max(chosenSizes, CompareSizesByArea()), true)
@@ -241,7 +241,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
                     suboptimalSize = option
                 }
             }
-            Log.d(TAG, "optimal size by choset area")
+            Log.d(TAG, "optimal size by closet area")
             return Pair(suboptimalSize, false)
         }
 
