@@ -80,8 +80,7 @@ class ControlBar(val context: Context, val binding: ActivityMainBinding, private
                 isSelected = true
                 selectedImageButton.isSelected = false
                 selectedImageButton = this
-                previewAspectRatio = SettingsManager.PreviewAspectRatio.RATIO_1x1
-                postChangePreviewAspectRatio()
+                postChangePreviewAspectRatio(SettingsManager.PreviewAspectRatio.RATIO_1x1)
             }
         }
         val ivRatio4x3 = inflatedView.findViewById<AppCompatImageButton>(R.id.btn_ratio_4x3).apply {
@@ -89,8 +88,7 @@ class ControlBar(val context: Context, val binding: ActivityMainBinding, private
                 isSelected = true
                 selectedImageButton.isSelected = false
                 selectedImageButton = this
-                previewAspectRatio = SettingsManager.PreviewAspectRatio.RATIO_4x3
-                postChangePreviewAspectRatio()
+                postChangePreviewAspectRatio(SettingsManager.PreviewAspectRatio.RATIO_4x3)
             }
         }
         val ivRatio16x9 = inflatedView.findViewById<AppCompatImageButton>(R.id.btn_ratio_16x9).apply {
@@ -98,8 +96,7 @@ class ControlBar(val context: Context, val binding: ActivityMainBinding, private
                 isSelected = true
                 selectedImageButton.isSelected = false
                 selectedImageButton = this
-                previewAspectRatio = SettingsManager.PreviewAspectRatio.RATIO_16x9
-                postChangePreviewAspectRatio()
+                postChangePreviewAspectRatio(SettingsManager.PreviewAspectRatio.RATIO_16x9)
             }
         }
         val ivRatioFull = inflatedView.findViewById<AppCompatImageButton>(R.id.btn_ratio_full).apply {
@@ -107,8 +104,7 @@ class ControlBar(val context: Context, val binding: ActivityMainBinding, private
                 isSelected = true
                 selectedImageButton.isSelected = false
                 selectedImageButton = this
-                previewAspectRatio = SettingsManager.PreviewAspectRatio.RATIO_FULL
-                postChangePreviewAspectRatio()
+                postChangePreviewAspectRatio(SettingsManager.PreviewAspectRatio.RATIO_FULL)
             }
         }
         when (previewAspectRatio) {
@@ -134,8 +130,12 @@ class ControlBar(val context: Context, val binding: ActivityMainBinding, private
         }
     }
 
-    private fun postChangePreviewAspectRatio() {
-        SettingsManager.getInstance().setPreviewRatio(previewAspectRatio)
+    private fun postChangePreviewAspectRatio(previewAspectRatio: SettingsManager.PreviewAspectRatio) {
+        // 只在ratio改变时才更新
+        if (previewAspectRatio != SettingsManager.getInstance().getPreviewAspectRatio()) {
+            SettingsManager.getInstance().setPreviewRatio(previewAspectRatio)
+            onRatioUpdate.invoke()
+        }
         updateControlBarRatioIcon(previewAspectRatio)
         inflatedView.animate().alpha(0.5f)
             .withEndAction {
@@ -149,7 +149,6 @@ class ControlBar(val context: Context, val binding: ActivityMainBinding, private
                     .start()
             }
             .start()
-        onRatioUpdate.invoke()
     }
 
     private fun updateControlBarRatioIcon(previewAspectRatio: SettingsManager.PreviewAspectRatio) {
