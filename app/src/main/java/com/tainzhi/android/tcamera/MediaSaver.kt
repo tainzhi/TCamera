@@ -3,6 +3,7 @@ package com.tainzhi.android.tcamera
 import android.content.ContentValues
 import android.content.Context
 import android.media.Image
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
@@ -32,8 +33,6 @@ class MediaSaver(
 
         Log.d(TAG, "begin run for $captureType")
         Kpi.start(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
-        val relativeLocation = Environment.DIRECTORY_DCIM + "/Camera"
-
         lateinit var image: Image
         if (captureType == CaptureType.JPEG) {
             image = images[0]
@@ -42,17 +41,8 @@ class MediaSaver(
 //            ImageProcessor.processImages(images, hdrExposureTimes)
             return
         }
-        val fileName = "IMG_${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(image.timestamp)}.jpg"
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relativeLocation)
-                put(MediaStore.MediaColumns.IS_PENDING, 0)
-            }
-        }
+        val imageUri = generateMediaUri(context, captureType)
         val resolver = context.contentResolver
-        val imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
 
         val buffer = image.planes[0].buffer
         val bytes = ByteArray(image.planes[0].buffer.remaining())
@@ -88,10 +78,56 @@ class MediaSaver(
 
     companion object {
         private val TAG = MediaSaver.javaClass.simpleName
+        fun generateMediaUri(context: Context, captureType: CaptureType): Uri? {
+            val relativeLocation = Environment.DIRECTORY_DCIM + "/Camera"
+            // todo: 用拍照时间做文件名，而不是当前保存文件时间
+            lateinit var fileName: String
+            var mediaUri: Uri?
+            val contentValues = ContentValues().apply {
+                var fileExtension: String
+                var filePrefix: String
+                when(captureType) {
+                    CaptureType.JPEG -> {
+                        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+                        fileExtension = ".jpeg"
+                        filePrefix = "IMG_"
+                    }
+                    CaptureType.HDR -> {
+                        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+                        fileExtension = "_HDR.jpeg"
+                        filePrefix = "IMG_"
+                    }
+                    CaptureType.VIDEO -> {
+                        fileExtension = ".mp4"
+                        filePrefix = "VID_"
+                        put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+                    }
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativeLocation)
+                    put(MediaStore.MediaColumns.IS_PENDING, 0)
+                }
+                fileName = "${filePrefix}${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(System.currentTimeMillis())}${fileExtension}"
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            }
+            when(captureType) {
+                CaptureType.JPEG, CaptureType.HDR -> {
+                    mediaUri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                }
+                CaptureType.VIDEO -> {
+                    mediaUri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
+                }
+            }
+            if (App.DEBUG) {
+                Log.d(TAG, "generateMediaUri: $fileName")
+            }
+            return mediaUri
+        }
     }
 }
 
 enum class CaptureType {
     JPEG,
-    HDR
+    HDR,
+    VIDEO
 }

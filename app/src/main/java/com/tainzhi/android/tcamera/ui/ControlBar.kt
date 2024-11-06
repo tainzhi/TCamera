@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import android.view.View
 import androidx.appcompat.widget.AppCompatImageButton
+import com.tainzhi.android.tcamera.MainActivity
 import com.tainzhi.android.tcamera.R
 import com.tainzhi.android.tcamera.SettingsActivity
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
@@ -67,6 +68,20 @@ class ControlBar(
                 .setDuration(800)
                 .rotation(angle.toFloat())
                 .start()
+        }
+    }
+
+    fun updateByCameraMode(cameraMode: Int) {
+        when (cameraMode) {
+            MainActivity.VIDEO_MODE -> {
+                btnHdr.visibility = View.INVISIBLE
+                btnRatio.visibility = View.INVISIBLE
+            }
+
+            MainActivity.IMAGE_MODE -> {
+                btnHdr.visibility = View.VISIBLE
+                btnRatio.visibility = View.VISIBLE
+            }
         }
     }
 

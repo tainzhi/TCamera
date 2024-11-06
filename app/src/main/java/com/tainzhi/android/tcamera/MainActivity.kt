@@ -128,6 +128,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var jpgImageReader: ImageReader
     private lateinit var yuvImageReader: ImageReader
     private var yuvLatestReceivedImage: Image? = null
+
     // todo: use coroutine instead
     private val imageReaderLock = ReentrantLock()
     private val imageReaderCondition = imageReaderLock.newCondition()
@@ -140,16 +141,16 @@ class MainActivity : AppCompatActivity() {
 
     private var isRecordingVideo = false
     private var mediaRecorder: MediaRecorder? = null
-    private var videoPath: String? = null
-    private lateinit var videoSize: Size
 
     private lateinit var previewRequestBuilder: CaptureRequest.Builder
     private lateinit var previewRequest: CaptureRequest
 
     // CameraPreview size
     private var previewSize = Size(0, 0)
+
     // camera2 output preview surface
     private lateinit var previewSurface: Surface
+
     // camera2 output preview surface texture
     private lateinit var previewSurfaceTexture: SurfaceTexture
 
@@ -211,6 +212,7 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "onCameraDisconnected: ${p0}")
             p0.close()
             cameraOpenCloseLock.release()
+            closeSurfaces()
             closeCaptureSession()
             this@MainActivity.cameraDevice = null
         }
@@ -308,6 +310,7 @@ class MainActivity : AppCompatActivity() {
         setFullScreen()
         controlBar = ControlBar(this, _binding) {
             Log.d(TAG, "onPreviewAspectRatioChange")
+            closeSurfaces()
             closeCaptureSession()
             isNeedRecreateCaptureSession = true
             cameraPreviewView.changePreviewAspectRatio()
@@ -334,7 +337,7 @@ class MainActivity : AppCompatActivity() {
         }
         ivRecord = findViewById<ImageView>(R.id.iv_record).apply {
             setOnClickListener {
-                if (isRecordingVideo) stopRecordingVideo() else startRecordingVideo()
+                if (isRecordingVideo) stopVideo() else startVideo()
             }
         }
         ivSwitchCamera = findViewById<ImageView>(R.id.iv_switch_camera).apply {
@@ -342,28 +345,27 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "click switch camera icon")
                 isNeedReopenCamera = true
                 useCameraFront = !useCameraFront
+                closeSurfaces()
                 closeCaptureSession()
                 closeCamera()
             }
         }
 
         _binding.cameraModePicker.apply {
-            data = cameraModes.toList()
+            data = CAMERA_MODES.toList()
             setOnSelectedListener(object : OnSelectedListener {
-                override fun onSelected(scrollPickerView: ScrollPickerView<*>?, position: Int) {
-                    when (position) {
-                        CaptureMode -> {
+                override fun onSelected(scrollPickerView: ScrollPickerView<*>?, mode: Int) {
+                    when (mode) {
+                         IMAGE_MODE -> {
                             ivRecord.visibility = View.INVISIBLE
                             ivTakePicture.visibility = View.VISIBLE
                         }
-
-                        RecordMode -> {
+                        VIDEO_MODE -> {
                             ivRecord.visibility = View.VISIBLE
                             ivTakePicture.visibility = View.INVISIBLE
-                            toast("待实现录制视频功能")
-                            assert(false) { "待实现录制视频功能" }
                         }
                     }
+                    controlBar.updateByCameraMode(mode)
                 }
 
             })
@@ -417,6 +419,7 @@ class MainActivity : AppCompatActivity() {
         setBrightness(false)
         isHasSetupCameraOutputs = false
         rotationChangeMonitor.disable()
+        closeSurfaces()
         closeCaptureSession()
         closeCamera()
         super.onStop()
@@ -601,8 +604,6 @@ class MainActivity : AppCompatActivity() {
                             SettingsManager.KEY_PHOTO_ZSL,
                             SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
                         )
-            // todo feature: for recording video
-            videoSize = cameraInfo!!.videoSize
             val (chosenJpgSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
                 cameraInfo!!.getOutputJpgSizes(),
                 previewSize,
@@ -676,7 +677,10 @@ class MainActivity : AppCompatActivity() {
                 TAG,
                 "choose camera output preview size:${cameraOutputPreviewTextureSize}, match ${previewAspectRatio}:${isTrueAspectRatio}"
             )
-            previewSurfaceTexture.setDefaultBufferSize(cameraOutputPreviewTextureSize.width, cameraOutputPreviewTextureSize.height)
+            previewSurfaceTexture.setDefaultBufferSize(
+                cameraOutputPreviewTextureSize.width,
+                cameraOutputPreviewTextureSize.height
+            )
             previewSurface = Surface(previewSurfaceTexture)
             val previewTopMargin =
                 resources.getDimensionPixelSize(R.dimen.preview_top_margin) * resources.displayMetrics.density
@@ -760,6 +764,12 @@ class MainActivity : AppCompatActivity() {
                 override fun onClosed(session: CameraCaptureSession) {
                     super.onClosed(session)
                     Log.d(TAG, "onSessionClosed")
+                    if (isNeedRecreateCaptureSession) {
+                        Log.d(TAG, "onSessionClosed: need to recreate CaptureSession")
+                        isNeedRecreateCaptureSession = false
+                        setSurfaces()
+                        setCaptureSession()
+                    }
                 }
 
                 override fun onSurfacePrepared(session: CameraCaptureSession, surface: Surface) {
@@ -781,12 +791,6 @@ class MainActivity : AppCompatActivity() {
                     // When the session is ready, we start displaying the preview.
                     super.onReady(session)
                     Log.d(TAG, "onSessionReady")
-                    if (isNeedRecreateCaptureSession) {
-                        Log.d(TAG, "onSessionReady: need to recreate CaptureSession")
-                        isNeedRecreateCaptureSession = false
-                        setSurfaces()
-                        setCaptureSession()
-                    }
                 }
             }
             if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
@@ -844,7 +848,10 @@ class MainActivity : AppCompatActivity() {
         if (cameraDevice == null) return
         if (currentCaptureSession!!.isReprocessable && isEnableZsl) {
             zslImageWriter =
-                ImageWriter.newInstance(currentCaptureSession!!.inputSurface!!, ZSL_IMAGE_WRITER_SIZE)
+                ImageWriter.newInstance(
+                    currentCaptureSession!!.inputSurface!!,
+                    ZSL_IMAGE_WRITER_SIZE
+                )
             zslImageWriter.setOnImageReleasedListener({ _ ->
                 {
                     Log.d(TAG, "ZslImageWriter onImageReleased()")
@@ -1164,7 +1171,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startRecordingVideo() {
+    private fun startVideo() {
         if (cameraDevice == null) return
         try {
             closeCaptureSession()
@@ -1188,7 +1195,6 @@ class MainActivity : AppCompatActivity() {
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(p0: CameraCaptureSession) {
                         currentCaptureSession = p0
-                        setPreviewRequest()
                         runOnUiThread {
                             ivRecord.setImageResource(R.drawable.btn_record_stop)
                             isRecordingVideo = true
@@ -1202,20 +1208,25 @@ class MainActivity : AppCompatActivity() {
                 }, cameraHandler
             )
         } catch (e: CameraAccessException) {
-            Log.e(TAG, e.toString())
+            Log.e(TAG, "CameraAccessException", e)
         } catch (e: IOException) {
-            Log.e(TAG, e.toString())
+            Log.e(TAG, "IOException", e)
         }
     }
 
     @Throws(IOException::class)
     private fun setUpMediaRecorder() {
         mediaRecorder = MediaRecorder()
-
-        if (videoPath.isNullOrEmpty()) {
-            videoPath = getVideoFilePath()
+        val (videoSize, _) = chooseOptimalSize(
+            cameraInfo!!.getOutputPreviewSurfaceSizes(),
+            previewSize,
+            16 / 9f, /*todo: 支持更多分辨率的视频录制; 只支持 16/9， 4/3 */
+            true
+        )
+        if (App.DEBUG) {
+            Log.d(TAG, "setUpMediaRecorder: videoSize:${videoSize}")
         }
-
+        val videoUri = MediaSaver.generateMediaUri(this, CaptureType.VIDEO)
         val rotation = windowManager.defaultDisplay.rotation
         when (sensorOrientation) {
             SENSOR_ORIENTATION_DEFAULT_DEGREES ->
@@ -1228,7 +1239,13 @@ class MainActivity : AppCompatActivity() {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile(videoPath)
+            setOutputFile(
+                this@MainActivity.contentResolver.openFileDescriptor(
+                    videoUri!!,
+                    "w"
+                )!!.fileDescriptor
+
+            )
             setVideoEncodingBitRate(10000000)
             setVideoFrameRate(30)
             setVideoSize(videoSize.width, videoSize.height)
@@ -1238,28 +1255,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun stopRecordingVideo() {
+    private fun stopVideo() {
         isRecordingVideo = false
         ivRecord.setImageResource(R.drawable.btn_record_start)
         mediaRecorder?.apply {
             stop()
             reset()
         }
-        toast("Video saved: $videoPath")
-        videoPath = null
         setCaptureSession()
-    }
-
-    private fun getVideoFilePath(): String {
-        //        val filename = "${System.currentTimeMillis()}.mp4"
-        val filename = "record.mp4"
-        val dir = getExternalFilesDir(null)
-
-        return if (dir == null) {
-            filename
-        } else {
-            "${dir.absolutePath}/$filename"
-        }
     }
 
     private fun handleRotation(rotateAngle: Int) {
@@ -1337,11 +1340,9 @@ class MainActivity : AppCompatActivity() {
         private const val YUV_IMAGE_READER_SIZE = 8
         private const val ZSL_IMAGE_WRITER_SIZE = 2
 
-        private const val RecordMode = 0
-        private const val CaptureMode = 1
-        private val cameraModes = arrayOf(
-            "视频", "拍照"
-        )
+        const val VIDEO_MODE = 0
+        const val IMAGE_MODE = 1
+        val CAMERA_MODES = arrayOf("视频", "拍照")
 
         init {
             OREIENTATIONS.append(Surface.ROTATION_0, 0)
