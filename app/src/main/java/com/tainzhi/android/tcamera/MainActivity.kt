@@ -1,7 +1,6 @@
 package com.tainzhi.android.tcamera
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -185,7 +184,7 @@ class MainActivity : AppCompatActivity() {
         ) {
             Log.d(TAG, "onSurfaceTextureSizeChanged: ${width}x${height}")
             previewSize = Size(width, height)
-            setUpCameraOutputs()
+            setSurfaces()
         }
 
         override fun onSurfaceTextureUpdated(
@@ -230,7 +229,7 @@ class MainActivity : AppCompatActivity() {
                 Log.i(TAG, "onCameraClosed: need reopen camera")
                 isNeedReopenCamera = false
                 openCamera()
-                setUpCameraOutputs()
+                setSurfaces()
             }
         }
     }
@@ -584,8 +583,8 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun setUpCameraOutputs() {
-        Log.i(TAG, "setUpCameraOutputs: ")
+    private fun setSurfaces() {
+        Log.i(TAG, "setSurfaces: ")
         val previewAspectRatio = SettingsManager.getInstance().getPreviewAspectRatio()
         val ratioValue: Float = when (previewAspectRatio) {
             SettingsManager.PreviewAspectRatio.RATIO_1x1 -> 1f
@@ -775,18 +774,7 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onConfigured(session: CameraCaptureSession) {
                     currentCaptureSession = session
-                    updatePreview()
-                    Log.d(TAG, "onSessionConfigured isReprocessable=${session.isReprocessable} enableZsl:$isEnableZsl")
-                    if (session.isReprocessable && isEnableZsl) {
-                        zslImageWriter =
-                            ImageWriter.newInstance(session.inputSurface!!, ZSL_IMAGE_WRITER_SIZE)
-                        zslImageWriter.setOnImageReleasedListener({ _ ->
-                            {
-                                Log.d(TAG, "ZslImageWriter onImageReleased()")
-                            }
-                        }, cameraHandler)
-                        Log.d(TAG, "onSessionConfigured: create ImageWriter")
-                    }
+                    setPreviewRequest()
                 }
 
                 override fun onReady(session: CameraCaptureSession) {
@@ -796,7 +784,7 @@ class MainActivity : AppCompatActivity() {
                     if (isNeedRecreateCaptureSession) {
                         Log.d(TAG, "onSessionReady: need to recreate CaptureSession")
                         isNeedRecreateCaptureSession = false
-                        setUpCameraOutputs()
+                        setSurfaces()
                         setCaptureSession()
                     }
                 }
@@ -847,12 +835,23 @@ class MainActivity : AppCompatActivity() {
     private fun closeCaptureSession() {
         // closeCaptureSession -> session.onClosed() -> closeCamera()
         Log.i(TAG, "closeCaptureSession: ")
-        currentCaptureSession?.stopRepeating()
+        currentCaptureSession!!.stopRepeating()
+        currentCaptureSession!!.close()
         currentCaptureSession = null
     }
 
-    private fun updatePreview() {
+    private fun setPreviewRequest() {
         if (cameraDevice == null) return
+        if (currentCaptureSession!!.isReprocessable && isEnableZsl) {
+            zslImageWriter =
+                ImageWriter.newInstance(currentCaptureSession!!.inputSurface!!, ZSL_IMAGE_WRITER_SIZE)
+            zslImageWriter.setOnImageReleasedListener({ _ ->
+                {
+                    Log.d(TAG, "ZslImageWriter onImageReleased()")
+                }
+            }, cameraHandler)
+            Log.d(TAG, "onSessionConfigured: create ImageWriter")
+        }
         try {
             previewRequestBuilder =
                 cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
@@ -1189,7 +1188,7 @@ class MainActivity : AppCompatActivity() {
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(p0: CameraCaptureSession) {
                         currentCaptureSession = p0
-                        updatePreview()
+                        setPreviewRequest()
                         runOnUiThread {
                             ivRecord.setImageResource(R.drawable.btn_record_stop)
                             isRecordingVideo = true
