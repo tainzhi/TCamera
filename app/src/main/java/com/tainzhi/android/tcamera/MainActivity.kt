@@ -1174,6 +1174,7 @@ class MainActivity : AppCompatActivity() {
     private fun startVideo() {
         if (cameraDevice == null) return
         try {
+            closeSurfaces()
             closeCaptureSession()
             setUpMediaRecorder()
 
@@ -1208,9 +1209,9 @@ class MainActivity : AppCompatActivity() {
                 }, cameraHandler
             )
         } catch (e: CameraAccessException) {
-            Log.e(TAG, "CameraAccessException", e)
+            Log.e(TAG, "startVideo CameraAccessException", e)
         } catch (e: IOException) {
-            Log.e(TAG, "IOException", e)
+            Log.e(TAG, "startVideo IOException", e)
         }
     }
 
@@ -1226,6 +1227,9 @@ class MainActivity : AppCompatActivity() {
         if (App.DEBUG) {
             Log.d(TAG, "setUpMediaRecorder: videoSize:${videoSize}")
         }
+        previewSurfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
+        previewSurface = Surface(previewSurfaceTexture)
+
         val videoUri = MediaSaver.generateMediaUri(this, CaptureType.VIDEO)
         val rotation = windowManager.defaultDisplay.rotation
         when (sensorOrientation) {
