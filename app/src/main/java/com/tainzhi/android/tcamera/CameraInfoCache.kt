@@ -35,7 +35,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
     var supportExposureBracketing = false
     var minExposureTime = 0
     var maxExposureTime = 0
-    val exposureBracketingImages = IMAGE_BUFFER_SIZE
+    val exposureBracketingImages = CAPTURE_HDR_FRAME_SIZE
     val exposureBracketingStops = 2.0
     var reprocessingNoiseMode = CameraCharacteristics.NOISE_REDUCTION_MODE_HIGH_QUALITY
     var reprocessingEdgeMode = CameraCharacteristics.EDGE_MODE_HIGH_QUALITY
@@ -248,7 +248,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
         private val TAG = CameraInfoCache::class.java.simpleName
         private const val DIFF_FLOAT_EPS = 0.0001f
         // at least 3 buffers to HDR capture and should be odd number
-        const val IMAGE_BUFFER_SIZE = 3
+        const val CAPTURE_HDR_FRAME_SIZE = 3
     }
 }
 

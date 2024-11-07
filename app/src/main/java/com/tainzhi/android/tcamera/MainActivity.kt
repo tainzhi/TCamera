@@ -32,7 +32,7 @@ import androidx.core.os.ExecutorCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import com.tainzhi.android.tcamera.CameraInfoCache.Companion.IMAGE_BUFFER_SIZE
+import com.tainzhi.android.tcamera.CameraInfoCache.Companion.CAPTURE_HDR_FRAME_SIZE
 import com.tainzhi.android.tcamera.CameraInfoCache.Companion.chooseOptimalSize
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.ui.CameraPreviewView
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var lastTotalCaptureResult: TotalCaptureResult
-    private lateinit var zslImageWriter: ImageWriter
+    private var zslImageWriter: ImageWriter? = null
 
     // todo: use coroutine
     // a [Semaphore] to prevent the app from exiting before closing the camera
@@ -128,12 +128,7 @@ class MainActivity : AppCompatActivity() {
     // handles still image capture
     private lateinit var jpgImageReader: ImageReader
     private lateinit var yuvImageReader: ImageReader
-    private var yuvLatestReceivedImage: Image? = null
-
-    // todo: use coroutine instead
-    private val imageReaderLock = ReentrantLock()
-    private val imageReaderCondition = imageReaderLock.newCondition()
-    private var imageReaderSetup = false
+    private var yuvImage: Image? = null
 
     private var captureType = CaptureType.JPEG
 
@@ -149,13 +144,18 @@ class MainActivity : AppCompatActivity() {
     // CameraPreview size
     private var previewSize = Size(0, 0)
 
+    // todo: use coroutine instead
+    private val previewSizeLock = ReentrantLock()
+    private val previewSizeCondition = previewSizeLock.newCondition()
+    private var isPreviewSizeSet = false
+
     // camera2 output preview surface
     private lateinit var previewSurface: Surface
 
     // camera2 output preview surface texture
     private lateinit var previewSurfaceTexture: SurfaceTexture
 
-    private val hdrNeedImageSize = IMAGE_BUFFER_SIZE
+    private val hdrNeedImageSize = CAPTURE_HDR_FRAME_SIZE
 
     // time in nanoseconds
     private val hdrImageExposureTimeList = arrayListOf<Long>()
@@ -185,6 +185,15 @@ class MainActivity : AppCompatActivity() {
         ) {
             Log.d(TAG, "onSurfaceTextureSizeChanged: ${width}x${height}")
             previewSize = Size(width, height)
+            // must after set ImageReader and PreviewSurface.SurfaceTexture.FrameSize
+            previewSizeLock.lock()
+            try {
+                isPreviewSizeSet = true
+                previewSizeCondition.signal()
+            } finally {
+                previewSizeLock.unlock()
+            }
+            isHasSetupCameraOutputs = true
             setSurfaces()
         }
 
@@ -206,6 +215,18 @@ class MainActivity : AppCompatActivity() {
             this@MainActivity.cameraDevice = p0
             Log.i(TAG, "onCameraOpened: ")
             isCameraOpen = true
+            previewSizeLock.lock()
+            try {
+                while (!isPreviewSizeSet) {
+                    if (App.DEBUG) {
+                        Log.d(TAG, "setCaptureSession: waiting to image reader set")
+                    }
+                    previewSizeCondition.await()
+                }
+            } finally {
+                previewSizeLock.unlock()
+            }
+            setSurfaces()
             setCaptureSession()
         }
 
@@ -230,6 +251,7 @@ class MainActivity : AppCompatActivity() {
             if (isNeedReopenCamera) {
                 Log.i(TAG, "onCameraClosed: need reopen camera")
                 isNeedReopenCamera = false
+                isPreviewSizeSet = true
                 openCamera()
                 setSurfaces()
             }
@@ -613,33 +635,47 @@ class MainActivity : AppCompatActivity() {
                 TAG,
                 "choose camera output jpg size:${chosenJpgSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}, enableZsl:$isEnableZsl"
             )
-            if (isEnableZsl) {
+            if (isEnableZsl && !SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
                 yuvImageReader = ImageReader.newInstance(
                     cameraInfo!!.largestYuvSize.width, cameraInfo!!.largestYuvSize.height,
                     ImageFormat.YUV_420_888,
                     YUV_IMAGE_READER_SIZE
                 )
                 yuvImageReader.setOnImageAvailableListener({ reader ->
-                    yuvLatestReceivedImage?.close()
-                    yuvLatestReceivedImage = reader.acquireLatestImage()
+                    yuvImage?.close()
+                    yuvImage = reader.acquireLatestImage()
                 }, cameraHandler)
             }
             if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
+                yuvImageReader = ImageReader.newInstance(
+                    chosenJpgSize.width, chosenJpgSize.height,
+                    ImageFormat.YUV_420_888,
+                    CAPTURE_HDR_FRAME_SIZE
+                )
+                yuvImageReader.setOnImageAvailableListener({ reader ->
+                    Log.d(TAG, "hdr: yuv image avaiable")
+                }, cameraHandler)
+
                 jpgImageReader = ImageReader.newInstance(
                     chosenJpgSize.width, chosenJpgSize.height,
-                    ImageFormat.YUV_420_888, IMAGE_BUFFER_SIZE
+                    ImageFormat.JPEG, 1
                 )
+                jpgImageReader.setOnImageAvailableListener({ reader ->
+                    Log.d(TAG, "hdr: jpg image available ")
+                    val image = reader.acquireLatestImage()
+//                    handleOnImageAvailable(image)
+                }, imageReaderHandler)
             } else {
                 jpgImageReader = ImageReader.newInstance(
                     chosenJpgSize.width, chosenJpgSize.height,
                     ImageFormat.JPEG, 1
                 )
+                jpgImageReader.setOnImageAvailableListener({ reader ->
+                    Log.d(TAG, "jpg: image available ")
+                    val image = reader.acquireLatestImage()
+                    handleOnImageAvailable(image)
+                }, imageReaderHandler)
             }
-            jpgImageReader.setOnImageAvailableListener({ reader ->
-                Log.d(TAG, "image available ")
-                val image = reader.acquireLatestImage()
-                handleOnImageAvailable(image)
-            }, imageReaderHandler)
 //        make activity portrait, so not handle sensor rotation
 //        // device display rotation
 //        // 0 [Surface.ROTATION_0]{android.view.Surface.ROTATION_0 = 0}  -> portrait, 把手机垂直放置且屏幕朝向我们的时候，即设备自然方向
@@ -722,15 +758,6 @@ class MainActivity : AppCompatActivity() {
             ErrorDialog.Companion.newInstance(getString(R.string.camera_error))
                 .show(supportFragmentManager, "fragment_dialog")
         }
-        // must after set ImageReader and PreviewSurface.SurfaceTexture.FrameSize
-        imageReaderLock.lock()
-        try {
-            imageReaderSetup = true
-            imageReaderCondition.signal()
-        } finally {
-            imageReaderLock.unlock()
-        }
-        isHasSetupCameraOutputs = true
     }
 
     private fun closeSurfaces() {
@@ -739,25 +766,15 @@ class MainActivity : AppCompatActivity() {
         jpgImageReader.close()
         if (isEnableZsl) {
             yuvImageReader.close()
-            zslImageWriter.close()
+            zslImageWriter?.close()
+            zslImageWriter = null
         }
-        imageReaderSetup = false
+        isPreviewSizeSet = false
     }
 
     private fun setCaptureSession() {
         Log.i(TAG, "setCaptureSession: ")
         try {
-            imageReaderLock.lock()
-            try {
-                while (!imageReaderSetup) {
-                    if (App.DEBUG) {
-                        Log.d(TAG, "setCaptureSession: waiting to image reader set")
-                    }
-                    imageReaderCondition.await()
-                }
-            } finally {
-                imageReaderLock.unlock()
-            }
             Log.d(TAG, "setCaptureSession: previewSize:${previewSize} is set")
             val captureSessionStateCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onClosed(session: CameraCaptureSession) {
@@ -845,13 +862,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun setPreviewRequest() {
         if (cameraDevice == null) return
-        if (previewStreamingSession!!.isReprocessable && isEnableZsl) {
+        if (previewStreamingSession!!.isReprocessable && isEnableZsl && !SettingsManager.getInstance()
+                .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
             zslImageWriter =
                 ImageWriter.newInstance(
                     previewStreamingSession!!.inputSurface!!,
                     ZSL_IMAGE_WRITER_SIZE
                 )
-            zslImageWriter.setOnImageReleasedListener({ _ ->
+            zslImageWriter?.setOnImageReleasedListener({ _ ->
                 {
                     Log.d(TAG, "ZslImageWriter onImageReleased()")
                 }
@@ -935,18 +953,17 @@ class MainActivity : AppCompatActivity() {
         capturedImageList.clear()
         hdrImageExposureTimeList.clear()
         try {
-            if (isEnableZsl && yuvLatestReceivedImage == null) {
+            if (isEnableZsl && yuvImage == null) {
                 Log.e(TAG, "captureStillPicture: no yuv image available")
                 return
             }
             val rotation = windowManager.defaultDisplay.rotation
 
             val captureBuilder =
-                if (isEnableZsl && this::zslImageWriter.isInitialized &&
-                    captureType != CaptureType.HDR
+                if (zslImageWriter != null && captureType != CaptureType.HDR
                 ) {
                     Log.d(TAG, "captureStillPicture: queueInput yuvLatestReceiveImage to HAL")
-                    zslImageWriter.queueInputImage(yuvLatestReceivedImage)
+                    zslImageWriter!!.queueInputImage(yuvImage)
                     cameraDevice!!.createReprocessCaptureRequest(lastTotalCaptureResult)
                 } else {
                     Log.i(
@@ -1070,7 +1087,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
         }
-        yuvLatestReceivedImage = null
+        yuvImage = null
     }
 
     // Lock the focus as the first step for a still image capture.
