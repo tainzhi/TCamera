@@ -1,4 +1,4 @@
-package com.tainzhi.android.tcamera
+package com.tainzhi.android.tcamera.ui
 
 import android.content.Context
 import android.graphics.RectF
@@ -6,10 +6,10 @@ import android.graphics.SurfaceTexture
 import android.util.AttributeSet
 import android.util.Log
 import android.util.Size
+import com.tainzhi.android.tcamera.App
 import com.tainzhi.android.tcamera.gl.EglUtil
 import com.tainzhi.android.tcamera.gl.EglUtil.makeCurrent
 import com.tainzhi.android.tcamera.gl.GlUtil
-import com.tainzhi.android.tcamera.ui.GLSurfaceView
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
@@ -74,7 +74,7 @@ class CameraPreviewView : GLSurfaceView {
             config: EGLConfig?,
             nativeWindow: Any?
         ): EGLSurface {
-            if (App.DEBUG) Log.d(TAG, "createWindowSurface: ")
+            if (App.Companion.DEBUG) Log.d(TAG, "createWindowSurface: ")
             egl10 = egl
             eglDisplay = display
             eglSurface = createSurfaceImpl(egl!!, display!!, config!!, nativeWindow!!)
@@ -83,7 +83,7 @@ class CameraPreviewView : GLSurfaceView {
         }
 
         override fun destroySurface(egl: EGL10?, display: EGLDisplay?, surface: EGLSurface?) {
-            if (App.DEBUG) Log.d(TAG, "destroySurface: ")
+            if (App.Companion.DEBUG) Log.d(TAG, "destroySurface: ")
             if (!EglUtil.destroySurface(egl, display, surface)) {
                 Log.w(TAG, "failed to destroy OpenGL ES surface")
             }
@@ -93,7 +93,7 @@ class CameraPreviewView : GLSurfaceView {
         }
 
         private fun createSurfaceImpl(egl: EGL10, display: EGLDisplay, eglConfig: EGLConfig, nativeWindow: Any): EGLSurface {
-            if (App.DEBUG) Log.d(TAG, "create  OpenGL ES surface")
+            if (App.Companion.DEBUG) Log.d(TAG, "create  OpenGL ES surface")
             try {
                 val surface = EglUtil.createWindowSurface(egl, display, eglConfig, nativeWindow)
                 if (surface != EGL10.EGL_NO_SURFACE) return surface
@@ -108,14 +108,14 @@ class CameraPreviewView : GLSurfaceView {
     inner class ContextFactory: EGLContextFactory {
 
         override fun createContext(egl: EGL10?, display: EGLDisplay?, eglConfig: EGLConfig?): EGLContext {
-            if (App.DEBUG) Log.d(TAG, "createContext: ")
+            if (App.Companion.DEBUG) Log.d(TAG, "createContext: ")
             eglContext = createContextImpl(egl!!, display!!, eglConfig!!)
             cameraPreviewRender.load()
             return eglContext
         }
 
         override fun destroyContext(egl: EGL10?, display: EGLDisplay?, context: EGLContext?) {
-            if (App.DEBUG) Log.d(TAG, "destroyContext: ")
+            if (App.Companion.DEBUG) Log.d(TAG, "destroyContext: ")
             cameraPreviewRender.unload()
             if (!EglUtil.destroyContext(egl!!, display!!, context!!)) {
                 Log.w(TAG, "failed to destroy OpenGL ES context")
@@ -126,7 +126,7 @@ class CameraPreviewView : GLSurfaceView {
         private fun createContextImpl(egl: EGL10, display: EGLDisplay, eglConfig: EGLConfig): EGLContext {
             val versions = intArrayOf(EglUtil.GLES3, EglUtil.GLES2)
             versions.forEach {
-                if (App.DEBUG) {
+                if (App.Companion.DEBUG) {
                     Log.d(TAG, "create OpenGL ES context with version:${it}")
                 }
                 try {

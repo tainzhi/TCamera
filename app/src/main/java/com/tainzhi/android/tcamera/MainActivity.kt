@@ -35,6 +35,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.tainzhi.android.tcamera.CameraInfoCache.Companion.IMAGE_BUFFER_SIZE
 import com.tainzhi.android.tcamera.CameraInfoCache.Companion.chooseOptimalSize
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
+import com.tainzhi.android.tcamera.ui.CameraPreviewView
 import com.tainzhi.android.tcamera.ui.CircleImageView
 import com.tainzhi.android.tcamera.ui.ControlBar
 import com.tainzhi.android.tcamera.ui.ErrorDialog

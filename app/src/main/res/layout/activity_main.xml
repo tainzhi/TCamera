@@ -21,7 +21,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <com.tainzhi.android.tcamera.CameraPreviewView
+    <com.tainzhi.android.tcamera.ui.CameraPreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

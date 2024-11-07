@@ -1,4 +1,4 @@
-package com.tainzhi.android.tcamera
+package com.tainzhi.android.tcamera.ui
 
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
@@ -11,7 +11,6 @@ import com.tainzhi.android.tcamera.gl.textures.GridLine
 import com.tainzhi.android.tcamera.gl.textures.PreviewTexture
 import com.tainzhi.android.tcamera.gl.textures.TextureManager
 import com.tainzhi.android.tcamera.gl.textures.Vertex2F
-import com.tainzhi.android.tcamera.ui.GLSurfaceView
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
