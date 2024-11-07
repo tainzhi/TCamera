@@ -62,7 +62,6 @@ import java.util.concurrent.locks.ReentrantLock
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var rootView: View
     private lateinit var _binding: ActivityMainBinding
     private lateinit var cameraPreviewView: CameraPreviewView
     private lateinit var ivThumbnail: CircleImageView
@@ -79,8 +78,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rotationChangeMonitor: RotationChangeMonitor
     private var thumbnailOrientation = 0
 
-    private var isEnableZsl = SettingsManager.getInstance()
-        .getBoolean(SettingsManager.KEY_PHOTO_ZSL, SettingsManager.PHOTO_ZSL_DEFAULT_VALUE)
+    private var isEnableZsl = false
 
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
     private val cameraHandler = Handler(cameraThread.looper)
@@ -115,7 +113,6 @@ class MainActivity : AppCompatActivity() {
     // default open front-facing cameras/lens
     private var useCameraFront = false
     private var isCameraOpen = false
-    private var isHasSetupCameraOutputs = false
     private lateinit var cameraId: String
 
     private var flashSupported = false
@@ -160,6 +157,8 @@ class MainActivity : AppCompatActivity() {
     // time in nanoseconds
     private val hdrImageExposureTimeList = arrayListOf<Long>()
 
+    private var currentCameraMode: CameraMode = CameraMode.PHOTO
+
     private var surfaceTextureListener = object : CameraPreviewView.SurfaceTextureListener {
 
         override fun onSurfaceTextureAvailable(
@@ -193,8 +192,6 @@ class MainActivity : AppCompatActivity() {
             } finally {
                 previewSizeLock.unlock()
             }
-            isHasSetupCameraOutputs = true
-            setSurfaces()
         }
 
         override fun onSurfaceTextureUpdated(
@@ -329,7 +326,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(_binding.root)
-        rootView = _binding.root
         setFullScreen()
         controlBar = ControlBar(this, _binding) {
             Log.d(TAG, "onPreviewAspectRatioChange")
@@ -375,19 +371,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         _binding.cameraModePicker.apply {
-            data = CAMERA_MODES.toList()
+            data = cameraModeNames.toList()
             setOnSelectedListener(object : OnSelectedListener {
-                override fun onSelected(scrollPickerView: ScrollPickerView<*>?, mode: Int) {
+                override fun onSelected(scrollPickerView: ScrollPickerView<*>?, position: Int) {
+                    val mode = CameraMode.fromInt(position)
                     when (mode) {
-                         IMAGE_MODE -> {
+                        CameraMode.PHOTO -> {
                             ivRecord.visibility = View.INVISIBLE
                             ivTakePicture.visibility = View.VISIBLE
                         }
-                        VIDEO_MODE -> {
+
+                        CameraMode.VIDEO -> {
                             ivRecord.visibility = View.VISIBLE
                             ivTakePicture.visibility = View.INVISIBLE
                         }
                     }
+                    currentCameraMode = mode
                     controlBar.updateByCameraMode(mode)
                 }
 
@@ -422,7 +421,6 @@ class MainActivity : AppCompatActivity() {
         rotationChangeMonitor.enable()
         if (checkPermissions()) {
             Log.d(TAG, "onResume: grant all permissions")
-            val rect = windowManager.currentWindowMetrics.bounds
             cameraPreviewView.surfaceTextureListener = surfaceTextureListener
             openCamera()
         } else {
@@ -440,7 +438,6 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         Log.i(TAG, "onStop: ")
         setBrightness(false)
-        isHasSetupCameraOutputs = false
         rotationChangeMonitor.disable()
         closeSurfaces()
         closeCaptureSession()
@@ -581,7 +578,7 @@ class MainActivity : AppCompatActivity() {
         // reference https://developer.android.com/develop/ui/views/layout/edge-to-edge
         if (Build.VERSION.SDK_INT >= VERSION_CODES.R) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
-            val controller = WindowCompat.getInsetsController(window, rootView)
+            val controller = WindowCompat.getInsetsController(window, _binding.root)
             controller.isAppearanceLightNavigationBars = true
             controller.hide(WindowInsetsCompat.Type.statusBars())
             ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, windowInsets ->
@@ -622,50 +619,57 @@ class MainActivity : AppCompatActivity() {
             isEnableZsl = cameraInfo!!.isSupportReproc() &&
                     SettingsManager.getInstance()
                         .getBoolean(
-                            SettingsManager.KEY_PHOTO_ZSL,
+                            getString(R.string.settings_key_photo_zsl),
                             SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
                         )
-            val (chosenJpgSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
-                cameraInfo!!.getOutputJpgSizes(),
-                previewSize,
-                ratioValue,
-                false
-            )
+            val isHdr =
+                SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
             Log.d(
                 TAG,
-                "choose camera output jpg size:${chosenJpgSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}, enableZsl:$isEnableZsl"
+                "setSurfaces enableZsl:$isEnableZsl, hdr:${isHdr}"
             )
-            if (isEnableZsl && !SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
-                yuvImageReader = ImageReader.newInstance(
-                    cameraInfo!!.largestYuvSize.width, cameraInfo!!.largestYuvSize.height,
-                    ImageFormat.YUV_420_888,
-                    YUV_IMAGE_READER_SIZE
+            if (currentCameraMode == CameraMode.PHOTO) {
+                // HDR on, then disable zsl
+                if (isHdr) {
+                    val (chosenYuvSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
+                        cameraInfo!!.getOutputYuvSizes(),
+                        previewSize,
+                        ratioValue,
+                        false
+                    )
+                    Log.d(
+                        TAG,
+                        "setSurfaces yuv size:${chosenYuvSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}"
+                    )
+                    yuvImageReader = ImageReader.newInstance(
+                        chosenYuvSize.width, chosenYuvSize.height,
+                        ImageFormat.YUV_420_888,
+                        CAPTURE_HDR_FRAME_SIZE
+                    )
+                    yuvImageReader.setOnImageAvailableListener({ reader ->
+                        Log.d(TAG, "hdr: yuv image avaiable")
+                    }, cameraHandler)
+                } else if (isEnableZsl && !isHdr) {
+                    yuvImageReader = ImageReader.newInstance(
+                        cameraInfo!!.largestYuvSize.width, cameraInfo!!.largestYuvSize.height,
+                        ImageFormat.YUV_420_888,
+                        YUV_IMAGE_READER_SIZE
+                    )
+                    yuvImageReader.setOnImageAvailableListener({ reader ->
+                        yuvImage?.close()
+                        yuvImage = reader.acquireLatestImage()
+                    }, cameraHandler)
+                }
+                val (chosenJpgSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
+                    cameraInfo!!.getOutputJpgSizes(),
+                    previewSize,
+                    ratioValue,
+                    false
                 )
-                yuvImageReader.setOnImageAvailableListener({ reader ->
-                    yuvImage?.close()
-                    yuvImage = reader.acquireLatestImage()
-                }, cameraHandler)
-            }
-            if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
-                yuvImageReader = ImageReader.newInstance(
-                    chosenJpgSize.width, chosenJpgSize.height,
-                    ImageFormat.YUV_420_888,
-                    CAPTURE_HDR_FRAME_SIZE
+                Log.d(
+                    TAG,
+                    "setSurfaces jpg size:${chosenJpgSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}"
                 )
-                yuvImageReader.setOnImageAvailableListener({ reader ->
-                    Log.d(TAG, "hdr: yuv image avaiable")
-                }, cameraHandler)
-
-                jpgImageReader = ImageReader.newInstance(
-                    chosenJpgSize.width, chosenJpgSize.height,
-                    ImageFormat.JPEG, 1
-                )
-                jpgImageReader.setOnImageAvailableListener({ reader ->
-                    Log.d(TAG, "hdr: jpg image available ")
-                    val image = reader.acquireLatestImage()
-//                    handleOnImageAvailable(image)
-                }, imageReaderHandler)
-            } else {
                 jpgImageReader = ImageReader.newInstance(
                     chosenJpgSize.width, chosenJpgSize.height,
                     ImageFormat.JPEG, 1
@@ -674,6 +678,7 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "jpg: image available ")
                     val image = reader.acquireLatestImage()
                     handleOnImageAvailable(image)
+                    image.close()
                 }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation
@@ -710,7 +715,7 @@ class MainActivity : AppCompatActivity() {
             )
             Log.d(
                 TAG,
-                "choose camera output preview size:${cameraOutputPreviewTextureSize}, match ${previewAspectRatio}:${isTrueAspectRatio}"
+                "setSurfaces preview size:${cameraOutputPreviewTextureSize}, match ${previewAspectRatio}:${isTrueAspectRatio}"
             )
             previewSurfaceTexture.setDefaultBufferSize(
                 cameraOutputPreviewTextureSize.width,
@@ -810,13 +815,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
-                val previewConfiguration = OutputConfiguration(previewSurface)
-
                 val outputConfigurations = mutableListOf<OutputConfiguration>(
-                    previewConfiguration,
+                    OutputConfiguration(previewSurface),
                     OutputConfiguration(jpgImageReader.surface)
                 )
-                if (isEnableZsl) {
+                val isHdr =
+                    SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+                if (isEnableZsl || isHdr) {
                     outputConfigurations.add(
                         OutputConfiguration(yuvImageReader.surface)
                     )
@@ -827,7 +832,7 @@ class MainActivity : AppCompatActivity() {
                     cameraExecutor,
                     captureSessionStateCallback
                 )
-                if (isEnableZsl) {
+                if (isEnableZsl && !isHdr) {
                     sessionConfiguration.inputConfiguration =
                         InputConfiguration(
                             yuvImageReader.width,
@@ -862,8 +867,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun setPreviewRequest() {
         if (cameraDevice == null) return
-        if (previewStreamingSession!!.isReprocessable && isEnableZsl && !SettingsManager.getInstance()
-                .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
+        val isHdr = SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+        if (isEnableZsl && !isHdr) {
             zslImageWriter =
                 ImageWriter.newInstance(
                     previewStreamingSession!!.inputSurface!!,
@@ -880,7 +885,7 @@ class MainActivity : AppCompatActivity() {
             previewRequestBuilder =
                 cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
             previewRequestBuilder.addTarget(previewSurface)
-            if (isEnableZsl && this::yuvImageReader.isInitialized) {
+            if (isEnableZsl && !isHdr) {
                 previewRequestBuilder.addTarget(yuvImageReader.surface)
             }
 
@@ -944,7 +949,14 @@ class MainActivity : AppCompatActivity() {
      * [.captureCallback] from both [.lockFocus].
      */
     private fun captureStillPicture() {
-        Log.d(TAG, "captureStillPicture: enableZsl=${isEnableZsl}")
+        isEnableZsl = SettingsManager.getInstance()
+            .getBoolean(
+                getString(R.string.settings_key_photo_zsl),
+                SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
+            )
+        val isHdr =
+            SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+        Log.d(TAG, "captureStillPicture: enableZsl:${isEnableZsl}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SHOT)
         // todo: 判断是否有已经在执行的任务，队列执行
         captureType = if (SettingsManager.getInstance()
@@ -953,7 +965,7 @@ class MainActivity : AppCompatActivity() {
         capturedImageList.clear()
         hdrImageExposureTimeList.clear()
         try {
-            if (isEnableZsl && yuvImage == null) {
+            if (isEnableZsl && !isHdr && yuvImage == null) {
                 Log.e(TAG, "captureStillPicture: no yuv image available")
                 return
             }
@@ -971,12 +983,15 @@ class MainActivity : AppCompatActivity() {
                         "captureStillPicture: enableZsl:${isEnableZsl}, enableHdr:${
                             SettingsManager.getInstance()
                                 .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
-                        }}"
+                        }"
                     )
                     cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                 }
             captureBuilder.apply {
                 addTarget(jpgImageReader.surface)
+                if (captureType == CaptureType.HDR) {
+                    addTarget(yuvImageReader.surface)
+                }
                 if (isEnableZsl && captureType != CaptureType.HDR) {
                     set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo!!.reprocessingNoiseMode)
                     set(CaptureRequest.EDGE_MODE, cameraInfo!!.reprocessingEdgeMode)
@@ -1198,34 +1213,41 @@ class MainActivity : AppCompatActivity() {
                     .apply {
                         addTarget(previewSurface)
                         addTarget(mediaRecorder!!.surface)
-                        set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
+                        set(
+                            CaptureRequest.CONTROL_AF_MODE,
+                            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
+                        )
                     }
-            previewStreamingSession!!.setRepeatingRequest(previewRequestBuilder.build(), object: CameraCaptureSession.CaptureCallback() {
-                override fun onCaptureStarted(
-                    session: CameraCaptureSession,
-                    request: CaptureRequest,
-                    timestamp: Long,
-                    frameNumber: Long
-                ) {
-                    super.onCaptureStarted(session, request, timestamp, frameNumber)
-                    Log.d(TAG, "startVideo onCaptureStarted: ")
+            previewStreamingSession!!.setRepeatingRequest(
+                previewRequestBuilder.build(),
+                object : CameraCaptureSession.CaptureCallback() {
+                    override fun onCaptureStarted(
+                        session: CameraCaptureSession,
+                        request: CaptureRequest,
+                        timestamp: Long,
+                        frameNumber: Long
+                    ) {
+                        super.onCaptureStarted(session, request, timestamp, frameNumber)
+                        Log.d(TAG, "startVideo onCaptureStarted: ")
 
-                    runOnUiThread {
-                        ivRecord.setImageResource(R.drawable.btn_record_stop)
-                        isRecordingVideo = true
-                        mediaRecorder?.start()
+                        runOnUiThread {
+                            ivRecord.setImageResource(R.drawable.btn_record_stop)
+                            isRecordingVideo = true
+                            mediaRecorder?.start()
+                        }
                     }
-                }
 
-                override fun onCaptureCompleted(
-                    session: CameraCaptureSession,
-                    request: CaptureRequest,
-                    result: TotalCaptureResult
-                ) {
-                    super.onCaptureCompleted(session, request, result)
-                    Log.d(TAG, "startVideo onCaptureCompleted: ")
-                }
-            },cameraHandler)
+                    override fun onCaptureCompleted(
+                        session: CameraCaptureSession,
+                        request: CaptureRequest,
+                        result: TotalCaptureResult
+                    ) {
+                        super.onCaptureCompleted(session, request, result)
+                        Log.d(TAG, "startVideo onCaptureCompleted: ")
+                    }
+                },
+                cameraHandler
+            )
         } catch (e: CameraAccessException) {
             Log.e(TAG, "startVideo CameraAccessException", e)
         } catch (e: IOException) {
@@ -1362,9 +1384,17 @@ class MainActivity : AppCompatActivity() {
         private const val YUV_IMAGE_READER_SIZE = 8
         private const val ZSL_IMAGE_WRITER_SIZE = 2
 
-        const val VIDEO_MODE = 0
-        const val IMAGE_MODE = 1
-        val CAMERA_MODES = arrayOf("视频", "拍照")
+        enum class CameraMode {
+            VIDEO,
+            PHOTO;
+
+            companion object {
+                private val map = CameraMode.values().associateBy { it.ordinal }
+                fun fromInt(value: Int): CameraMode = map[value]!!
+            }
+        }
+
+        val cameraModeNames = arrayOf("视频", "拍照")
 
         init {
             OREIENTATIONS.append(Surface.ROTATION_0, 0)

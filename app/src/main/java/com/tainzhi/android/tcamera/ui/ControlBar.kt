@@ -71,14 +71,14 @@ class ControlBar(
         }
     }
 
-    fun updateByCameraMode(cameraMode: Int) {
+    fun updateByCameraMode(cameraMode: MainActivity.Companion.CameraMode) {
         when (cameraMode) {
-            MainActivity.VIDEO_MODE -> {
+            MainActivity.Companion.CameraMode.VIDEO -> {
                 btnHdr.visibility = View.INVISIBLE
                 btnRatio.visibility = View.INVISIBLE
             }
 
-            MainActivity.IMAGE_MODE -> {
+            MainActivity.Companion.CameraMode.PHOTO -> {
                 btnHdr.visibility = View.VISIBLE
                 btnRatio.visibility = View.VISIBLE
             }

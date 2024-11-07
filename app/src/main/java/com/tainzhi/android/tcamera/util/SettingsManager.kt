@@ -74,7 +74,6 @@ class SettingsManager(val context: Context) {
         // e.g
         // disableZSL 450ms
         // enableZSL 278ms
-        val KEY_PHOTO_ZSL = "photo_zsl"
         val PHOTO_ZSL_DEFAULT_VALUE = true
         val KEY_PREVIEW_RATIO = "preview_ratio"
         val KEY_HDR_ENABLE = "key_hdr_enable"
