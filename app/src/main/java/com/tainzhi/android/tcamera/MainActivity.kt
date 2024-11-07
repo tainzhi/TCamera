@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var capturedImageUri: Uri
     private var cameraInfo: CameraInfoCache? = null
-    private var currentCaptureSession: CameraCaptureSession? = null
+    private var previewStreamingSession: CameraCaptureSession? = null
     private lateinit var cameraManager: CameraManager
     private var isNeedRecreateCaptureSession = false
     private var isNeedReopenCamera = false
@@ -386,7 +386,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        Log.d(TAG, "onStart: ")
+        Log.i(TAG, "onStart: ")
     }
 
     /**
@@ -416,7 +416,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        Log.d(TAG, "onStop: ")
+        Log.i(TAG, "onStop: ")
         setBrightness(false)
         isHasSetupCameraOutputs = false
         rotationChangeMonitor.disable()
@@ -427,7 +427,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDetachedFromWindow() {
-        Log.d(TAG, "onDetachedFromWindow: ")
+        Log.i(TAG, "onDetachedFromWindow: ")
         super.onDetachedFromWindow()
     }
 
@@ -556,9 +556,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun setFullScreen() {
-        // todo:
         // reference https://developer.android.com/develop/ui/views/layout/edge-to-edge
-        // to solve immersive mode mode but transparent navigation bar
         if (Build.VERSION.SDK_INT >= VERSION_CODES.R) {
             WindowCompat.setDecorFitsSystemWindows(window, false)
             val controller = WindowCompat.getInsetsController(window, rootView)
@@ -784,7 +782,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onConfigured(session: CameraCaptureSession) {
-                    currentCaptureSession = session
+                    previewStreamingSession = session
                     setPreviewRequest()
                 }
 
@@ -840,17 +838,17 @@ class MainActivity : AppCompatActivity() {
     private fun closeCaptureSession() {
         // closeCaptureSession -> session.onClosed() -> closeCamera()
         Log.i(TAG, "closeCaptureSession: ")
-        currentCaptureSession!!.stopRepeating()
-        currentCaptureSession!!.close()
-        currentCaptureSession = null
+        previewStreamingSession!!.stopRepeating()
+        previewStreamingSession!!.close()
+        previewStreamingSession = null
     }
 
     private fun setPreviewRequest() {
         if (cameraDevice == null) return
-        if (currentCaptureSession!!.isReprocessable && isEnableZsl) {
+        if (previewStreamingSession!!.isReprocessable && isEnableZsl) {
             zslImageWriter =
                 ImageWriter.newInstance(
-                    currentCaptureSession!!.inputSurface!!,
+                    previewStreamingSession!!.inputSurface!!,
                     ZSL_IMAGE_WRITER_SIZE
                 )
             zslImageWriter.setOnImageReleasedListener({ _ ->
@@ -893,7 +891,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "CaptureRequest: controlZsl=${controlZsl}")
             }
             previewRequest = previewRequestBuilder.build()
-            currentCaptureSession?.setRepeatingRequest(
+            previewStreamingSession?.setRepeatingRequest(
                 previewRequest,
                 captureCallback, cameraHandler
             )
@@ -914,7 +912,7 @@ class MainActivity : AppCompatActivity() {
                 CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START
             )
             cameraState = STATE_WAITING_PRECAPTURE
-            currentCaptureSession?.capture(
+            previewStreamingSession?.capture(
                 previewRequestBuilder.build(), captureCallback,
                 cameraHandler
             )
@@ -1059,12 +1057,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 Log.d(TAG, "captureStillPicture: captureBurst, requests.size: ${requests.size}")
-                currentCaptureSession?.apply {
+                previewStreamingSession?.apply {
                     captureBurst(requests, captureCallback, cameraHandler)
                 }
             } else {
                 captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE))
-                currentCaptureSession?.apply {
+                previewStreamingSession?.apply {
                     capture(captureBuilder.build(), captureCallback, cameraHandler)
                 }
             }
@@ -1086,7 +1084,7 @@ class MainActivity : AppCompatActivity() {
             )
             // Tell #captureCallback to wait for the lock.
             cameraState = STATE_WAITING_LOCK
-            currentCaptureSession?.capture(
+            previewStreamingSession?.capture(
                 previewRequestBuilder.build(), captureCallback,
                 cameraHandler
             )
@@ -1109,13 +1107,13 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-            currentCaptureSession?.capture(
+            previewStreamingSession?.capture(
                 previewRequestBuilder.build(), captureCallback,
                 cameraHandler
             )
             // After this, the camera will go back to the normal state of preview.
             cameraState = STATE_PREVIEW
-            currentCaptureSession?.setRepeatingRequest(
+            previewStreamingSession?.setRepeatingRequest(
                 previewRequest, captureCallback,
                 cameraHandler
             )
@@ -1176,39 +1174,41 @@ class MainActivity : AppCompatActivity() {
         if (cameraDevice == null) return
         try {
             closeSurfaces()
-            closeCaptureSession()
+            previewStreamingSession!!.stopRepeating()
             setUpMediaRecorder()
-
-            val recorderSurface = mediaRecorder!!.surface
-            val surfaces = ArrayList<Surface>().apply {
-                add(previewSurface)
-                add(recorderSurface)
-            }
-
             previewRequestBuilder =
                 cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
                     .apply {
                         addTarget(previewSurface)
-                        addTarget(recorderSurface)
+                        addTarget(mediaRecorder!!.surface)
+                        set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
                     }
+            previewStreamingSession!!.setRepeatingRequest(previewRequestBuilder.build(), object: CameraCaptureSession.CaptureCallback() {
+                override fun onCaptureStarted(
+                    session: CameraCaptureSession,
+                    request: CaptureRequest,
+                    timestamp: Long,
+                    frameNumber: Long
+                ) {
+                    super.onCaptureStarted(session, request, timestamp, frameNumber)
+                    Log.d(TAG, "startVideo onCaptureStarted: ")
 
-            cameraDevice?.createCaptureSession(
-                surfaces,
-                object : CameraCaptureSession.StateCallback() {
-                    override fun onConfigured(p0: CameraCaptureSession) {
-                        currentCaptureSession = p0
-                        runOnUiThread {
-                            ivRecord.setImageResource(R.drawable.btn_record_stop)
-                            isRecordingVideo = true
-                            mediaRecorder?.start()
-                        }
+                    runOnUiThread {
+                        ivRecord.setImageResource(R.drawable.btn_record_stop)
+                        isRecordingVideo = true
+                        mediaRecorder?.start()
                     }
+                }
 
-                    override fun onConfigureFailed(p0: CameraCaptureSession) {
-                        toast("Failed")
-                    }
-                }, cameraHandler
-            )
+                override fun onCaptureCompleted(
+                    session: CameraCaptureSession,
+                    request: CaptureRequest,
+                    result: TotalCaptureResult
+                ) {
+                    super.onCaptureCompleted(session, request, result)
+                    Log.d(TAG, "startVideo onCaptureCompleted: ")
+                }
+            },cameraHandler)
         } catch (e: CameraAccessException) {
             Log.e(TAG, "startVideo CameraAccessException", e)
         } catch (e: IOException) {
@@ -1228,8 +1228,8 @@ class MainActivity : AppCompatActivity() {
         if (App.DEBUG) {
             Log.d(TAG, "setUpMediaRecorder: videoSize:${videoSize}")
         }
-        previewSurfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
-        previewSurface = Surface(previewSurfaceTexture)
+//        previewSurfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
+//        previewSurface = Surface(previewSurfaceTexture)
 
         val videoUri = MediaSaver.generateMediaUri(this, CaptureType.VIDEO)
         val rotation = windowManager.defaultDisplay.rotation
@@ -1240,7 +1240,7 @@ class MainActivity : AppCompatActivity() {
             SENSOR_ORIENTATION_INVERSE_DEGREES ->
                 mediaRecorder?.setOrientationHint(INVERSE_ORIENTATIONS.get(rotation))
         }
-        mediaRecorder?.apply {
+        mediaRecorder!!.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
