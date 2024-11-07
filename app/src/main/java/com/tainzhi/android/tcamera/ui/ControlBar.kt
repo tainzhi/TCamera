@@ -139,32 +139,32 @@ class ControlBar(
 
     private fun postChangePreviewAspectRatio(previewAspectRatio: SettingsManager.PreviewAspectRatio) {
         Log.d(
-            "qfq",
+            TAG,
             "postChangePreviewAspectRatio: ${SettingsManager.getInstance().getPreviewAspectRatio()}"
         )
         if (previewAspectRatio != SettingsManager.getInstance().getPreviewAspectRatio()) {
             SettingsManager.getInstance().setPreviewRatio(previewAspectRatio)
             onRatioUpdate.invoke()
             updateControlBarRatioIcon()
-            inflatedView.animate().alpha(0.5f)
-                .withEndAction {
-                    inflatedView.visibility = View.INVISIBLE
-                    // 所有button先全部取消选中
-                    ivRatio1x1.isSelected = false
-                    ivRatio4x3.isSelected = false
-                    ivRatio16x9.isSelected = false
-                    ivRatioFull.isSelected = false
-                    // 再选中特定button
-                    updatePreviewAspectRatioBtnState()
-                    binding.clControlBarLevel1Menu.animate()
-                        .alpha(1f)
-                        .withEndAction {
-                            binding.clControlBarLevel1Menu.visibility = View.VISIBLE
-                        }
-                        .start()
-                }
-                .start()
+            // 所有button先全部取消选中
+            ivRatio1x1.isSelected = false
+            ivRatio4x3.isSelected = false
+            ivRatio16x9.isSelected = false
+            ivRatioFull.isSelected = false
+            // 再选中特定button
+            updatePreviewAspectRatioBtnState()
         }
+        inflatedView.animate().alpha(0.5f)
+            .withEndAction {
+                inflatedView.visibility = View.INVISIBLE
+                binding.clControlBarLevel1Menu.animate()
+                    .alpha(1f)
+                    .withEndAction {
+                        binding.clControlBarLevel1Menu.visibility = View.VISIBLE
+                    }
+                    .start()
+            }
+            .start()
     }
 
     private fun updateControlBarRatioIcon() {
