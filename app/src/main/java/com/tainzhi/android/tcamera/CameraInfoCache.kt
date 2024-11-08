@@ -112,7 +112,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
         return streamConfigurationMap!!.getOutputSizes(SurfaceTexture::class.java)
     }
 
-    fun getOutputJpgSizes(): Array<Size> {
+    fun getOutputJpegSizes(): Array<Size> {
         return streamConfigurationMap!!.getOutputSizes(ImageFormat.JPEG) +
                 streamConfigurationMap!!.getHighResolutionOutputSizes(ImageFormat.JPEG)
     }
@@ -149,16 +149,16 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
     companion object {
 
         fun getLargestSize(sizes: Array<Size>): Size {
-            var largetstSize = Size(0, 0)
-            var lartestArea = 0
+            var largestSize = Size(0, 0)
+            var largestArea = 0
             sizes.forEach {
                 val tempArea = it.width * it.height
-                if (tempArea > lartestArea) {
-                    lartestArea = tempArea
-                    largetstSize = it
+                if (tempArea > largestArea) {
+                    largestArea = tempArea
+                    largestSize = it
                 }
             }
-            return largetstSize
+            return largestSize
         }
 
         /**

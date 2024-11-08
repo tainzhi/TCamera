@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
     private var cameraState = STATE_PREVIEW
 
     // handles still image capture
-    private lateinit var jpgImageReader: ImageReader
+    private lateinit var jpegImageReader: ImageReader
     private lateinit var yuvImageReader: ImageReader
     private var yuvImage: Image? = null
 
@@ -632,7 +632,7 @@ class MainActivity : AppCompatActivity() {
             if (currentCameraMode == CameraMode.PHOTO) {
                 // HDR on, then disable zsl
                 if (isHdr) {
-                    val (chosenYuvSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
+                    val (chosenYuvSize, isTrueAspectRatioJpegSize) = chooseOptimalSize(
                         cameraInfo!!.getOutputYuvSizes(),
                         previewSize,
                         ratioValue,
@@ -640,7 +640,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     Log.d(
                         TAG,
-                        "setSurfaces yuv size:${chosenYuvSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}"
+                        "setSurfaces yuv size:${chosenYuvSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpegSize}"
                     )
                     yuvImageReader = ImageReader.newInstance(
                         chosenYuvSize.width, chosenYuvSize.height,
@@ -661,22 +661,22 @@ class MainActivity : AppCompatActivity() {
                         yuvImage = reader.acquireLatestImage()
                     }, cameraHandler)
                 }
-                val (chosenJpgSize, isTrueAspectRatioJpgSize) = chooseOptimalSize(
-                    cameraInfo!!.getOutputJpgSizes(),
+                val (chosenJpegSize, isTrueAspectRatioJpegSize) = chooseOptimalSize(
+                    cameraInfo!!.getOutputJpegSizes(),
                     previewSize,
                     ratioValue,
                     false
                 )
                 Log.d(
                     TAG,
-                    "setSurfaces jpg size:${chosenJpgSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpgSize}"
+                    "setSurfaces jpeg size:${chosenJpegSize}, match ${previewAspectRatio}:${isTrueAspectRatioJpegSize}"
                 )
-                jpgImageReader = ImageReader.newInstance(
-                    chosenJpgSize.width, chosenJpgSize.height,
+                jpegImageReader = ImageReader.newInstance(
+                    chosenJpegSize.width, chosenJpegSize.height,
                     ImageFormat.JPEG, 3
                 )
-                jpgImageReader.setOnImageAvailableListener({ reader ->
-                    Log.d(TAG, "jpg: image available ")
+                jpegImageReader.setOnImageAvailableListener({ reader ->
+                    Log.d(TAG, "jpeg: image available ")
                     val image = reader.acquireLatestImage()
                     handleOnImageAvailable(image)
                 }, imageReaderHandler)
@@ -768,7 +768,7 @@ class MainActivity : AppCompatActivity() {
     private fun closeSurfaces() {
         previewSurface.release()
         // close target surface in CaptureSession.onClosed
-        jpgImageReader.close()
+        jpegImageReader.close()
         if (isEnableZsl) {
             yuvImageReader.close()
             zslImageWriter?.close()
@@ -817,7 +817,7 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
                 val outputConfigurations = mutableListOf<OutputConfiguration>(
                     OutputConfiguration(previewSurface),
-                    OutputConfiguration(jpgImageReader.surface)
+                    OutputConfiguration(jpegImageReader.surface)
                 )
                 val isHdr =
                     SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
@@ -846,7 +846,7 @@ class MainActivity : AppCompatActivity() {
 
                 } else {
                     cameraDevice?.createCaptureSession(
-                        arrayListOf(previewSurface, jpgImageReader.surface),
+                        arrayListOf(previewSurface, jpegImageReader.surface),
                         captureSessionStateCallback, cameraHandler
                     )
                 }
@@ -988,7 +988,7 @@ class MainActivity : AppCompatActivity() {
                     cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                 }
             captureBuilder.apply {
-                addTarget(jpgImageReader.surface)
+                addTarget(jpegImageReader.surface)
                 if (isEnableZsl && captureType != CaptureType.HDR) {
                     set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo!!.reprocessingNoiseMode)
                     set(CaptureRequest.EDGE_MODE, cameraInfo!!.reprocessingEdgeMode)
@@ -1040,10 +1040,10 @@ class MainActivity : AppCompatActivity() {
                 )
             }
             mediaActionSound.play(MediaActionSound.SHUTTER_CLICK)
-            // HDR拍照先拍一张jpg,生成临时照片和thumbnail; 再拍3张yuv图片用于合成
+            // HDR拍照先拍一张jpeg,生成临时照片和thumbnail; 再拍3张yuv图片用于合成
             if (captureType == CaptureType.HDR && SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
                 Log.d(TAG, "captureStillPicture: HDR enable")
-                captureBuilder.removeTarget(jpgImageReader.surface)
+                captureBuilder.removeTarget(jpegImageReader.surface)
                 captureBuilder.addTarget(yuvImageReader.surface)
 
                 val baseExposureTime = 1000000000L / 30
