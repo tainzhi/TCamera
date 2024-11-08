@@ -52,6 +52,7 @@ import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.math.pow
 
 /**
  * @author:       tainzhi
@@ -672,13 +673,12 @@ class MainActivity : AppCompatActivity() {
                 )
                 jpgImageReader = ImageReader.newInstance(
                     chosenJpgSize.width, chosenJpgSize.height,
-                    ImageFormat.JPEG, 1
+                    ImageFormat.JPEG, 3
                 )
                 jpgImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpg: image available ")
                     val image = reader.acquireLatestImage()
                     handleOnImageAvailable(image)
-                    image.close()
                 }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation
@@ -989,69 +989,75 @@ class MainActivity : AppCompatActivity() {
                 }
             captureBuilder.apply {
                 addTarget(jpgImageReader.surface)
-                if (captureType == CaptureType.HDR) {
-                    addTarget(yuvImageReader.surface)
-                }
                 if (isEnableZsl && captureType != CaptureType.HDR) {
                     set(CaptureRequest.NOISE_REDUCTION_MODE, cameraInfo!!.reprocessingNoiseMode)
                     set(CaptureRequest.EDGE_MODE, cameraInfo!!.reprocessingEdgeMode)
                 }
-                if (captureType != CaptureType.HDR) {
-                    set(CaptureRequest.JPEG_QUALITY, 95)
-                    // https://developer.android.com/training/camera2/camera-preview#orientation_calculation
-                    // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
-                    // sign 1 for front-facing cameras, -1 for back-facing cameras
+                set(CaptureRequest.JPEG_QUALITY, 95)
+                // https://developer.android.com/training/camera2/camera-preview#orientation_calculation
+                // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
+                // sign 1 for front-facing cameras, -1 for back-facing cameras
+                set(
+                    CaptureRequest.JPEG_ORIENTATION,
+                    (sensorOrientation!! - OREIENTATIONS.get(rotation) * (if (useCameraFront) 1 else -1) + 360) % 360
+                )
+                set(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+                )
+                if (flashSupported) {
                     set(
-                        CaptureRequest.JPEG_ORIENTATION,
-                        (sensorOrientation!! - OREIENTATIONS.get(rotation) * (if (useCameraFront) 1 else -1) + 360) % 360
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH
                     )
-                    set(
-                        CaptureRequest.CONTROL_AF_MODE,
-                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+                } else {
+                    captureBuilder.set(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_OFF
                     )
-                    if (flashSupported) {
-                        set(
-                            CaptureRequest.CONTROL_AE_MODE,
-                            CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH
-                        )
-                    } else {
-                        captureBuilder.set(
-                            CaptureRequest.CONTROL_AE_MODE,
-                            CaptureRequest.CONTROL_AE_MODE_OFF
-                        )
-                        captureBuilder.set(
-                            CaptureRequest.FLASH_MODE,
-                            CaptureRequest.FLASH_MODE_TORCH
-                        )
-                    }
+                    captureBuilder.set(
+                        CaptureRequest.FLASH_MODE,
+                        CaptureRequest.FLASH_MODE_TORCH
+                    )
                 }
             }
+            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE))
+            previewStreamingSession?.apply {
+                capture(
+                    captureBuilder.build(),
+                    object : CameraCaptureSession.CaptureCallback() {
 
-            val captureCallback = object : CameraCaptureSession.CaptureCallback() {
-
-                override fun onCaptureCompleted(
-                    session: CameraCaptureSession,
-                    request: CaptureRequest,
-                    result: TotalCaptureResult
-                ) {
-                    super.onCaptureCompleted(session, request, result)
-                    Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
-                }
+                        override fun onCaptureCompleted(
+                            session: CameraCaptureSession,
+                            request: CaptureRequest,
+                            result: TotalCaptureResult
+                        ) {
+                            super.onCaptureCompleted(session, request, result)
+                            Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
+                        }
+                    },
+                    cameraHandler
+                )
             }
-            if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
+            mediaActionSound.play(MediaActionSound.SHUTTER_CLICK)
+            // HDR拍照先拍一张jpg,生成临时照片和thumbnail; 再拍3张yuv图片用于合成
+            if (captureType == CaptureType.HDR && SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
                 Log.d(TAG, "captureStillPicture: HDR enable")
+                captureBuilder.removeTarget(jpgImageReader.surface)
+                captureBuilder.addTarget(yuvImageReader.surface)
 
                 val baseExposureTime = 1000000000L / 30
                 val halfImageSize = cameraInfo!!.exposureBracketingImages / 2
-                val scale = Math.pow(2.0, cameraInfo!!.exposureBracketingStops / halfImageSize)
+                val scale = 2.0.pow(cameraInfo!!.exposureBracketingStops / halfImageSize)
                 val requests = ArrayList<CaptureRequest>()
                 // darker images
                 for (i in 0 until halfImageSize) {
                     var exposureTime = baseExposureTime
                     if (cameraInfo!!.supportExposureTime) {
                         var currentScale = scale
-                        for (j in i until halfImageSize - 1)
+                        for (j in i until halfImageSize - 1) {
                             currentScale *= scale
+                        }
                         exposureTime = (exposureTime / currentScale).toLong()
                         if (exposureTime < cameraInfo!!.minExposureTime) {
                             exposureTime = cameraInfo!!.minExposureTime.toLong()
@@ -1090,15 +1096,19 @@ class MainActivity : AppCompatActivity() {
                 }
                 Log.d(TAG, "captureStillPicture: captureBurst, requests.size: ${requests.size}")
                 previewStreamingSession?.apply {
-                    captureBurst(requests, captureCallback, cameraHandler)
-                }
-            } else {
-                captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE))
-                previewStreamingSession?.apply {
-                    capture(captureBuilder.build(), captureCallback, cameraHandler)
+                    captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
+
+                        override fun onCaptureCompleted(
+                            session: CameraCaptureSession,
+                            request: CaptureRequest,
+                            result: TotalCaptureResult
+                        ) {
+                            super.onCaptureCompleted(session, request, result)
+                            Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
+                        }
+                    }, cameraHandler)
                 }
             }
-            mediaActionSound.play(MediaActionSound.SHUTTER_CLICK)
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
         }
@@ -1346,28 +1356,38 @@ class MainActivity : AppCompatActivity() {
         capturedImageList.add(image)
         if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         ) {
-            captureType = CaptureType.HDR
-            if (capturedImageList.size < hdrNeedImageSize) {
-                Log.d(
-                    TAG,
-                    "capture hdr, need ${hdrNeedImageSize} images, but collected ${capturedImageList.size}"
+//            captureType = CaptureType.HDR
+//            if (capturedImageList.size < hdrNeedImageSize) {
+//                Log.d(
+//                    TAG,
+//                    "capture hdr, need ${hdrNeedImageSize} images, but collected ${capturedImageList.size}"
+//                )
+//                return
+//            } else {
+//                Log.d(TAG, "capture hdr, collected ${hdrNeedImageSize} images")
+//            }
+
+            imageReaderHandler.post(
+                MediaSaver(
+                    this@MainActivity,
+                    captureType,
+                    listOf(image),
+                    hdrImageExposureTimeList,
+                    imageReaderHandler
                 )
-                return
-            } else {
-                Log.d(TAG, "capture hdr, collected ${hdrNeedImageSize} images")
-            }
+            )
         } else {
         }
-        unlockFocus()
-        imageReaderHandler.post(
-            MediaSaver(
-                this@MainActivity,
-                captureType,
-                capturedImageList,
-                hdrImageExposureTimeList,
-                imageReaderHandler
-            )
-        )
+//        unlockFocus()
+//        imageReaderHandler.post(
+//            MediaSaver(
+//                this@MainActivity,
+//                captureType,
+//                capturedImageList,
+//                hdrImageExposureTimeList,
+//                imageReaderHandler
+//            )
+//        )
     }
 
     companion object {
