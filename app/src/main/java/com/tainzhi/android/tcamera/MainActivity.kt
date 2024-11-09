@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
     private val unGrantedPermissionList: MutableList<String> = ArrayList()
 
     // to play click sound when take picture
-    private val mediaActionSound = MediaActionSound()
+    private val mediaActionSound by lazy { MediaActionSound()}
 
     private lateinit var rotationChangeMonitor: RotationChangeMonitor
     private var thumbnailOrientation = 0
@@ -86,15 +86,7 @@ class MainActivity : AppCompatActivity() {
     private var cameraExecutor = ExecutorCompat.create(cameraHandler)
 
     private var imageReaderThread = HandlerThread("ImageReaderThread").apply { start() }
-    private val imageReaderHandler = Handler(imageReaderThread.looper) { msg ->
-        val pictureUri: Uri = msg.obj as Uri
-        capturedImageUri = pictureUri
-        Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
-        mainExecutor.execute {
-            updateThumbnail(pictureUri, true)
-        }
-        false
-    }
+    private val imageReaderHandler = Handler(imageReaderThread.looper)
 
     private lateinit var lastTotalCaptureResult: TotalCaptureResult
     private var zslImageWriter: ImageWriter? = null
@@ -103,7 +95,6 @@ class MainActivity : AppCompatActivity() {
     // a [Semaphore] to prevent the app from exiting before closing the camera
     private val cameraOpenCloseLock = Semaphore(1)
 
-    private lateinit var capturedImageUri: Uri
     private var cameraInfo: CameraInfoCache? = null
     private var previewStreamingSession: CameraCaptureSession? = null
     private lateinit var cameraManager: CameraManager
@@ -128,11 +119,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var yuvImageReader: ImageReader
     private var yuvImage: Image? = null
 
-    private var captureType = CaptureType.JPEG
-
-    // todo: remove it
-    private val capturedImageList = arrayListOf<Image>()
-
     private var isRecordingVideo = false
     private var mediaRecorder: MediaRecorder? = null
 
@@ -153,12 +139,14 @@ class MainActivity : AppCompatActivity() {
     // camera2 output preview surface texture
     private lateinit var previewSurfaceTexture: SurfaceTexture
 
-    private val hdrNeedImageSize = CAPTURE_HDR_FRAME_SIZE
-
-    // time in nanoseconds
-    private val hdrImageExposureTimeList = arrayListOf<Long>()
-
     private var currentCameraMode: CameraMode = CameraMode.PHOTO
+
+    private var lastCapturedMediaUri: Uri? = null
+    private var lastCapturedMediaType: CaptureType? = null
+    private var captureType = CaptureType.JPEG
+    private val captureTaskManager = CaptureTaskManager(this) { bitmap ->
+        updateThumbnail(bitmap)
+    }
 
     private var surfaceTextureListener = object : CameraPreviewView.SurfaceTextureListener {
 
@@ -343,15 +331,30 @@ class MainActivity : AppCompatActivity() {
         cameraPreviewView = findViewById(R.id.previewView)
         ivThumbnail = findViewById<CircleImageView>(R.id.iv_thumbnail).apply {
             setOnClickListener {
-                viewPicture()
+                viewMedia()
             }
         }
         SettingsManager.getInstance().getLastCapturedMediaUri()?.let {
-            updateThumbnail(it)
+            imageReaderHandler.post(Runnable {
+                lastCapturedMediaUri = SettingsManager.getInstance().getLastCapturedMediaUri()
+                if (lastCapturedMediaUri != null) {
+                    lastCapturedMediaType = SettingsManager.getInstance().getLastCaptureMediaType()
+                    Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
+                    val thumbnailBitmap = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
+                        val temp = MediaStore.Images.Media.getBitmap(contentResolver, lastCapturedMediaUri)
+                        ThumbnailUtils.extractThumbnail(temp, 360, 360)
+                    } else {
+                        contentResolver.loadThumbnail(lastCapturedMediaUri!!, Size(360, 360), null)
+                    }
+                    Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
+                    updateThumbnail(thumbnailBitmap)
+                }
+            })
         }
         ivTakePicture = findViewById<ImageView>(R.id.picture).apply {
             setOnClickListener {
                 // Most device front lenses/camera have a fixed focal length
+                // for front camera, doesn't need lock focus
                 if (useCameraFront) captureStillPicture() else lockFocus()
             }
         }
@@ -398,7 +401,7 @@ class MainActivity : AppCompatActivity() {
         rotationChangeMonitor = RotationChangeMonitor(this).apply {
             rotationChangeListener = object : RotationChangeListener {
                 override fun onRotateChange(oldOrientation: Int, newOrientation: Int) {
-                    Log.d(TAG, "orientation change from ${oldOrientation} -> ${newOrientation}")
+                    Log.d(TAG, "orientation change from $oldOrientation -> $newOrientation")
                     handleRotation(newOrientation - oldOrientation)
                 }
             }
@@ -582,7 +585,7 @@ class MainActivity : AppCompatActivity() {
             val controller = WindowCompat.getInsetsController(window, _binding.root)
             controller.isAppearanceLightNavigationBars = true
             controller.hide(WindowInsetsCompat.Type.statusBars())
-            ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, windowInsets ->
+            ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, _ ->
 //                val insets =
 //                    windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
 //                // Apply the insets as padding to the view. Here we're setting all of the
@@ -647,8 +650,8 @@ class MainActivity : AppCompatActivity() {
                         ImageFormat.YUV_420_888,
                         CAPTURE_HDR_FRAME_SIZE
                     )
-                    yuvImageReader.setOnImageAvailableListener({ reader ->
-                        Log.d(TAG, "hdr: yuv image avaiable")
+                    yuvImageReader.setOnImageAvailableListener({ image ->
+                        Log.d(TAG, "hdr: yuv image available")
                     }, cameraHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -673,12 +676,11 @@ class MainActivity : AppCompatActivity() {
                 )
                 jpegImageReader = ImageReader.newInstance(
                     chosenJpegSize.width, chosenJpegSize.height,
-                    ImageFormat.JPEG, 3
+                    ImageFormat.JPEG, 1
                 )
                 jpegImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpeg: image available ")
                     val image = reader.acquireLatestImage()
-                    handleOnImageAvailable(image)
                 }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation
@@ -949,6 +951,7 @@ class MainActivity : AppCompatActivity() {
      * [.captureCallback] from both [.lockFocus].
      */
     private fun captureStillPicture() {
+        val captureTask = CaptureTask(this, captureTaskManager, System.currentTimeMillis(), captureType)
         isEnableZsl = SettingsManager.getInstance()
             .getBoolean(
                 getString(R.string.settings_key_photo_zsl),
@@ -962,8 +965,6 @@ class MainActivity : AppCompatActivity() {
         captureType = if (SettingsManager.getInstance()
                 .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         ) CaptureType.HDR else CaptureType.JPEG
-        capturedImageList.clear()
-        hdrImageExposureTimeList.clear()
         try {
             if (isEnableZsl && !isHdr && yuvImage == null) {
                 Log.e(TAG, "captureStillPicture: no yuv image available")
@@ -1021,7 +1022,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE))
+            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_JPEG))
             previewStreamingSession?.apply {
                 capture(
                     captureBuilder.build(),
@@ -1046,6 +1047,7 @@ class MainActivity : AppCompatActivity() {
                 captureBuilder.removeTarget(jpegImageReader.surface)
                 captureBuilder.addTarget(yuvImageReader.surface)
 
+                val exposureTimeList = mutableListOf<Long>()
                 val baseExposureTime = 1000000000L / 30
                 val halfImageSize = cameraInfo!!.exposureBracketingImages / 2
                 val scale = 2.0.pow(cameraInfo!!.exposureBracketingStops / halfImageSize)
@@ -1062,16 +1064,16 @@ class MainActivity : AppCompatActivity() {
                         if (exposureTime < cameraInfo!!.minExposureTime) {
                             exposureTime = cameraInfo!!.minExposureTime.toLong()
                         }
-                        hdrImageExposureTimeList.add(exposureTime)
+                        exposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
-                        captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_BURST_IN_PROCESS))
+                        captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS))
                         requests.add(captureBuilder.build())
                     }
                 }
                 // base image
-                hdrImageExposureTimeList.add(baseExposureTime)
+                exposureTimeList.add(baseExposureTime)
                 captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, baseExposureTime)
-                captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_BURST_IN_PROCESS))
+                captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS))
                 requests.add(captureBuilder.build())
                 // lighter images
                 for (i in 0 until halfImageSize) {
@@ -1084,17 +1086,18 @@ class MainActivity : AppCompatActivity() {
                         if (exposureTime > cameraInfo!!.maxExposureTime) {
                             exposureTime = cameraInfo!!.maxExposureTime.toLong()
                         }
-                        hdrImageExposureTimeList.add(exposureTime)
+                        exposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
                         if (i == halfImageSize - 1) {
-                            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE))
+                            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV))
                         } else {
-                            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_BURST_IN_PROCESS))
+                            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS))
                         }
                         requests.add(captureBuilder.build())
                     }
                 }
-                Log.d(TAG, "captureStillPicture: captureBurst, requests.size: ${requests.size}")
+                Log.d(TAG, "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}")
+                captureTask.exposureTimes = exposureTimeList
                 previewStreamingSession?.apply {
                     captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
 
@@ -1105,6 +1108,9 @@ class MainActivity : AppCompatActivity() {
                         ) {
                             super.onCaptureCompleted(session, request, result)
                             Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
+                            if (request.tag == RequestTagType.CAPTURE_YUV) {
+                                Log.d(TAG, "capture onCaptureCompleted for generating yuv frames")
+                            }
                         }
                     }, cameraHandler)
                 }
@@ -1164,36 +1170,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun viewPicture() {
-        if (this::capturedImageUri.isInitialized) {
-            // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            //     val intent = Intent().apply {
-            //         action = Intent.ACTION_VIEW
-            //         addCategory(Intent.CATEGORY_APP_GALLERY)
-            //         setDataAndType(capturedImageUri, "image/*")
-            //         flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            //     }
-            //     startActivity(intent)
-            // }
-            startActivity(Intent(Intent.ACTION_VIEW, capturedImageUri))
+    private fun viewMedia() {
+        if (lastCapturedMediaUri != null) {
+//             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                 val intent = Intent().apply {
+//                     action = Intent.ACTION_VIEW
+//                     addCategory(Intent.CATEGORY_APP_GALLERY)
+//                     setDataAndType(capturedImageUri, "image/*")
+//                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
+//                 }
+//                 startActivity(intent)
+//             }
+            startActivity(Intent(Intent.ACTION_VIEW, lastCapturedMediaUri))
         } else {
             toast("请先拍照")
         }
     }
 
-    private fun updateThumbnail(capturedImageUri: Uri, isNew: Boolean = false) {
-        val thumbnail = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
-            val temp = MediaStore.Images.Media.getBitmap(contentResolver, capturedImageUri)
-            ThumbnailUtils.extractThumbnail(temp, 360, 360)
-        } else {
-            contentResolver.loadThumbnail(capturedImageUri, Size(360, 360), null)
-        }
-        ivThumbnail.apply {
-            post {
-                setImageBitmap(thumbnail)
+    private fun updateThumbnail(bitmap: Bitmap) {
+        mainExecutor.execute {
+            ivThumbnail.apply {
+                post {
+                    setImageBitmap(bitmap)
+                }
             }
-        }
-        if (isNew) {
             Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
             // scale animation from 1 - 1.2 - 1
             ivThumbnail.animate()
@@ -1208,7 +1208,6 @@ class MainActivity : AppCompatActivity() {
                         .start()
                 }
                 .start()
-            SettingsManager.getInstance().saveLastCaptureMediaUri(capturedImageUri)
         }
     }
 
@@ -1280,7 +1279,7 @@ class MainActivity : AppCompatActivity() {
 //        previewSurfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
 //        previewSurface = Surface(previewSurfaceTexture)
 
-        val videoUri = MediaSaver.generateMediaUri(this, CaptureType.VIDEO)
+        val videoUri = TODO()
         val rotation = windowManager.defaultDisplay.rotation
         when (sensorOrientation) {
             SENSOR_ORIENTATION_DEFAULT_DEGREES ->
@@ -1346,48 +1345,6 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             window.attributes = layoutAttributes
         }
-    }
-
-    /**
-     * 不能在 onCpatureCompleted 中处理，可能captureBurst没有返回所有的request result之前返回了 captureCompleted
-     */
-    private fun handleOnImageAvailable(image: Image) {
-        Kpi.end(Kpi.TYPE.SHOT_TO_SHOT)
-        capturedImageList.add(image)
-        if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
-        ) {
-//            captureType = CaptureType.HDR
-//            if (capturedImageList.size < hdrNeedImageSize) {
-//                Log.d(
-//                    TAG,
-//                    "capture hdr, need ${hdrNeedImageSize} images, but collected ${capturedImageList.size}"
-//                )
-//                return
-//            } else {
-//                Log.d(TAG, "capture hdr, collected ${hdrNeedImageSize} images")
-//            }
-
-            imageReaderHandler.post(
-                MediaSaver(
-                    this@MainActivity,
-                    captureType,
-                    listOf(image),
-                    hdrImageExposureTimeList,
-                    imageReaderHandler
-                )
-            )
-        } else {
-        }
-//        unlockFocus()
-//        imageReaderHandler.post(
-//            MediaSaver(
-//                this@MainActivity,
-//                captureType,
-//                capturedImageList,
-//                hdrImageExposureTimeList,
-//                imageReaderHandler
-//            )
-//        )
     }
 
     companion object {

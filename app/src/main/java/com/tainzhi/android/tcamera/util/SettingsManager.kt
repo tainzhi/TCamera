@@ -3,6 +3,7 @@ package com.tainzhi.android.tcamera.util
 import android.content.Context
 import android.net.Uri
 import androidx.preference.PreferenceManager
+import com.tainzhi.android.tcamera.CaptureType
 import com.tainzhi.android.tcamera.R
 
 class SettingsManager(val context: Context) {
@@ -53,6 +54,16 @@ class SettingsManager(val context: Context) {
         spEditor.commit()
     }
 
+    fun saveLastCaptureMediaType(captureType: CaptureType) {
+        spEditor.putInt(KEY_LAST_CAPTURED_MEDIA_TYPE, captureType.ordinal)
+        spEditor.commit()
+    }
+
+    fun getLastCaptureMediaType(): CaptureType {
+        val typeOrdinal = sp.getInt(KEY_LAST_CAPTURED_MEDIA_TYPE, CaptureType.UNKNOWN.ordinal)
+        return CaptureType.values()[typeOrdinal]
+    }
+
     fun getJobId(): Int {
         return sp.getInt(JOB_ID, 0)
     }
@@ -77,7 +88,8 @@ class SettingsManager(val context: Context) {
         val PHOTO_ZSL_DEFAULT_VALUE = true
         val KEY_PREVIEW_RATIO = "preview_ratio"
         val KEY_HDR_ENABLE = "key_hdr_enable"
-        val KEY_LAST_CAPTURED_MEDIA_URI = "key_last_captured_media_uri"
+        const val KEY_LAST_CAPTURED_MEDIA_URI = "key_last_captured_media_uri"
+        const val KEY_LAST_CAPTURED_MEDIA_TYPE = "kye_last_captured_media_type"
         val PREVIEW_RATIO_DEFAULT_VALUE = PreviewAspectRatio.RATIO_4x3
         val GRID_TYPE_DEFAULT_VALUE = GridLineType.GOLDEN_SPIRAL
         val JOB_ID = "job_id"

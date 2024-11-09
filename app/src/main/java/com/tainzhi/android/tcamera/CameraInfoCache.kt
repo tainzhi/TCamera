@@ -253,8 +253,9 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
 }
 
 enum class RequestTagType {
-    CAPTURE,
-    CAPTURE_BURST_IN_PROCESS
+    CAPTURE_JPEG,
+    CAPTURE_YUV,
+    CAPTURE_YUV_BURST_IN_PROCESS
 }
 
 data class RequestTagObject(val type: RequestTagType)
