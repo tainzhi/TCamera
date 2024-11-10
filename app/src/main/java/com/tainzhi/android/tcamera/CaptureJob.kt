@@ -40,76 +40,89 @@ enum class CaptureType {
     }
 }
 
-class CaptureTaskManager(val context: Context, val onThumbnailBitmapUpdate: (bitmap: Bitmap) -> Unit) {
-    private val thread = HandlerThread("CaptureTaskManagerThread").apply { start() }
+class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitmap: Bitmap) -> Unit) {
+    private val thread = HandlerThread("CaptureJobManagerThread").apply { start() }
     private val handler = Handler(thread.looper) { msg ->
         when (msg.what) {
 
         }
         true
     }
-    private val taskMap = mutableMapOf<Int, CaptureTask>()
+    private val jobMap = mutableMapOf<Int, CaptureJob>()
+    private var currentJobId = -1
 
-    fun addTask(captureTask: CaptureTask) {
-        taskMap[captureTask.id] = captureTask
+    fun addJob(captureJob: CaptureJob) {
+        jobMap[captureJob.id] = captureJob
+        currentJobId = captureJob.id
     }
 
-    fun removeTask(captureTask: CaptureTask) {
-        taskMap.remove(captureTask.id)
+    fun getCurrentJob(): CaptureJob? {
+        if (currentJobId == -1 || jobMap.isEmpty() || !jobMap.containsKey(currentJobId)) {
+            return null
+        }
+        return jobMap[currentJobId]
     }
 
-    fun processTaskJpeg(taskId: Int) {
+    fun removeJob(jobId: Int) {
+        jobMap.remove(jobId)
+        if (jobMap.isEmpty()) {
+            currentJobId = -1
+        }
+    }
+
+    fun processJobJpeg(jobId: Int, ) {
+        Log.d(TAG, "processJobJpeg: job-$jobId")
         handler.post(Runnable {
-            saveJpeg(taskMap[taskId]!!)
+            saveJpeg(jobMap[jobId]!!)
         })
     }
 
-    fun processTaskYuvImages(taskId: Int) {
-
-    }
-
-    private fun onJpegSaved(taskId: Int) {
-        val task = taskMap[taskId]!!
+    private fun onJpegSaved(jobId: Int) {
+        Log.d(TAG, "onJpegSaved: job-${jobId}")
+        val job = jobMap[jobId]!!
         Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
         val thumbnail = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
-            val temp = MediaStore.Images.Media.getBitmap(context.contentResolver, task.uri!!)
+            val temp = MediaStore.Images.Media.getBitmap(context.contentResolver, job.uri!!)
             ThumbnailUtils.extractThumbnail(temp, 360, 360)
         } else {
-            context.contentResolver.loadThumbnail(task.uri!!, Size(360, 360), null)
+            context.contentResolver.loadThumbnail(job.uri!!, Size(360, 360), null)
         }
         Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
         onThumbnailBitmapUpdate(thumbnail)
         SettingsManager.getInstance().apply {
-            saveLastCaptureMediaType(task.captureType)
-            saveLastCaptureMediaUri(task.uri!!)
+            saveLastCaptureMediaType(job.captureType)
+            saveLastCaptureMediaUri(job.uri!!)
+        }
+        if (jobMap[jobId]!!.captureType == CaptureType.JPEG) {
+            removeJob(jobId)
         }
     }
 
     /**
      *  saveJpeg -> onJpegSaved
      */
-    private fun saveJpeg(task: CaptureTask) {
-        Log.d(TAG, "begin run for ${task.captureType}")
+    private fun saveJpeg(job: CaptureJob) {
+        Log.d(TAG, "saveJpeg: job-${job.id} ${job.captureType}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
-        val image: Image = task.jpegImage!!
+        val image: Image = job.jpegImage!!
         val resolver = context.contentResolver
         val buffer = image.planes[0].buffer
         val bytes = ByteArray(image.planes[0].buffer.remaining())
         buffer.get(bytes)
 
         try {
-            task.uri?.let { uri ->
+            job.uri?.let { uri ->
                 val stream = resolver.openOutputStream(uri)
                 if (stream != null) {
                     stream.write(bytes)
                     stream.close()
-                    onJpegSaved(task.id)
+                    onJpegSaved(job.id)
                 } else {
                     throw IOException("Failed to create new MediaStore record")
                 }
             }
         } catch (e: IOException) {
-            task.uri?.let { resolver.delete(it, null, null) }
+            job.uri?.let { resolver.delete(it, null, null) }
             throw IOException(e)
         } finally {
             // 必须关掉, 否则不能连续拍照
@@ -121,25 +134,25 @@ class CaptureTaskManager(val context: Context, val onThumbnailBitmapUpdate: (bit
     }
 
     companion object {
-        private val TAG = CaptureTask::class.java.simpleName
+        private val TAG = CaptureJob::class.java.simpleName
     }
 }
 
-class CaptureTask(val context: Context, val captureTaskManager: CaptureTaskManager, val captureTime: Long, val captureType: CaptureType) {
+class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager, val captureTime: Long, val captureType: CaptureType) {
     val id = SettingsManager.getInstance().getJobId() + 1
     val uri by lazy { getMediaUri() }
-    var jpegImage: Image? = null
-    val yuvImages = mutableListOf<Image>()
+    lateinit var jpegImage: Image
+    var yuvImageCnt = 0
     var exposureTimes = emptyList<Long>()
     private var yuvImageSize = 0
 
     init {
         SettingsManager.getInstance().saveJobId(id)
         if (captureType == CaptureType.HDR) yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
-        captureTaskManager.addTask(this)
+        captureJobManager.addJob(this)
     }
 
-    fun getMediaUri(): Uri? {
+    private fun getMediaUri(): Uri? {
         val relativeLocation = Environment.DIRECTORY_DCIM + "/Camera"
         // todo: 用拍照时间做文件名，而不是当前保存文件时间
         lateinit var fileName: String
@@ -188,15 +201,26 @@ class CaptureTask(val context: Context, val captureTaskManager: CaptureTaskManag
         }
         return mediaUri
     }
+    
+    fun processJpegImage(image: Image) {
+        jpegImage = image
+        captureJobManager.processJobJpeg(id)
+    }
 
-    fun addYuvImage(image: Image) {
-        yuvImages.add(image)
-        if (yuvImages.size == yuvImageSize) {
-            captureTaskManager.processTaskYuvImages(id)
+    fun processYuvImage(image: Image) {
+        yuvImageCnt += 1
+        ImageProcessor.processImage(id, image)
+        if (yuvImageCnt == yuvImageSize) {
+            ImageProcessor.capture(
+                captureType.ordinal,
+                id,
+                SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime),
+                exposureTimes
+            )
         }
     }
 
     companion object {
-        private val TAG = CaptureTask.javaClass.simpleName
+        private val TAG = CaptureJob.javaClass.simpleName
     }
 }

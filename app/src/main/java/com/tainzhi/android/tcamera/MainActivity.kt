@@ -144,7 +144,9 @@ class MainActivity : AppCompatActivity() {
     private var lastCapturedMediaUri: Uri? = null
     private var lastCapturedMediaType: CaptureType? = null
     private var captureType = CaptureType.JPEG
-    private val captureTaskManager = CaptureTaskManager(this) { bitmap ->
+    @Volatile
+    private var isCapturing = false
+    private val captureJobManager = CaptureJobManager(this) { bitmap ->
         updateThumbnail(bitmap)
     }
 
@@ -282,12 +284,13 @@ class MainActivity : AppCompatActivity() {
                 || afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED
             ) {
                 // CONTROL_AE_STATE can be null on some devices
-                Log.e(TAG, "capturePicture: afState is ${afState}")
+                Log.e(TAG, "capturePicture: afState is $afState")
                 val aeState = result.get(CaptureResult.CONTROL_AE_STATE)
                 if (aeState == null || aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
                     cameraState = STATE_PICTURE_TAKEN
                     captureStillPicture()
                 } else {
+                    isCapturing = false
                     runPrecaptureSequence()
                 }
             }
@@ -355,7 +358,13 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 // Most device front lenses/camera have a fixed focal length
                 // for front camera, doesn't need lock focus
-                if (useCameraFront) captureStillPicture() else lockFocus()
+                if (!isCapturing) {
+                    isCapturing = true
+                    Log.d(TAG, "click to take picture, set isCapturing to ${isCapturing}")
+                    if (useCameraFront) captureStillPicture() else lockFocus()
+                } else {
+                    Log.i(TAG, "click to take picture, but waiting")
+                }
             }
         }
         ivRecord = findViewById<ImageView>(R.id.iv_record).apply {
@@ -652,6 +661,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     yuvImageReader.setOnImageAvailableListener({ image ->
                         Log.d(TAG, "hdr: yuv image available")
+                        captureJobManager.getCurrentJob()?.processYuvImage(yuvImage!!)
                     }, cameraHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -681,6 +691,7 @@ class MainActivity : AppCompatActivity() {
                 jpegImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpeg: image available ")
                     val image = reader.acquireLatestImage()
+                    captureJobManager.getCurrentJob()?.processJpegImage(image)
                 }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation
@@ -951,7 +962,7 @@ class MainActivity : AppCompatActivity() {
      * [.captureCallback] from both [.lockFocus].
      */
     private fun captureStillPicture() {
-        val captureTask = CaptureTask(this, captureTaskManager, System.currentTimeMillis(), captureType)
+        val captureJob = CaptureJob(this, captureJobManager, System.currentTimeMillis(), captureType)
         isEnableZsl = SettingsManager.getInstance()
             .getBoolean(
                 getString(R.string.settings_key_photo_zsl),
@@ -1034,7 +1045,14 @@ class MainActivity : AppCompatActivity() {
                             result: TotalCaptureResult
                         ) {
                             super.onCaptureCompleted(session, request, result)
-                            Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
+                            if (captureType == CaptureType.JPEG) {
+                                isCapturing = false
+                                unlockFocus()
+                                Log.d(
+                                    TAG,
+                                    "capture onCaptureCompleted, request.tag:${request.tag}, set isCapturing to $isCapturing"
+                                )
+                            }
                         }
                     },
                     cameraHandler
@@ -1097,7 +1115,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 Log.d(TAG, "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}")
-                captureTask.exposureTimes = exposureTimeList
+                captureJob.exposureTimes = exposureTimeList
                 previewStreamingSession?.apply {
                     captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
 
@@ -1107,9 +1125,10 @@ class MainActivity : AppCompatActivity() {
                             result: TotalCaptureResult
                         ) {
                             super.onCaptureCompleted(session, request, result)
-                            Log.d(TAG, "capture onCaptureCompleted, request.tag:" + request.tag)
                             if (request.tag == RequestTagType.CAPTURE_YUV) {
-                                Log.d(TAG, "capture onCaptureCompleted for generating yuv frames")
+                                isCapturing = false
+                                unlockFocus()
+                                Log.d(TAG, "capture onCaptureCompleted for generating yuv frames, set isCapturing to $isCapturing\"")
                             }
                         }
                     }, cameraHandler)
@@ -1171,6 +1190,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun viewMedia() {
+        lastCapturedMediaUri = SettingsManager.getInstance().getLastCapturedMediaUri()
         if (lastCapturedMediaUri != null) {
 //             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 //                 val intent = Intent().apply {

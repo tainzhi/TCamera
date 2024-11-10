@@ -12,7 +12,7 @@ object ImageProcessor {
         init(App.getCachePath())
     }
 
-    fun capture(captureType: Int, jobId:Int, timeStamp: String, exposureTimes: List<Int>) {
+    fun capture(captureType: Int, jobId:Int, timeStamp: String, exposureTimes: List<Long>) {
         Log.d(TAG, "capture, jobId:$jobId, timeStamp:$timeStamp")
         val frameSize = 3
         capture(captureType, jobId, timeStamp, frameSize, exposureTimes)
@@ -44,7 +44,7 @@ object ImageProcessor {
     private external fun init(cachePath: String)
     private external fun handlePreviewImage(yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer,  width: Int, height: Int)
 
-    private external fun capture(captureType: Int, jobId:Int, timeStamp: String, frameSize: Int, exposureTimes: List<Int>)
+    private external fun capture(captureType: Int, jobId:Int, timeStamp: String, frameSize: Int, exposureTimes: List<Long>)
     private external fun processImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer,  width: Int, height: Int)
     private external fun updateCaptureBackupFilePath(path: String)
     private external fun deinit()

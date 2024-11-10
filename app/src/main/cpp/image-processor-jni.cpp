@@ -120,7 +120,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thi
     std::vector<float> exposureTimes;
     for (int i = 0; i < frame_size; i++) {
         jobject item = env->CallObjectMethod(exposure_times, getMethod, i);
-        jint exposureTime = env->CallIntMethod(item, env->GetMethodID(env->GetObjectClass(item), "intValue", "()I"));
+        jlong exposureTime = env->CallIntMethod(item, env->GetMethodID(env->GetObjectClass(item), "longValue", "()I"));
         exposureTimes.push_back(exposureTime / 1000000000.0);
     }
     engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp),
