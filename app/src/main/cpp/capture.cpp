@@ -15,12 +15,18 @@ CaptureManager::~CaptureManager() {
 }
 
 void CaptureManager::addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes) {
+    LOGD("%s, addCapture job:%d", __FUNCTION__, jobId);
     auto job = std::make_shared<CaptureJob>(jobId, captureType, timeStamp, frameSize);
     job->exposureTimes = exposureTimes;
     jobs[jobId] = job;
 }
 
 void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
+    LOGD("%s, for job %d, jobs.size:%d", __FUNCTION__, jobId, jobs.size());
+    if (jobs.size() == 0) {
+        LOGE("%s, no jobs", __FUNCTION__ );
+        return;
+    }
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
         jobs[jobId]->frames.emplace_back(frame);

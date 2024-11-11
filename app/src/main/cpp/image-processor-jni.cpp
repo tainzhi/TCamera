@@ -112,8 +112,9 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
 extern "C" JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thiz, jint capture_type, jint job_id,
                                                         jstring time_stamp, jint frame_size, jobject exposure_times) {
+    LOGD("%s", __FUNCTION__);
     // java 传过来的exposure_time 是纳秒，需要转换为秒
-     // 获取List类和相关方法ID
+    // 获取List类和相关方法ID
     jclass listClass = env->FindClass("java/util/List");
     jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
     jmethodID getMethod = env->GetMethodID(listClass, "get", "(I)Ljava/lang/Object;");

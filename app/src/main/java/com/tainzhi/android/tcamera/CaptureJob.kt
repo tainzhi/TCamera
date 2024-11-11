@@ -143,13 +143,25 @@ class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager,
     val uri by lazy { getMediaUri() }
     lateinit var jpegImage: Image
     var yuvImageCnt = 0
-    var exposureTimes = emptyList<Long>()
+    private lateinit var exposureTimes: List<Long>
     private var yuvImageSize = 0
 
     init {
         SettingsManager.getInstance().saveJobId(id)
         if (captureType == CaptureType.HDR) yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
         captureJobManager.addJob(this)
+        Log.d(TAG, "init CaptureJob: ")
+    }
+
+    constructor(
+        context: Context,
+        captureJobManager: CaptureJobManager,
+        captureTime: Long,
+        captureType: CaptureType,
+        exposureTimes: List<Long>
+    ) : this(context, captureJobManager, captureTime, captureType) {
+        captureJobManager.addJob(this)
+        this.exposureTimes = exposureTimes
     }
 
     private fun getMediaUri(): Uri? {

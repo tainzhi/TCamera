@@ -7,7 +7,8 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project("tcamera")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -UNDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -DEBUG")
+set(CMAKE_BUILD_TYPE Debug)
 
 message(DEBUG "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}/..")
 message(DEBUG "CMAKE_PROJECT_DIR: ${CMAKE_PROJECT_PATH}")

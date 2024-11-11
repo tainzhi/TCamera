@@ -659,9 +659,11 @@ class MainActivity : AppCompatActivity() {
                         ImageFormat.YUV_420_888,
                         CAPTURE_HDR_FRAME_SIZE
                     )
-                    yuvImageReader.setOnImageAvailableListener({ image ->
+                    yuvImageReader.setOnImageAvailableListener({ reader ->
                         Log.d(TAG, "hdr: yuv image available")
-                        captureJobManager.getCurrentJob()?.processYuvImage(yuvImage!!)
+                        Log.d(TAG, "jpeg: image available ")
+                        val image = reader.acquireLatestImage()
+                        captureJobManager.getCurrentJob()?.processYuvImage(image)
                     }, cameraHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -962,7 +964,6 @@ class MainActivity : AppCompatActivity() {
      * [.captureCallback] from both [.lockFocus].
      */
     private fun captureStillPicture() {
-        val captureJob = CaptureJob(this, captureJobManager, System.currentTimeMillis(), captureType)
         isEnableZsl = SettingsManager.getInstance()
             .getBoolean(
                 getString(R.string.settings_key_photo_zsl),
@@ -1034,6 +1035,16 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_JPEG))
+            if (captureType == CaptureType.JPEG) {
+                captureJobManager.addJob(
+                    CaptureJob(
+                        this,
+                        captureJobManager,
+                        System.currentTimeMillis(),
+                        captureType
+                    )
+                )
+            }
             previewStreamingSession?.apply {
                 capture(
                     captureBuilder.build(),
@@ -1115,7 +1126,17 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 Log.d(TAG, "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}")
-                captureJob.exposureTimes = exposureTimeList
+                if (captureType == CaptureType.HDR) {
+                    captureJobManager.addJob(
+                        CaptureJob(
+                            this,
+                            captureJobManager,
+                            System.currentTimeMillis(),
+                            captureType,
+                            exposureTimeList
+                        )
+                    )
+                }
                 previewStreamingSession?.apply {
                     captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
 
