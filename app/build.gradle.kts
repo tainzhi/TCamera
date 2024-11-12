@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.tainzhi.android.tcamera"
-        minSdk = 29
+        minSdk = 30
         targetSdk = 34
         versionCode = 1001
         versionName = "1.1"

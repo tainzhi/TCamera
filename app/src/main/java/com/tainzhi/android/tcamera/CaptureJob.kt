@@ -82,6 +82,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         val job = jobMap[jobId]!!
         Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
         val thumbnail = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
+            @Suppress("DEPRECATION")
             val temp = MediaStore.Images.Media.getBitmap(context.contentResolver, job.uri!!)
             ThumbnailUtils.extractThumbnail(temp, 360, 360)
         } else {

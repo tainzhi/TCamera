@@ -344,6 +344,7 @@ class MainActivity : AppCompatActivity() {
                     lastCapturedMediaType = SettingsManager.instance.getLastCaptureMediaType()
                     Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
                     val thumbnailBitmap = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
+                        @Suppress("DEPRECATION")
                         val temp = MediaStore.Images.Media.getBitmap(contentResolver, lastCapturedMediaUri)
                         ThumbnailUtils.extractThumbnail(temp, 360, 360)
                     } else {
@@ -609,8 +610,11 @@ class MainActivity : AppCompatActivity() {
         } else {
             // it doesn't work when set transparent for statusbar/navigationbar in styles.xml
             // so hardcode here
+            @Suppress("DEPRECATION")
             window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+            @Suppress("DEPRECATION")
             window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+            @Suppress("DEPRECATION")
             window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
         }
@@ -860,6 +864,7 @@ class MainActivity : AppCompatActivity() {
                 if (isEnableZsl) {
 
                 } else {
+                    @Suppress("DEPRECATION")
                     cameraDevice?.createCaptureSession(
                         arrayListOf(previewSurface, jpegImageReader.surface),
                         captureSessionStateCallback, cameraHandler
@@ -982,7 +987,7 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "captureStillPicture: no yuv image available")
                 return
             }
-            val rotation = windowManager.defaultDisplay.rotation
+            val rotation = this.display!!.rotation
 
             val captureBuilder =
                 if (zslImageWriter != null && captureType != CaptureType.HDR
@@ -1305,9 +1310,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(VERSION_CODES.S)
     @Throws(IOException::class)
     private fun setUpMediaRecorder() {
-        mediaRecorder = MediaRecorder()
+        mediaRecorder = MediaRecorder(this)
         val (videoSize, _) = chooseOptimalSize(
             cameraInfo!!.getOutputPreviewSurfaceSizes(),
             previewSize,
@@ -1321,7 +1327,7 @@ class MainActivity : AppCompatActivity() {
 //        previewSurface = Surface(previewSurfaceTexture)
 
         val videoUri = TODO()
-        val rotation = windowManager.defaultDisplay.rotation
+        val rotation = this.display!!.rotation
         when (sensorOrientation) {
             SENSOR_ORIENTATION_DEFAULT_DEGREES ->
                 mediaRecorder?.setOrientationHint(OREIENTATIONS.get(rotation))
