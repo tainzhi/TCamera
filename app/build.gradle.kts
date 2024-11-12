@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val minutesSinceEpoch = System.currentTimeMillis() / 60000
+
 android {
     signingConfigs {
         getByName("debug") {
@@ -39,6 +41,9 @@ android {
             applicationIdSuffix = ".debug"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfigs["debug"]
+            buildConfigField("String", "BUILD_TIME", "\"${minutesSinceEpoch}\"")
+            buildConfigField("int", "build_time", "${minutesSinceEpoch}")
+            buildConfigField("Boolean", "DEBUG", "true")
         }
         release {
             isShrinkResources = true
@@ -46,6 +51,7 @@ android {
             applicationIdSuffix = ".release"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfigs["release"]
+            buildConfigField("Boolean", "DEBUG", "false")
         }
     }
 
