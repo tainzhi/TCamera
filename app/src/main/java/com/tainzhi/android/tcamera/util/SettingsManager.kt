@@ -3,6 +3,7 @@ package com.tainzhi.android.tcamera.util
 import android.content.Context
 import android.net.Uri
 import androidx.preference.PreferenceManager
+import com.tainzhi.android.tcamera.App
 import com.tainzhi.android.tcamera.CaptureType
 import com.tainzhi.android.tcamera.R
 
@@ -74,12 +75,10 @@ class SettingsManager(val context: Context) {
     }
 
     companion object {
-        @Volatile private lateinit var INSTANCE: SettingsManager
-        fun build(context: Context) {
-            INSTANCE = SettingsManager(context)
-        }
 
-        fun getInstance() = INSTANCE
+        val instance: SettingsManager by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            SettingsManager(App.getInstance().applicationContext)
+        }
 
         // more fast than disableZSL
         // e.g

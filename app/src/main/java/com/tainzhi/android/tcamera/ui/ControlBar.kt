@@ -46,17 +46,17 @@ class ControlBar(
     }
 
     private val btnHdr = binding.btnHdr.apply {
-        if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE)) {
+        if (SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE)) {
             setImageResource(R.drawable.ic_hdr_on)
         } else {
             setImageResource(R.drawable.ic_hdr_off)
         }
         setOnClickListener {
-            if (SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE)) {
-                SettingsManager.getInstance().setBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+            if (SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE)) {
+                SettingsManager.instance.setBoolean(SettingsManager.KEY_HDR_ENABLE, false)
                 setImageResource(R.drawable.ic_hdr_off)
             } else {
-                SettingsManager.getInstance().setBoolean(SettingsManager.KEY_HDR_ENABLE, true)
+                SettingsManager.instance.setBoolean(SettingsManager.KEY_HDR_ENABLE, true)
                 setImageResource(R.drawable.ic_hdr_on)
             }
         }
@@ -117,7 +117,7 @@ class ControlBar(
     }
 
     private fun updatePreviewAspectRatioBtnState() {
-        val previewRatio = SettingsManager.getInstance().getPreviewAspectRatio()
+        val previewRatio = SettingsManager.instance.getPreviewAspectRatio()
         when (previewRatio) {
             SettingsManager.PreviewAspectRatio.RATIO_1x1 -> {
                 ivRatio1x1.isSelected = true
@@ -140,10 +140,10 @@ class ControlBar(
     private fun postChangePreviewAspectRatio(previewAspectRatio: SettingsManager.PreviewAspectRatio) {
         Log.d(
             TAG,
-            "postChangePreviewAspectRatio: ${SettingsManager.getInstance().getPreviewAspectRatio()}"
+            "postChangePreviewAspectRatio: ${SettingsManager.instance.getPreviewAspectRatio()}"
         )
-        if (previewAspectRatio != SettingsManager.getInstance().getPreviewAspectRatio()) {
-            SettingsManager.getInstance().setPreviewRatio(previewAspectRatio)
+        if (previewAspectRatio != SettingsManager.instance.getPreviewAspectRatio()) {
+            SettingsManager.instance.setPreviewRatio(previewAspectRatio)
             onRatioUpdate.invoke()
             updateControlBarRatioIcon()
             // 所有button先全部取消选中
@@ -168,7 +168,7 @@ class ControlBar(
     }
 
     private fun updateControlBarRatioIcon() {
-        val previewRatio = SettingsManager.getInstance().getPreviewAspectRatio()
+        val previewRatio = SettingsManager.instance.getPreviewAspectRatio()
         binding.btnRatio.setImageDrawable(
             context.resources.getDrawable(
                 when (previewRatio) {

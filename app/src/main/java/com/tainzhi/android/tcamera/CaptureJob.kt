@@ -89,7 +89,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         }
         Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
         onThumbnailBitmapUpdate(thumbnail)
-        SettingsManager.getInstance().apply {
+        SettingsManager.instance.apply {
             saveLastCaptureMediaType(job.captureType)
             saveLastCaptureMediaUri(job.uri!!)
         }
@@ -139,7 +139,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
 }
 
 class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager, val captureTime: Long, val captureType: CaptureType) {
-    val id = SettingsManager.getInstance().getJobId() + 1
+    val id = SettingsManager.instance.getJobId() + 1
     val uri by lazy { getMediaUri() }
     lateinit var jpegImage: Image
     var yuvImageCnt = 0
@@ -147,7 +147,7 @@ class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager,
     private var yuvImageSize = 0
 
     init {
-        SettingsManager.getInstance().saveJobId(id)
+        SettingsManager.instance.saveJobId(id)
         if (captureType == CaptureType.HDR) yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
         captureJobManager.addJob(this)
         Log.d(TAG, "init CaptureJob: ")

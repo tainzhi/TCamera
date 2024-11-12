@@ -9,13 +9,10 @@ import com.tainzhi.android.tcamera.util.SettingsManager
 
 class App: Application(), ActivityLifecycleCallbacks {
 
-    private lateinit var settingsManager: SettingsManager
     override fun onCreate() {
         super.onCreate()
         INSTANCE = this
         registerActivityLifecycleCallbacks(this)
-        SettingsManager.build(this)
-        settingsManager = SettingsManager.getInstance()
         ShaderCache.load()
         ImageProcessor.create()
     }
@@ -35,7 +32,7 @@ class App: Application(), ActivityLifecycleCallbacks {
     }
 
     override fun onActivityPaused(activity: Activity) {
-        settingsManager.commit()
+        SettingsManager.instance.commit()
     }
 
     override fun onActivityStopped(activity: Activity) {
@@ -58,7 +55,7 @@ class App: Application(), ActivityLifecycleCallbacks {
             return getInstance().applicationContext.cacheDir.path
         }
 
-        val DEBUG = BuildConfig.DEBUG
+        val DEBUG: Boolean = BuildConfig.DEBUG
     }
 
 }

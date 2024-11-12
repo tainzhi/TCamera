@@ -14,9 +14,9 @@ class GridLine : TextureBase() {
     private lateinit var shaderFactory: ShaderFactory
 
     private fun generateLines(previewRectF: RectF) {
-        val enableGridLine = SettingsManager.getInstance().getGridLineEnable()
+        val enableGridLine = SettingsManager.instance.getGridLineEnable()
         if (!enableGridLine) return
-        when (SettingsManager.getInstance().getGridLineType()) {
+        when (SettingsManager.instance.getGridLineType()) {
             // 对角线
             SettingsManager.GridLineType.DIAGONAL.ordinal -> {
                 components.add(

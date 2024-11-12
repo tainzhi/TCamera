@@ -337,11 +337,11 @@ class MainActivity : AppCompatActivity() {
                 viewMedia()
             }
         }
-        SettingsManager.getInstance().getLastCapturedMediaUri()?.let {
+        SettingsManager.instance.getLastCapturedMediaUri()?.let {
             imageReaderHandler.post(Runnable {
-                lastCapturedMediaUri = SettingsManager.getInstance().getLastCapturedMediaUri()
+                lastCapturedMediaUri = SettingsManager.instance.getLastCapturedMediaUri()
                 if (lastCapturedMediaUri != null) {
-                    lastCapturedMediaType = SettingsManager.getInstance().getLastCaptureMediaType()
+                    lastCapturedMediaType = SettingsManager.instance.getLastCaptureMediaType()
                     Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
                     val thumbnailBitmap = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
                         val temp = MediaStore.Images.Media.getBitmap(contentResolver, lastCapturedMediaUri)
@@ -619,7 +619,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setSurfaces() {
         Log.i(TAG, "setSurfaces: ")
-        val previewAspectRatio = SettingsManager.getInstance().getPreviewAspectRatio()
+        val previewAspectRatio = SettingsManager.instance.getPreviewAspectRatio()
         val ratioValue: Float = when (previewAspectRatio) {
             SettingsManager.PreviewAspectRatio.RATIO_1x1 -> 1f
             SettingsManager.PreviewAspectRatio.RATIO_4x3 -> 4 / 3f
@@ -630,13 +630,13 @@ class MainActivity : AppCompatActivity() {
         }
         try {
             isEnableZsl = cameraInfo!!.isSupportReproc() &&
-                    SettingsManager.getInstance()
+                    SettingsManager.instance
                         .getBoolean(
                             getString(R.string.settings_key_photo_zsl),
                             SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
                         )
             val isHdr =
-                SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+                SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
             Log.d(
                 TAG,
                 "setSurfaces enableZsl:$isEnableZsl, hdr:${isHdr}"
@@ -835,7 +835,7 @@ class MainActivity : AppCompatActivity() {
                     OutputConfiguration(jpegImageReader.surface)
                 )
                 val isHdr =
-                    SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+                    SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
                 if (isEnableZsl || isHdr) {
                     outputConfigurations.add(
                         OutputConfiguration(yuvImageReader.surface)
@@ -882,7 +882,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setPreviewRequest() {
         if (cameraDevice == null) return
-        val isHdr = SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+        val isHdr = SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         if (isEnableZsl && !isHdr) {
             zslImageWriter =
                 ImageWriter.newInstance(
@@ -964,17 +964,17 @@ class MainActivity : AppCompatActivity() {
      * [.captureCallback] from both [.lockFocus].
      */
     private fun captureStillPicture() {
-        isEnableZsl = SettingsManager.getInstance()
+        isEnableZsl = SettingsManager.instance
             .getBoolean(
                 getString(R.string.settings_key_photo_zsl),
                 SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
             )
         val isHdr =
-            SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+            SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         Log.d(TAG, "captureStillPicture: enableZsl:${isEnableZsl}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SHOT)
         // todo: 判断是否有已经在执行的任务，队列执行
-        captureType = if (SettingsManager.getInstance()
+        captureType = if (SettingsManager.instance
                 .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         ) CaptureType.HDR else CaptureType.JPEG
         try {
@@ -994,7 +994,7 @@ class MainActivity : AppCompatActivity() {
                     Log.i(
                         TAG,
                         "captureStillPicture: enableZsl:${isEnableZsl}, enableHdr:${
-                            SettingsManager.getInstance()
+                            SettingsManager.instance
                                 .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
                         }"
                     )
@@ -1071,7 +1071,7 @@ class MainActivity : AppCompatActivity() {
             }
             mediaActionSound.play(MediaActionSound.SHUTTER_CLICK)
             // HDR拍照先拍一张jpeg,生成临时照片和thumbnail; 再拍3张yuv图片用于合成
-            if (captureType == CaptureType.HDR && SettingsManager.getInstance().getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
+            if (captureType == CaptureType.HDR && SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
                 Log.d(TAG, "captureStillPicture: HDR enable")
                 captureBuilder.removeTarget(jpegImageReader.surface)
                 captureBuilder.addTarget(yuvImageReader.surface)
@@ -1211,7 +1211,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun viewMedia() {
-        lastCapturedMediaUri = SettingsManager.getInstance().getLastCapturedMediaUri()
+        lastCapturedMediaUri = SettingsManager.instance.getLastCapturedMediaUri()
         if (lastCapturedMediaUri != null) {
 //             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 //                 val intent = Intent().apply {
