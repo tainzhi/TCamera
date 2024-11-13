@@ -12,20 +12,28 @@ CaptureManager::~CaptureManager() {
     while (isRunning) {
         quitCond.wait(lock);
     }
+    LOGD("%s, CaptureManager released", __FUNCTION__);
+}
+
+CaptureManager::CaptureManager() {
+    LOGD("%s, CaptureManager created", __FUNCTION__);
 }
 
 void CaptureManager::addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes) {
-    LOGD("%s, addCapture job:%d", __FUNCTION__, jobId);
+    LOGD("%s, addCapture job:%d, jobs size:%u", __FUNCTION__, jobId, jobs.size());
     auto job = std::make_shared<CaptureJob>(jobId, captureType, timeStamp, frameSize);
     job->exposureTimes = exposureTimes;
+    auto it = jobs.find(jobId);
     jobs[jobId] = job;
 }
 
 void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
-    LOGD("%s, for job %d, jobs.size:%d", __FUNCTION__, jobId, jobs.size());
+    LOGD("%s, for job %d, jobs.size:%u", __FUNCTION__, jobId, jobs.size());
     if (jobs.size() == 0) {
         LOGE("%s, no jobs", __FUNCTION__ );
         return;
+    } else {
+        LOGD("%s, job-%d exists", __FUNCTION__ , jobId);
     }
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {

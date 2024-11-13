@@ -11,6 +11,8 @@ struct LooperMessage {
 };
 
 Looper::Looper(): running(true), worker(&Looper::loop, this){
+    head = nullptr;
+    LOGD("%s created", __FUNCTION__);
 }
 
 Looper::~Looper() {
@@ -59,7 +61,6 @@ void Looper::loop() {
         lock.lock();
         LooperMessage *msg = head;
         if (msg == nullptr) {
-            LOGV("no msg");
             lock.unlock();
             continue;
         }

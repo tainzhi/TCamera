@@ -12,9 +12,8 @@ object ImageProcessor {
         init(App.getCachePath())
     }
 
-    fun capture(captureType: Int, jobId:Int, timeStamp: String, exposureTimes: List<Long>) {
+    fun capture(jobId:Int, timeStamp: String, captureType: Int, frameSize: Int, exposureTimes: List<Long>) {
         Log.d(TAG, "capture, jobId:$jobId, timeStamp:$timeStamp")
-        val frameSize = 3
         capture(captureType, jobId, timeStamp, frameSize, exposureTimes)
     }
 
@@ -24,9 +23,9 @@ object ImageProcessor {
         assert(image.format == ImageFormat.YUV_420_888) { "imageFormat:${image.format}" }
         assert(image.planes[1].pixelStride == 2) {"imageFormat is not YUV420sp"}
         Log.d(TAG, "processImage, imageWidth:" + image.width + ", imageHeight:" + image.height)
-        Log.d(TAG, "processImage, imagePlane0Size:${image.planes[0].buffer.remaining()}, rowStride:${image.planes[0].rowStride}, pixelStride:${image.planes[0].pixelStride}")
-        Log.d(TAG, "processImage, imagePlane1Size:${image.planes[1].buffer.remaining()}, rowStride:${image.planes[1].rowStride}, pixelStride:${image.planes[1].pixelStride}")
-        Log.d(TAG, "processImage, imagePlane2Size:${image.planes[2].buffer.remaining()}, rowStride:${image.planes[2].rowStride}, pixelStride:${image.planes[2].pixelStride}")
+        Log.d(TAG, "processImage, imagePlane[0] Size:${image.planes[0].buffer.remaining()}, rowStride:${image.planes[0].rowStride}, pixelStride:${image.planes[0].pixelStride}")
+        Log.d(TAG, "processImage, imagePlane[1] Size:${image.planes[1].buffer.remaining()}, rowStride:${image.planes[1].rowStride}, pixelStride:${image.planes[1].pixelStride}")
+        Log.d(TAG, "processImage, imagePlane[2] Size:${image.planes[2].buffer.remaining()}, rowStride:${image.planes[2].rowStride}, pixelStride:${image.planes[2].pixelStride}")
         processImage(
             jobId,
             image.planes[0].buffer,
@@ -35,6 +34,7 @@ object ImageProcessor {
             image.width,
             image.height,
         )
+        image.close()
     }
 
     fun destroy() {

@@ -14,8 +14,10 @@
 #include "util.h"
 
 enum  CaptureType {
-    CaptureType_None = 0,
-    CaptureType_HDR = 1,
+    UNKNOWN,
+    JPEG,
+    HDR,
+    VIDEO
 };
 
 struct CaptureJob {
@@ -35,6 +37,7 @@ struct CaptureJob {
 class CaptureManager: Looper {
 public:
     ~CaptureManager();
+    CaptureManager();
     void addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes);
     void updateCaptureBackupFilePath(int jobId, const std::string &backupFilePath);
     void collectFrame(int jobId, cv::Mat frame);
@@ -42,7 +45,7 @@ private:
     void handle(int what, void *data);
     void process(int jobId);
     
-    std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs;
+    std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};
     std::mutex mutex;
     bool isRunning = false;
     std::condition_variable quitCond;

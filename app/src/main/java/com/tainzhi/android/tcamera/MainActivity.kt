@@ -47,6 +47,7 @@ import com.tainzhi.android.tcamera.util.RotationChangeListener
 import com.tainzhi.android.tcamera.util.RotationChangeMonitor
 import com.tainzhi.android.tcamera.util.SettingsManager
 import com.tainzhi.android.tcamera.util.toast
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.Semaphore
@@ -667,7 +668,7 @@ class MainActivity : AppCompatActivity() {
                         Log.d(TAG, "hdr: yuv image available")
                         Log.d(TAG, "jpeg: image available ")
                         val image = reader.acquireLatestImage()
-                        captureJobManager.getCurrentJob()?.processYuvImage(image)
+                        captureJobManager.processYuvImage(image)
                     }, cameraHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -697,7 +698,7 @@ class MainActivity : AppCompatActivity() {
                 jpegImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpeg: image available ")
                     val image = reader.acquireLatestImage()
-                    captureJobManager.getCurrentJob()?.processJpegImage(image)
+                    captureJobManager.processJpegImage(image)
                 }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation

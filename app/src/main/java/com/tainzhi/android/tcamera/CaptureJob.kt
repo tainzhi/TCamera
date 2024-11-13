@@ -52,11 +52,12 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
     private var currentJobId = -1
 
     fun addJob(captureJob: CaptureJob) {
+        Log.d(TAG, "addJob: job-${captureJob.id}")
         jobMap[captureJob.id] = captureJob
         currentJobId = captureJob.id
     }
 
-    fun getCurrentJob(): CaptureJob? {
+    private fun getCurrentJob(): CaptureJob? {
         if (currentJobId == -1 || jobMap.isEmpty() || !jobMap.containsKey(currentJobId)) {
             return null
         }
@@ -64,16 +65,20 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
     }
 
     fun removeJob(jobId: Int) {
+        Log.d(TAG, "removeJob: job-$jobId")
         jobMap.remove(jobId)
-        if (jobMap.isEmpty()) {
-            currentJobId = -1
-        }
     }
 
-    fun processJobJpeg(jobId: Int, ) {
-        Log.d(TAG, "processJobJpeg: job-$jobId")
+    fun processJpegImage(image: Image) {
+        jobMap[currentJobId]!!.jpegImage = image
         handler.post(Runnable {
-            saveJpeg(jobMap[jobId]!!)
+            saveJpeg(jobMap[currentJobId]!!)
+        })
+    }
+
+    fun processYuvImage(image: Image) {
+        handler.post({
+            ImageProcessor.processImage(currentJobId, image)
         })
     }
 
@@ -139,19 +144,29 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
     }
 }
 
-class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager, val captureTime: Long, val captureType: CaptureType) {
+class CaptureJob {
+    private val context: Context
+    private val captureJobManager: CaptureJobManager
+    private val captureTime: Long
+    val captureType: CaptureType
     val id = SettingsManager.instance.getJobId() + 1
     val uri by lazy { getMediaUri() }
     lateinit var jpegImage: Image
-    var yuvImageCnt = 0
     private lateinit var exposureTimes: List<Long>
     private var yuvImageSize = 0
 
-    init {
+    constructor(context: Context,
+                captureJobManager: CaptureJobManager,
+                captureTime: Long,
+                captureType: CaptureType) {
+        this.context = context
+        this.captureJobManager = captureJobManager
+        this.captureTime = captureTime
+        this.captureType = captureType
         SettingsManager.instance.saveJobId(id)
         if (captureType == CaptureType.HDR) yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
         captureJobManager.addJob(this)
-        Log.d(TAG, "init CaptureJob: ")
+
     }
 
     constructor(
@@ -161,8 +176,12 @@ class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager,
         captureType: CaptureType,
         exposureTimes: List<Long>
     ) : this(context, captureJobManager, captureTime, captureType) {
-        captureJobManager.addJob(this)
         this.exposureTimes = exposureTimes
+        captureJobManager.addJob(this)
+        if (captureType == CaptureType.HDR) {
+            yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
+            ImageProcessor.capture(id, "${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}", captureType.ordinal, yuvImageSize, exposureTimes)
+        }
     }
 
     private fun getMediaUri(): Uri? {
@@ -213,24 +232,6 @@ class CaptureJob(val context: Context, val captureJobManager: CaptureJobManager,
             Log.d(TAG, "getMediaUri: $fileName")
         }
         return mediaUri
-    }
-    
-    fun processJpegImage(image: Image) {
-        jpegImage = image
-        captureJobManager.processJobJpeg(id)
-    }
-
-    fun processYuvImage(image: Image) {
-        yuvImageCnt += 1
-        ImageProcessor.processImage(id, image)
-        if (yuvImageCnt == yuvImageSize) {
-            ImageProcessor.capture(
-                captureType.ordinal,
-                id,
-                SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime),
-                exposureTimes
-            )
-        }
     }
 
     companion object {
