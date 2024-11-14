@@ -40,7 +40,7 @@ enum class CaptureType {
     }
 }
 
-class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitmap: Bitmap) -> Unit) {
+class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitmap: Bitmap, captureType: CaptureType) -> Unit) {
     private val thread = HandlerThread("CaptureJobManagerThread").apply { start() }
     private val handler = Handler(thread.looper) { msg ->
         when (msg.what) {
@@ -82,8 +82,22 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         })
     }
 
-    private fun onJpegSaved(jobId: Int) {
-        Log.d(TAG, "onJpegSaved: job-${jobId}")
+    fun processVideo() {
+        Log.d(TAG, "processVideo: ")
+        handler.post({
+            val currentJob = jobMap[currentJobId]
+            context.contentResolver.query(currentJob!!.uri!!, null, null, null, null)?.run {
+                if (moveToFirst()) {
+                    val filePath = getString(getColumnIndexOrThrow(MediaStore.Video.Media.DATA))
+                    Log.d(TAG, "processVideo: $filePath")
+                    generateThumbnail(currentJobId)
+                }
+            }
+        })
+    }
+
+    private fun generateThumbnail(jobId: Int) {
+        Log.d(TAG, "generateThumbnail: job-${jobId}")
         val job = jobMap[jobId]!!
         Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
         val thumbnail = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
@@ -94,7 +108,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
             context.contentResolver.loadThumbnail(job.uri!!, Size(360, 360), null)
         }
         Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
-        onThumbnailBitmapUpdate(thumbnail)
+        onThumbnailBitmapUpdate(thumbnail, job.captureType)
         SettingsManager.instance.apply {
             saveLastCaptureMediaType(job.captureType)
             saveLastCaptureMediaUri(job.uri!!)
@@ -105,7 +119,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
     }
 
     /**
-     *  saveJpeg -> onJpegSaved
+     *  saveJpeg -> generateThumbnail
      */
     private fun saveJpeg(job: CaptureJob) {
         Log.d(TAG, "saveJpeg: job-${job.id} ${job.captureType}")
@@ -122,7 +136,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
                 if (stream != null) {
                     stream.write(bytes)
                     stream.close()
-                    onJpegSaved(job.id)
+                    generateThumbnail(job.id)
                 } else {
                     throw IOException("Failed to create new MediaStore record")
                 }

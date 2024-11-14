@@ -92,6 +92,7 @@ class SettingsManager(val context: Context) {
         val PREVIEW_RATIO_DEFAULT_VALUE = PreviewAspectRatio.RATIO_4x3
         val GRID_TYPE_DEFAULT_VALUE = GridLineType.GOLDEN_SPIRAL
         val JOB_ID = "job_id"
+        private val TAG = SettingsManager.javaClass.simpleName
     }
     enum class PreviewAspectRatio {
         RATIO_1x1,

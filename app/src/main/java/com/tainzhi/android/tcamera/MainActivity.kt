@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var _binding: ActivityMainBinding
     private lateinit var cameraPreviewView: CameraPreviewView
     private lateinit var ivThumbnail: CircleImageView
+    private lateinit var ivThumbnailVideo: ImageView
     private lateinit var ivTakePicture: ImageView
     private lateinit var ivRecord: ImageView
     private lateinit var ivSwitchCamera: ImageView
@@ -149,13 +150,12 @@ class MainActivity : AppCompatActivity() {
     private var currentCameraMode: CameraMode = CameraMode.PHOTO
 
     private var lastCapturedMediaUri: Uri? = null
-    private var lastCapturedMediaType: CaptureType? = null
     private var captureType = CaptureType.JPEG
 
     @Volatile
     private var isCapturing = false
-    private val captureJobManager = CaptureJobManager(this) { bitmap ->
-        updateThumbnail(bitmap)
+    private val captureJobManager = CaptureJobManager(this) { bitmap, captureType ->
+        updateThumbnail(bitmap, captureType)
     }
 
     private var surfaceTextureListener = object : CameraPreviewView.SurfaceTextureListener {
@@ -345,22 +345,23 @@ class MainActivity : AppCompatActivity() {
                 viewMedia()
             }
         }
+        ivThumbnailVideo = findViewById(R.id.iv_thumbnail_video)
         SettingsManager.instance.getLastCapturedMediaUri()?.let {
             imageReaderHandler.post({
                 lastCapturedMediaUri = SettingsManager.instance.getLastCapturedMediaUri()
                 if (lastCapturedMediaUri != null) {
-                    lastCapturedMediaType = SettingsManager.instance.getLastCaptureMediaType()
+                    val lastCapturedMediaType = SettingsManager.instance.getLastCaptureMediaType()
                     Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
                     val thumbnailBitmap = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                        @Suppress("DEPRECATION")
                         val temp =
+                            @Suppress("DEPRECATION")
                             MediaStore.Images.Media.getBitmap(contentResolver, lastCapturedMediaUri)
                         ThumbnailUtils.extractThumbnail(temp, 360, 360)
                     } else {
                         contentResolver.loadThumbnail(lastCapturedMediaUri!!, Size(360, 360), null)
                     }
                     Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
-                    updateThumbnail(thumbnailBitmap)
+                    updateThumbnail(thumbnailBitmap, lastCapturedMediaType)
                 }
             })
         }
@@ -828,7 +829,7 @@ class MainActivity : AppCompatActivity() {
                     super.onClosed(session)
                     Log.d(TAG, "onSessionClosed")
                     if (isNeedRecreateCaptureSession) {
-                        Log.d(TAG, "onSessionClosed: need to recreate CaptureSession")
+                        Log.d(TAG, "onSessionClosed: need to recreate preview session")
                         isNeedRecreateCaptureSession = false
                         setSurfaces()
                         setPreviewSession()
@@ -837,11 +838,11 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onSurfacePrepared(session: CameraCaptureSession, surface: Surface) {
                     super.onSurfacePrepared(session, surface)
-                    Log.d(TAG, "onSessionSurfacePrepared")
+                    Log.d(TAG, "onSessionSurfacePrepared preview")
                 }
 
                 override fun onConfigureFailed(p0: CameraCaptureSession) {
-                    Log.e(TAG, "onConfigureFailed: ")
+                    Log.e(TAG, "onConfigureFailed: preview")
                     toast("Failed to configure CaptureSession")
                 }
 
@@ -853,7 +854,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onReady(session: CameraCaptureSession) {
                     // When the session is ready, we start displaying the preview.
                     super.onReady(session)
-                    Log.d(TAG, "onSessionReady")
+                    Log.d(TAG, "onSessionReady preview")
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -1283,14 +1284,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateThumbnail(bitmap: Bitmap) {
+    private fun updateThumbnail(bitmap: Bitmap, captureType: CaptureType) {
         mainExecutor.execute {
             ivThumbnail.apply {
                 post {
                     setImageBitmap(bitmap)
                 }
             }
-            Kpi.end(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
+            if (captureType == CaptureType.VIDEO) {
+                ivThumbnailVideo.visibility = View.VISIBLE
+            } else {
+                ivThumbnailVideo.visibility = View.GONE
+            }
             // scale animation from 1 - 1.2 - 1
             ivThumbnail.animate()
                 .setDuration(80)
@@ -1423,6 +1428,7 @@ class MainActivity : AppCompatActivity() {
             reset()
             release()
         }
+        captureJobManager.processVideo()
         isRecordingVideo = false
         ivRecord.setImageResource(R.drawable.btn_record_start)
     }
