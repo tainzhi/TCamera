@@ -14,7 +14,8 @@ import com.tainzhi.android.tcamera.util.SettingsManager
 class ControlBar(
     val context: Context,
     val binding: ActivityMainBinding,
-    private val onRatioUpdate: () -> Unit
+    private val onRatioUpdate: () -> Unit,
+    private val onHdrStateUpdate: () -> Unit
 ) {
     private lateinit var inflatedView: View
     private lateinit var ivRatio1x1: AppCompatImageButton
@@ -59,6 +60,7 @@ class ControlBar(
                 SettingsManager.instance.setBoolean(SettingsManager.KEY_HDR_ENABLE, true)
                 setImageResource(R.drawable.ic_hdr_on)
             }
+            onHdrStateUpdate()
         }
     }
 

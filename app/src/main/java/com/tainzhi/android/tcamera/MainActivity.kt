@@ -34,7 +34,6 @@ import androidx.core.os.ExecutorCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import com.tainzhi.android.tcamera.CameraInfoCache.Companion.CAPTURE_HDR_FRAME_SIZE
 import com.tainzhi.android.tcamera.CameraInfoCache.Companion.chooseOptimalSize
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.ui.CameraPreviewView
@@ -329,13 +328,18 @@ class MainActivity : AppCompatActivity() {
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(_binding.root)
         setFullScreen()
-        controlBar = ControlBar(this, _binding) {
+        controlBar = ControlBar(this, _binding, {
             Log.d(TAG, "onPreviewAspectRatioChange")
             closeSurfaces()
             closePreviewSession()
             isNeedRecreateCaptureSession = true
             cameraPreviewView.changePreviewAspectRatio()
-        }
+        }, {
+            Log.d(TAG, "onHdrStateChange: ")
+            closeSurfaces()
+            closePreviewSession()
+            isNeedRecreateCaptureSession = true
+        })
         videoIndicator = VideoIndicator(this, _binding)
         FilterBar(this, _binding) {
             cameraPreviewView.changeFilterType()
@@ -689,9 +693,9 @@ class MainActivity : AppCompatActivity() {
                     )
                     yuvImageReader.setOnImageAvailableListener({ reader ->
                         Log.d(TAG, "hdr: yuv image available")
-                        Log.d(TAG, "jpeg: image available ")
-                        val image = reader.acquireLatestImage()
-                        captureJobManager.processYuvImage(image)
+                        reader.acquireLatestImage()?.let{
+                            captureJobManager.processYuvImage(it)
+                        }
                     }, cameraHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -720,8 +724,9 @@ class MainActivity : AppCompatActivity() {
                 )
                 jpegImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpeg: image available ")
-                    val image = reader.acquireLatestImage()
-                    captureJobManager.processJpegImage(image)
+                    reader.acquireLatestImage()?.let {
+                        captureJobManager.processJpegImage(it)
+                    }
                 }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation
@@ -803,7 +808,7 @@ class MainActivity : AppCompatActivity() {
                 previewRect,
                 useCameraFront
             )
-            flashSupported = cameraInfo!!.isflashSupported
+            flashSupported = cameraInfo!!.isFlashSupported
 
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
@@ -1085,7 +1090,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_JPEG))
+            captureBuilder.setTag(RequestTagType.CAPTURE_JPEG)
             if (captureType == CaptureType.JPEG) {
                 captureJobManager.addJob(
                     CaptureJob(
@@ -1150,14 +1155,14 @@ class MainActivity : AppCompatActivity() {
                         }
                         exposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
-                        captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS))
+                        captureBuilder.setTag(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS)
                         requests.add(captureBuilder.build())
                     }
                 }
                 // base image
                 exposureTimeList.add(baseExposureTime)
                 captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, baseExposureTime)
-                captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS))
+                captureBuilder.setTag(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS)
                 requests.add(captureBuilder.build())
                 // lighter images
                 for (i in 0 until halfImageSize) {
@@ -1173,9 +1178,9 @@ class MainActivity : AppCompatActivity() {
                         exposureTimeList.add(exposureTime)
                         captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
                         if (i == halfImageSize - 1) {
-                            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV))
+                            captureBuilder.setTag(RequestTagType.CAPTURE_YUV)
                         } else {
-                            captureBuilder.setTag(RequestTagObject(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS))
+                            captureBuilder.setTag(RequestTagType.CAPTURE_YUV_BURST_IN_PROCESS)
                         }
                         requests.add(captureBuilder.build())
                     }
@@ -1197,19 +1202,19 @@ class MainActivity : AppCompatActivity() {
                 }
                 previewSession?.apply {
                     captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
-
                         override fun onCaptureCompleted(
                             session: CameraCaptureSession,
                             request: CaptureRequest,
                             result: TotalCaptureResult
                         ) {
                             super.onCaptureCompleted(session, request, result)
+                            Log.d(TAG, "onCaptureCompleted: ${request.tag}")
                             if (request.tag == RequestTagType.CAPTURE_YUV) {
                                 isCapturing = false
                                 unlockFocus()
                                 Log.d(
                                     TAG,
-                                    "capture onCaptureCompleted for generating yuv frames, set isCapturing to $isCapturing\""
+                                    "capture onCaptureCompleted for generating yuv frames, set isCapturing to $isCapturing"
                                 )
                             }
                         }
@@ -1481,6 +1486,8 @@ class MainActivity : AppCompatActivity() {
 
         private const val YUV_IMAGE_READER_SIZE = 8
         private const val ZSL_IMAGE_WRITER_SIZE = 2
+        // at least 3 buffers to HDR capture and should be odd number
+        const val CAPTURE_HDR_FRAME_SIZE = 3
 
         enum class CameraMode {
             VIDEO,

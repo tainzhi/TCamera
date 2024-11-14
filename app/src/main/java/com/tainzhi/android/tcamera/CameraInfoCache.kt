@@ -9,6 +9,7 @@ import android.hardware.camera2.params.StreamConfigurationMap
 import android.util.Log
 import android.util.Range
 import android.util.Size
+import com.tainzhi.android.tcamera.MainActivity.Companion.CAPTURE_HDR_FRAME_SIZE
 import java.lang.Long.signum
 import java.util.Collections
 import kotlin.math.abs
@@ -19,9 +20,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
     var cameraId: String = ""
     var largestYuvSize = Size(0, 0)
 
-    // to fixme
-    var videoSize = Size(0, 0)
-    var isflashSupported = false
+    var isFlashSupported = false
     private var requestAvailableAbilities: IntArray? = null
     var sensorOrientation: Int? = 0
     private var noiseModes: IntArray? = null
@@ -50,12 +49,8 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
                 break
             }
         }
-        if (cameraCharacteristics == null) {
-            throw Exception("cannot get camera characteristics")
-        }
         streamConfigurationMap =
             cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-        // videoSize = chooseVideoSize(streamConfigurationMap!!.getOutputSizes(MediaRecorder::class.java))
         if (streamConfigurationMap == null) {
             throw Exception("cannot get stream configuration")
         }
@@ -75,7 +70,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
         hardwareLevel =
             cameraCharacteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)!!
         sensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
-        isflashSupported =
+        isFlashSupported =
             cameraCharacteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
 
         val isoRange: Range<Int>? = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)
@@ -247,8 +242,6 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
 
         private val TAG = CameraInfoCache::class.java.simpleName
         private const val DIFF_FLOAT_EPS = 0.0001f
-        // at least 3 buffers to HDR capture and should be odd number
-        const val CAPTURE_HDR_FRAME_SIZE = 3
     }
 }
 
@@ -257,8 +250,6 @@ enum class RequestTagType {
     CAPTURE_YUV,
     CAPTURE_YUV_BURST_IN_PROCESS
 }
-
-data class RequestTagObject(val type: RequestTagType)
 
 class CompareSizesByArea : Comparator<Size> {
     override fun compare(p0: Size, p1: Size) =

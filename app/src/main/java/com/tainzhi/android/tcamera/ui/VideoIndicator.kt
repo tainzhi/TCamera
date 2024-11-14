@@ -17,14 +17,13 @@ import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 
 class VideoIndicator(
     val context: Context,
-    val binding: ActivityMainBinding,
+    private val binding: ActivityMainBinding,
 ) {
     private lateinit var inflatedView: View
     private lateinit var ivIndicator: ImageView
     private lateinit var tvVideoLength: TextView
     private var startTime = 0L
     private val SECOND_IN_MILLIS= 1000L
-    private var videoLength = 0L
     private val counterRunnable by lazy { CounterRunnable()}
 
     fun show() {
@@ -60,7 +59,7 @@ class VideoIndicator(
     private inner class CounterRunnable : Runnable {
         override fun run() {
             // in milliseconds
-            videoLength = System.currentTimeMillis() - startTime
+            val videoLength = System.currentTimeMillis() - startTime
             val counter = DateUtils.formatElapsedTime(null, videoLength / SECOND_IN_MILLIS)
             tvVideoLength.text = counter
             inflatedView.postDelayed(this,SECOND_IN_MILLIS - (videoLength % SECOND_IN_MILLIS) + 10L)

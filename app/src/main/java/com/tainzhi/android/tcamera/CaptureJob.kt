@@ -178,7 +178,7 @@ class CaptureJob {
         this.captureTime = captureTime
         this.captureType = captureType
         SettingsManager.instance.saveJobId(id)
-        if (captureType == CaptureType.HDR) yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
+        if (captureType == CaptureType.HDR) yuvImageSize = MainActivity.CAPTURE_HDR_FRAME_SIZE
         captureJobManager.addJob(this)
 
     }
@@ -193,7 +193,7 @@ class CaptureJob {
         this.exposureTimes = exposureTimes
         captureJobManager.addJob(this)
         if (captureType == CaptureType.HDR) {
-            yuvImageSize = CameraInfoCache.CAPTURE_HDR_FRAME_SIZE
+            yuvImageSize = MainActivity.CAPTURE_HDR_FRAME_SIZE
             ImageProcessor.capture(id, "${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}", captureType.ordinal, yuvImageSize, exposureTimes)
         }
     }
