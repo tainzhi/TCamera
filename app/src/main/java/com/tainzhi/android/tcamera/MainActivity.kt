@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
     private val cameraOpenCloseLock = Semaphore(1)
 
     private var cameraInfo: CameraInfoCache? = null
-    private var previewStreamingSession: CameraCaptureSession? = null
+    private var previewSession: CameraCaptureSession? = null
     private lateinit var cameraManager: CameraManager
     private var isNeedRecreateCaptureSession = false
     private var isNeedReopenCamera = false
@@ -121,9 +121,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var yuvImageReader: ImageReader
     private var yuvImage: Image? = null
 
+    // todo: 启用MediaRecorder后，也不再每次拍照时都需创建 CameraCaptureSession
+    // 只需创建一次 previewSession.addTarget(previewSurface, recorder.surface)
+    private lateinit var videoSession: CameraCaptureSession
+    private lateinit var videoRequestBuilder: CaptureRequest.Builder
     private lateinit var videoSize: Size
     private var isRecordingVideo = false
-    private lateinit var videoSurface: Surface
     private lateinit var mediaRecorder: MediaRecorder
 
     private lateinit var previewRequestBuilder: CaptureRequest.Builder
@@ -169,7 +172,7 @@ class MainActivity : AppCompatActivity() {
             previewSurfaceTexture = surfaceTexture
             if (isNeedRecreateCaptureSession) {
                 isNeedRecreateCaptureSession = false
-                setCaptureSession()
+                setPreviewSession()
             }
         }
 
@@ -212,7 +215,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 while (!isPreviewSizeSet) {
                     if (App.DEBUG) {
-                        Log.d(TAG, "setCaptureSession: waiting to image reader set")
+                        Log.d(TAG, "onCameraOpened: waiting to image reader set")
                     }
                     previewSizeCondition.await()
                 }
@@ -220,7 +223,7 @@ class MainActivity : AppCompatActivity() {
                 previewSizeLock.unlock()
             }
             setSurfaces()
-            setCaptureSession()
+            setPreviewSession()
         }
 
         override fun onDisconnected(p0: CameraDevice) {
@@ -228,7 +231,7 @@ class MainActivity : AppCompatActivity() {
             p0.close()
             cameraOpenCloseLock.release()
             closeSurfaces()
-            closeCaptureSession()
+            closePreviewSession()
             this@MainActivity.cameraDevice = null
         }
 
@@ -327,7 +330,7 @@ class MainActivity : AppCompatActivity() {
         controlBar = ControlBar(this, _binding) {
             Log.d(TAG, "onPreviewAspectRatioChange")
             closeSurfaces()
-            closeCaptureSession()
+            closePreviewSession()
             isNeedRecreateCaptureSession = true
             cameraPreviewView.changePreviewAspectRatio()
         }
@@ -385,7 +388,7 @@ class MainActivity : AppCompatActivity() {
                 isNeedReopenCamera = true
                 useCameraFront = !useCameraFront
                 closeSurfaces()
-                closeCaptureSession()
+                closePreviewSession()
                 closeCamera()
             }
         }
@@ -412,7 +415,7 @@ class MainActivity : AppCompatActivity() {
                     currentCameraMode = mode
                     controlBar.updateByCameraMode(mode)
                     closeSurfaces()
-                    closeCaptureSession()
+                    closePreviewSession()
                 }
 
             })
@@ -464,7 +467,7 @@ class MainActivity : AppCompatActivity() {
         setBrightness(false)
         rotationChangeMonitor.disable()
         closeSurfaces()
-        closeCaptureSession()
+        closePreviewSession()
         closeCamera()
         super.onStop()
     }
@@ -761,40 +764,6 @@ class MainActivity : AppCompatActivity() {
                 if (App.DEBUG) {
                     Log.d(TAG, "setSurfaces: videoSize:${videoSize}")
                 }
-                videoSurface = MediaCodec.createPersistentInputSurface()
-                @Suppress("DEPRECATION")
-                mediaRecorder =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else MediaRecorder()
-                val videoUri = CaptureJob(
-                    this,
-                    captureJobManager,
-                    System.currentTimeMillis(),
-                    CaptureType.VIDEO
-                ).uri
-                val displayRotation = this.display!!.rotation
-                mediaRecorder!!.apply {
-                    setOrientationHint((sensorOrientation!! - OREIENTATIONS.get(displayRotation) * (if (useCameraFront) 1 else -1) + 360) % 360)
-                    setAudioSource(MediaRecorder.AudioSource.MIC)
-                    setVideoSource(MediaRecorder.VideoSource.SURFACE)
-                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                    setOutputFile(
-                        this@MainActivity.contentResolver.openFileDescriptor(
-                            videoUri!!,
-                            "w"
-                        )!!.fileDescriptor
-
-                    )
-                    setVideoEncodingBitRate(10000000)
-                    setVideoFrameRate(30)
-                    setVideoSize(videoSize.width, videoSize.height)
-                    setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                    setAudioEncodingBitRate(16)
-                    setAudioSamplingRate(44100)
-                    // 必须要在 set CaptureSession之前配置好 recorder surface
-                    setInputSurface(videoSurface)
-                    prepare()
-                }
             }
             val previewTopMargin =
                 resources.getDimensionPixelSize(R.dimen.preview_top_margin) * resources.displayMetrics.density
@@ -851,8 +820,8 @@ class MainActivity : AppCompatActivity() {
         isPreviewSizeSet = false
     }
 
-    private fun setCaptureSession() {
-        Log.i(TAG, "setCaptureSession: ")
+    private fun setPreviewSession() {
+        Log.i(TAG, "setPreviewSession: ")
         try {
             val captureSessionStateCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onClosed(session: CameraCaptureSession) {
@@ -862,7 +831,7 @@ class MainActivity : AppCompatActivity() {
                         Log.d(TAG, "onSessionClosed: need to recreate CaptureSession")
                         isNeedRecreateCaptureSession = false
                         setSurfaces()
-                        setCaptureSession()
+                        setPreviewSession()
                     }
                 }
 
@@ -877,7 +846,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onConfigured(session: CameraCaptureSession) {
-                    previewStreamingSession = session
+                    previewSession = session
                     setPreviewRequest()
                 }
 
@@ -890,7 +859,7 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val outputConfigurations = mutableListOf(OutputConfiguration(previewSurface))
                 if (currentCameraMode == CameraMode.PHOTO) {
-                    Log.d(TAG, "setCaptureSession: photo")
+                    Log.d(TAG, "setPreviewSession: photo")
                     outputConfigurations.add(OutputConfiguration(jpegImageReader.surface))
                     val isHdr =
                         SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
@@ -915,8 +884,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     cameraDevice?.createCaptureSession(sessionConfiguration)
                 } else {
-                    Log.d(TAG, "setCaptureSession: video")
-                    outputConfigurations.add(OutputConfiguration(videoSurface))
+                    Log.d(TAG, "setPreviewSession: video")
                     val sessionConfiguration = SessionConfiguration(
                         SessionConfiguration.SESSION_REGULAR,
                         outputConfigurations,
@@ -935,19 +903,18 @@ class MainActivity : AppCompatActivity() {
                         captureSessionStateCallback, cameraHandler
                     )
                 }
-
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
         }
     }
 
-    private fun closeCaptureSession() {
-        // closeCaptureSession -> session.onClosed() -> closeCamera()
-        Log.i(TAG, "closeCaptureSession: ")
-        previewStreamingSession?.stopRepeating()
-        previewStreamingSession?.close()
-        previewStreamingSession = null
+    private fun closePreviewSession() {
+        // closePreviewSession -> session.onClosed() -> closeCamera()
+        Log.i(TAG, "closePreviewSession")
+        previewSession?.stopRepeating()
+        previewSession?.close()
+        previewSession = null
     }
 
     private fun setPreviewRequest() {
@@ -958,7 +925,7 @@ class MainActivity : AppCompatActivity() {
             if (isEnableZsl && !isHdr) {
                 zslImageWriter =
                     ImageWriter.newInstance(
-                        previewStreamingSession!!.inputSurface!!,
+                        previewSession!!.inputSurface!!,
                         ZSL_IMAGE_WRITER_SIZE
                     )
                 zslImageWriter?.setOnImageReleasedListener({ _ ->
@@ -1009,7 +976,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "setPreviewRequest: controlZsl=${controlZsl}")
             }
             previewRequest = previewRequestBuilder.build()
-            previewStreamingSession?.setRepeatingRequest(
+            previewSession?.setRepeatingRequest(
                 previewRequest,
                 captureCallback, cameraHandler
             )
@@ -1030,7 +997,7 @@ class MainActivity : AppCompatActivity() {
                 CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START
             )
             cameraState = STATE_WAITING_PRECAPTURE
-            previewStreamingSession?.capture(
+            previewSession?.capture(
                 previewRequestBuilder.build(), captureCallback,
                 cameraHandler
             )
@@ -1053,7 +1020,6 @@ class MainActivity : AppCompatActivity() {
             SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         Log.d(TAG, "captureStillPicture: enableZsl:${isEnableZsl}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SHOT)
-        // todo: 判断是否有已经在执行的任务，队列执行
         captureType = if (SettingsManager.instance
                 .getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
         ) CaptureType.HDR else CaptureType.JPEG
@@ -1124,7 +1090,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
             }
-            previewStreamingSession?.apply {
+            previewSession?.apply {
                 capture(
                     captureBuilder.build(),
                     object : CameraCaptureSession.CaptureCallback() {
@@ -1223,7 +1189,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                 }
-                previewStreamingSession?.apply {
+                previewSession?.apply {
                     captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
 
                         override fun onCaptureCompleted(
@@ -1261,7 +1227,7 @@ class MainActivity : AppCompatActivity() {
             )
             // Tell #captureCallback to wait for the lock.
             cameraState = STATE_WAITING_LOCK
-            previewStreamingSession?.capture(
+            previewSession?.capture(
                 previewRequestBuilder.build(), captureCallback,
                 cameraHandler
             )
@@ -1284,13 +1250,13 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-            previewStreamingSession?.capture(
+            previewSession?.capture(
                 previewRequestBuilder.build(), captureCallback,
                 cameraHandler
             )
             // After this, the camera will go back to the normal state of preview.
             cameraState = STATE_PREVIEW
-            previewStreamingSession?.setRepeatingRequest(
+            previewSession?.setRepeatingRequest(
                 previewRequest, captureCallback,
                 cameraHandler
             )
@@ -1347,33 +1313,95 @@ class MainActivity : AppCompatActivity() {
         this.requestedOrientation =
             ActivityInfo.SCREEN_ORIENTATION_LOCKED
         try {
-            previewStreamingSession!!.stopRepeating()
-            previewRequestBuilder =
-                cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-                    .apply {
-                        addTarget(previewSurface)
-                        addTarget(videoSurface)
-                        set(
-                            CaptureRequest.CONTROL_AF_MODE,
-                            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
-                        )
-                        set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(30, 30))
-                        set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
-                            CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
-                    }
-            previewStreamingSession!!.setRepeatingRequest(
-                previewRequestBuilder.build(), null, cameraHandler
-            )
-            if (!isRecordingVideo) {
-                runOnUiThread {
-                    Log.d(TAG, "startVideo onCaptureStarted: ")
-                    ivRecord.setImageResource(R.drawable.btn_record_stop)
-                    isRecordingVideo = true
-                    mediaRecorder.apply {
-                        start()
-                    }
-                }
+            // todo: 弃用 MediaRecorder, 避免在每次 MediaRecorder.stop()之后需要重新set
+            // 导致其使用的的surface也需要每次重新设置，最终导致其需要重新设置 videoSession
+            // 若是使用 MediaCodec, 则可以在进入video模式开启预览创建 previewSession.addTarget(previewSurface, recorderSurface)
+            //  参考 https://blog.csdn.net/weixin_44752167/article/details/131091958
+            // 无需每次开启拍摄都需要创建一次 VideoSession
+            // MediaRecorder stop 之后需要重新set才能使用
+            val videoSurface = MediaCodec.createPersistentInputSurface()
+            @Suppress("DEPRECATION")
+            mediaRecorder =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(this) else MediaRecorder()
+            val videoUri = CaptureJob(
+                this,
+                captureJobManager,
+                System.currentTimeMillis(),
+                CaptureType.VIDEO
+            ).uri
+            val displayRotation = this.display!!.rotation
+            mediaRecorder.apply {
+                setOrientationHint((sensorOrientation!! - OREIENTATIONS.get(displayRotation) * (if (useCameraFront) 1 else -1) + 360) % 360)
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setVideoSource(MediaRecorder.VideoSource.SURFACE)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setOutputFile(
+                    this@MainActivity.contentResolver.openFileDescriptor(
+                        videoUri!!,
+                        "w"
+                    )!!.fileDescriptor
+
+                )
+                setVideoEncodingBitRate(10000000)
+                setVideoFrameRate(30)
+                setVideoSize(videoSize.width, videoSize.height)
+                setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(16)
+                setAudioSamplingRate(44100)
+                // 必须要在 set CaptureSession之前配置好 recorder surface
+                setInputSurface(videoSurface)
+                prepare()
             }
+            Log.d(TAG, "startVideo: set MediaRecorder")
+            val outputConfigurations = mutableListOf(
+                OutputConfiguration(previewSurface),
+                OutputConfiguration(videoSurface)
+            )
+            val sessionConfiguration = SessionConfiguration(
+                SessionConfiguration.SESSION_REGULAR,
+                outputConfigurations,
+                cameraExecutor,
+                object: CameraCaptureSession.StateCallback() {
+                    override fun onConfigured(session: CameraCaptureSession) {
+                        videoSession = session
+                        videoRequestBuilder =
+                            cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+                                .apply {
+                                    addTarget(previewSurface)
+                                    addTarget(videoSurface)
+                                    set(
+                                        CaptureRequest.CONTROL_AF_MODE,
+                                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
+                                    )
+                                    set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(30, 30))
+                                    set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                                        CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
+                                }
+                        videoSession.setRepeatingRequest(
+                            videoRequestBuilder.build(), null, cameraHandler
+                        )
+                        if (!isRecordingVideo) {
+                            runOnUiThread {
+                                Log.d(TAG, "startVideo onCaptureStarted: ")
+                                ivRecord.setImageResource(R.drawable.btn_record_stop)
+                                isRecordingVideo = true
+                                mediaRecorder.apply {
+                                    start()
+                                }
+                            }
+                        }
+                    }
+
+                    override fun onConfigureFailed(session: CameraCaptureSession) {
+                        Log.d(TAG, "startVideo onConfigureFailed: set video session failed")
+                    }
+                },
+            )
+            // 停止预览和开启 video record预览要放在一起，避免 MediaRecorder创建期间预览卡顿
+            // 当然最好的方式是不使用 MediaRecorder，使用 MediaCodec, 这样就可以在切换到video模式时创建一次recorder后多次 stop/start使用
+            closePreviewSession()
+            cameraDevice?.createCaptureSession(sessionConfiguration)
         } catch (e: CameraAccessException) {
             Log.e(TAG, "startVideo CameraAccessException", e)
         } catch (e: IOException) {
@@ -1383,20 +1411,23 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopVideo() {
         Log.d(TAG, "stopVideo: ")
-        cameraHandler.post {
-            mediaRecorder?.apply {
-                stop()
-                reset()
-                release()
-            }
-            setCaptureSession()
+        this.requestedOrientation =
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        videoSession.stopRepeating()
+        setPreviewSession()
+//        previewSession!!.setRepeatingRequest(previewRequestBuilder.build(), null ,cameraHandler)
+        mediaRecorder.apply {
+            // MediaRecorder stop 之后需要重新初始化配置，即重新 prepare()
+            // 参考：https://developer.android.com/reference/android/media/MediaRecorder
+            stop()
+            reset()
+            release()
         }
         isRecordingVideo = false
         ivRecord.setImageResource(R.drawable.btn_record_start)
     }
 
     private fun handleRotation(rotateAngle: Int) {
-//        Log.d(TAG, "handleRotation: thumbnailOrientation:$thumbnailOrientation")
         thumbnailOrientation = (-rotateAngle + thumbnailOrientation +
                 (if (rotateAngle > 180) 360 else 0)) % 360
         ivThumbnail.animate()
