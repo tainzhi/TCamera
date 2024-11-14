@@ -14,131 +14,153 @@
  limitations under the License.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/cl_camera"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#000000">
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/cl_camera"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        >
 
     <com.tainzhi.android.tcamera.ui.CameraPreviewView
-        android:id="@+id/previewView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            />
 
     <ViewStub
-        android:id="@+id/vs_control_bar_ratio"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/control_bar_top_margin"
-        android:layout="@layout/vstub_control_bar_ratio"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+            android:id="@+id/vs_video_recording_indicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/video_recording_indicator_top_margin"
+            android:layout="@layout/vstub_video_recording_indicator"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+    <ViewStub
+            android:id="@+id/vs_control_bar_ratio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/control_bar_top_margin"
+            android:layout="@layout/vstub_control_bar_ratio"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            />
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/clControlBarLevel1Menu"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/control_bar_top_margin"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <androidx.appcompat.widget.AppCompatImageButton
-            android:id="@+id/btn_hdr"
-            style="@style/ControlBarItem"
-            android:layout_marginStart="@dimen/control_bar_horizontal_margin"
-            android:src="@drawable/ic_hdr_off"
-            app:layout_constraintEnd_toStartOf="@id/btn_ratio"
-            app:layout_constraintHorizontal_chainStyle="spread_inside"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <androidx.appcompat.widget.AppCompatImageButton
-            android:id="@+id/btn_ratio"
-            style="@style/ControlBarItem"
-            android:src="@drawable/ic_ratio_full"
-            app:layout_constraintEnd_toStartOf="@id/btn_settings"
-            app:layout_constraintStart_toEndOf="@id/btn_hdr"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <androidx.appcompat.widget.AppCompatImageButton
-            android:id="@+id/btn_settings"
-            style="@style/ControlBarItem"
-            android:layout_marginEnd="@dimen/control_bar_horizontal_margin"
-            android:src="@drawable/ic_settings"
+            android:id="@+id/clControlBarLevel1Menu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/control_bar_top_margin"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/btn_ratio"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            >
+
+        <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/btn_hdr"
+                style="@style/ControlBarItem"
+                android:layout_marginStart="@dimen/control_bar_horizontal_margin"
+                android:src="@drawable/ic_hdr_off"
+                app:layout_constraintEnd_toStartOf="@id/btn_ratio"
+                app:layout_constraintHorizontal_chainStyle="spread_inside"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/btn_ratio"
+                style="@style/ControlBarItem"
+                android:src="@drawable/ic_ratio_full"
+                app:layout_constraintEnd_toStartOf="@id/btn_settings"
+                app:layout_constraintStart_toEndOf="@id/btn_hdr"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/btn_settings"
+                style="@style/ControlBarItem"
+                android:layout_marginEnd="@dimen/control_bar_horizontal_margin"
+                android:src="@drawable/ic_settings"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/btn_ratio"
+                app:layout_constraintTop_toTopOf="parent"
+                />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.appcompat.widget.AppCompatImageView
-        android:id="@+id/filter"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
-        android:layout_marginEnd="24dp"
-        android:background="@drawable/circle_gray_background"
-        android:backgroundTint="@color/colorOverlaySurface"
-        android:layout_marginBottom="32dp"
-        android:padding="4dp"
-        android:src="@drawable/ic_filter"
-        app:layout_constraintBottom_toTopOf="@id/cl_mode_bar"
-        app:layout_constraintEnd_toEndOf="parent" />
+            android:id="@+id/filter"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginBottom="32dp"
+            android:background="@drawable/circle_gray_background"
+            android:backgroundTint="@color/colorOverlaySurface"
+            android:padding="4dp"
+            android:src="@drawable/ic_filter"
+            app:layout_constraintBottom_toTopOf="@id/cl_mode_bar"
+            app:layout_constraintEnd_toEndOf="parent"
+            />
 
     <ViewStub
-        android:id="@+id/vs_filter"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:layout="@layout/vstub_camera_filter"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/cl_mode_bar" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_mode_bar"
-        android:layout_width="match_parent"
-        android:layout_height="190dp"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"
-        android:layout_marginBottom="60dp"
-        android:background="#00000020"
-        app:layout_constraintBottom_toBottomOf="@id/previewView"
-        tools:layout_editor_absoluteX="0dp">
-
-        <com.tainzhi.android.tcamera.ui.scrollpicker.StringScrollPicker
-            android:id="@+id/cameraModePicker"
-            android:layout_width="200dp"
-            android:layout_height="30dp"
-            android:layout_marginBottom="24dp"
-            app:layout_constraintBottom_toTopOf="@id/picture"
+            android:id="@+id/vs_filter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            android:layout="@layout/vstub_camera_filter"
+            app:layout_constraintBottom_toTopOf="@id/cl_mode_bar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:spv_alignment="center"
-            app:spv_center_item_position="1"
-            app:spv_end_color="@android:color/white"
-            app:spv_is_circulation="false"
-            app:spv_max_line_width="70dp"
-            app:spv_max_text_size="24dp"
-            app:spv_min_text_size="20dp"
-            app:spv_orientation="horizontal"
-            app:spv_start_color="@color/colorPrimary"
-            app:spv_visible_item_count="3" />
+            />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cl_mode_bar"
+            android:layout_width="match_parent"
+            android:layout_height="190dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="60dp"
+            android:background="#00000020"
+            app:layout_constraintBottom_toBottomOf="@id/previewView"
+            tools:layout_editor_absoluteX="0dp"
+            >
+
+        <com.tainzhi.android.tcamera.ui.scrollpicker.StringScrollPicker
+                android:id="@+id/cameraModePicker"
+                android:layout_width="200dp"
+                android:layout_height="30dp"
+                android:layout_marginBottom="24dp"
+                app:layout_constraintBottom_toTopOf="@id/picture"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:spv_alignment="center"
+                app:spv_center_item_position="1"
+                app:spv_end_color="@android:color/white"
+                app:spv_is_circulation="false"
+                app:spv_max_line_width="70dp"
+                app:spv_max_text_size="24dp"
+                app:spv_min_text_size="20dp"
+                app:spv_orientation="horizontal"
+                app:spv_start_color="@color/colorPrimary"
+                app:spv_visible_item_count="3"
+                />
 
         <com.tainzhi.android.tcamera.ui.CircleImageView
-            android:id="@+id/iv_thumbnail"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:layout_marginStart="30dp"
-            app:civ_border_color="@android:color/white"
-            app:civ_border_overlay="true"
-            app:civ_border_width="1dp"
-            app:civ_circle_background_color="@android:color/black"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+                android:id="@+id/iv_thumbnail"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginStart="30dp"
+                app:civ_border_color="@android:color/white"
+                app:civ_border_overlay="true"
+                app:civ_border_width="1dp"
+                app:civ_circle_background_color="@android:color/black"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                />
 
         <ImageView
                 android:id="@+id/iv_thumbnail_video"
@@ -146,46 +168,50 @@
                 android:layout_height="36dp"
                 android:src="@drawable/ic_video_light"
                 android:visibility="gone"
-                tools:visibility="visible"
                 app:layout_constraintBottom_toBottomOf="@id/iv_thumbnail"
-                app:layout_constraintStart_toStartOf="@id/iv_thumbnail"
                 app:layout_constraintEnd_toEndOf="@+id/iv_thumbnail"
-                app:layout_constraintTop_toTopOf="@id/iv_thumbnail" />
+                app:layout_constraintStart_toStartOf="@id/iv_thumbnail"
+                app:layout_constraintTop_toTopOf="@id/iv_thumbnail"
+                tools:visibility="visible"
+                />
 
         <ImageView
-            android:id="@+id/picture"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/btn_take_picture"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+                android:id="@+id/picture"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/btn_take_picture"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                />
 
         <ImageView
-            android:id="@+id/iv_record"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/btn_record_start"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:visibility="visible" />
+                android:id="@+id/iv_record"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/btn_record_start"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:visibility="visible"
+                />
 
         <ImageView
-            android:id="@+id/iv_switch_camera"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_marginEnd="30dp"
-            android:background="@drawable/circle_gray_background"
-            android:backgroundTint="@color/colorOverlaySurface"
-            android:src="@drawable/ic_flip_camera"
-            app:layout_constraintBottom_toBottomOf="@id/iv_thumbnail"
-            app:layout_constraintDimensionRatio="1:1"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/iv_thumbnail" />
+                android:id="@+id/iv_switch_camera"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginEnd="30dp"
+                android:background="@drawable/circle_gray_background"
+                android:backgroundTint="@color/colorOverlaySurface"
+                android:src="@drawable/ic_flip_camera"
+                app:layout_constraintBottom_toBottomOf="@id/iv_thumbnail"
+                app:layout_constraintDimensionRatio="1:1"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/iv_thumbnail"
+                />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

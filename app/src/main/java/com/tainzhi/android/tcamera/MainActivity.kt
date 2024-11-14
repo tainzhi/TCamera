@@ -42,6 +42,7 @@ import com.tainzhi.android.tcamera.ui.CircleImageView
 import com.tainzhi.android.tcamera.ui.ControlBar
 import com.tainzhi.android.tcamera.ui.ErrorDialog
 import com.tainzhi.android.tcamera.ui.FilterBar
+import com.tainzhi.android.tcamera.ui.VideoIndicator
 import com.tainzhi.android.tcamera.ui.scrollpicker.OnSelectedListener
 import com.tainzhi.android.tcamera.ui.scrollpicker.ScrollPickerView
 import com.tainzhi.android.tcamera.util.Kpi
@@ -73,6 +74,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivRecord: ImageView
     private lateinit var ivSwitchCamera: ImageView
     private lateinit var controlBar: ControlBar
+    private lateinit var videoIndicator: VideoIndicator
 
     private val unGrantedPermissionList: MutableList<String> = ArrayList()
 
@@ -334,6 +336,7 @@ class MainActivity : AppCompatActivity() {
             isNeedRecreateCaptureSession = true
             cameraPreviewView.changePreviewAspectRatio()
         }
+        videoIndicator = VideoIndicator(this, _binding)
         FilterBar(this, _binding) {
             cameraPreviewView.changeFilterType()
             Log.d(TAG, "onFilterTypeSelected: ${it}")
@@ -404,12 +407,14 @@ class MainActivity : AppCompatActivity() {
                             Log.d(TAG, "onSelected: $mode")
                             ivRecord.visibility = View.INVISIBLE
                             ivTakePicture.visibility = View.VISIBLE
+                            videoIndicator.hide()
                         }
 
                         CameraMode.VIDEO -> {
                             Log.d(TAG, "onSelected: $mode")
                             ivRecord.visibility = View.VISIBLE
                             ivTakePicture.visibility = View.INVISIBLE
+                            videoIndicator.show()
                         }
                     }
                     isNeedRecreateCaptureSession = true
@@ -1389,6 +1394,7 @@ class MainActivity : AppCompatActivity() {
                         if (!isRecordingVideo) {
                             runOnUiThread {
                                 Log.d(TAG, "startVideo onCaptureStarted: ")
+                                videoIndicator.start()
                                 ivRecord.setImageResource(R.drawable.btn_record_stop)
                                 isRecordingVideo = true
                                 mediaRecorder.apply {
@@ -1428,6 +1434,7 @@ class MainActivity : AppCompatActivity() {
             reset()
             release()
         }
+        videoIndicator.stop()
         captureJobManager.processVideo()
         isRecordingVideo = false
         ivRecord.setImageResource(R.drawable.btn_record_start)
