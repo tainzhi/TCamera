@@ -141,6 +141,18 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
+                android:id="@+id/iv_thumbnail_video"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_video_light"
+                android:visibility="visible"
+                tools:visibility="visible"
+                app:layout_constraintBottom_toBottomOf="@id/iv_thumbnail"
+                app:layout_constraintStart_toStartOf="@id/iv_thumbnail"
+                app:layout_constraintEnd_toEndOf="@+id/iv_thumbnail"
+                app:layout_constraintTop_toTopOf="@id/iv_thumbnail" />
+
+        <ImageView
             android:id="@+id/picture"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
