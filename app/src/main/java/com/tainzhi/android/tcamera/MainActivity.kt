@@ -13,6 +13,7 @@ import android.media.Image
 import android.media.ImageReader
 import android.media.ImageWriter
 import android.media.MediaActionSound
+import android.media.MediaCodec
 import android.media.MediaRecorder
 import android.media.ThumbnailUtils
 import android.net.Uri
@@ -20,6 +21,7 @@ import android.os.*
 import android.os.Build.VERSION_CODES
 import android.provider.MediaStore
 import android.util.Log
+import android.util.Range
 import android.util.Size
 import android.util.SparseIntArray
 import android.view.*
@@ -47,7 +49,7 @@ import com.tainzhi.android.tcamera.util.RotationChangeListener
 import com.tainzhi.android.tcamera.util.RotationChangeMonitor
 import com.tainzhi.android.tcamera.util.SettingsManager
 import com.tainzhi.android.tcamera.util.toast
-import kotlinx.coroutines.android.asCoroutineDispatcher
+import java.io.File
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.Semaphore
@@ -75,7 +77,7 @@ class MainActivity : AppCompatActivity() {
     private val unGrantedPermissionList: MutableList<String> = ArrayList()
 
     // to play click sound when take picture
-    private val mediaActionSound by lazy { MediaActionSound()}
+    private val mediaActionSound by lazy { MediaActionSound() }
 
     private lateinit var rotationChangeMonitor: RotationChangeMonitor
     private var thumbnailOrientation = 0
@@ -120,8 +122,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var yuvImageReader: ImageReader
     private var yuvImage: Image? = null
 
+    private lateinit var videoSize: Size
     private var isRecordingVideo = false
-    private var mediaRecorder: MediaRecorder? = null
+    private lateinit var videoSurface: Surface
+    private lateinit var mediaRecorder: MediaRecorder
 
     private lateinit var previewRequestBuilder: CaptureRequest.Builder
     private lateinit var previewRequest: CaptureRequest
@@ -145,6 +149,7 @@ class MainActivity : AppCompatActivity() {
     private var lastCapturedMediaUri: Uri? = null
     private var lastCapturedMediaType: CaptureType? = null
     private var captureType = CaptureType.JPEG
+
     @Volatile
     private var isCapturing = false
     private val captureJobManager = CaptureJobManager(this) { bitmap ->
@@ -229,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onError(p0: CameraDevice, p1: Int) {
-            Log.e(TAG, "onCameraError: ${p0.id}, $p1")
+            Log.e(TAG, "onCameraError: ${p0.id}, reason:$p1")
             finish()
         }
 
@@ -346,7 +351,8 @@ class MainActivity : AppCompatActivity() {
                     Kpi.start(Kpi.TYPE.IMAGE_TO_THUMBNAIL)
                     val thumbnailBitmap = if (Build.VERSION.SDK_INT < VERSION_CODES.Q) {
                         @Suppress("DEPRECATION")
-                        val temp = MediaStore.Images.Media.getBitmap(contentResolver, lastCapturedMediaUri)
+                        val temp =
+                            MediaStore.Images.Media.getBitmap(contentResolver, lastCapturedMediaUri)
                         ThumbnailUtils.extractThumbnail(temp, 360, 360)
                     } else {
                         contentResolver.loadThumbnail(lastCapturedMediaUri!!, Size(360, 360), null)
@@ -392,17 +398,22 @@ class MainActivity : AppCompatActivity() {
                     val mode = CameraMode.fromInt(position)
                     when (mode) {
                         CameraMode.PHOTO -> {
+                            Log.d(TAG, "onSelected: $mode")
                             ivRecord.visibility = View.INVISIBLE
                             ivTakePicture.visibility = View.VISIBLE
                         }
 
                         CameraMode.VIDEO -> {
+                            Log.d(TAG, "onSelected: $mode")
                             ivRecord.visibility = View.VISIBLE
                             ivTakePicture.visibility = View.INVISIBLE
                         }
                     }
+                    isNeedRecreateCaptureSession = true
                     currentCameraMode = mode
                     controlBar.updateByCameraMode(mode)
+                    closeSurfaces()
+                    closeCaptureSession()
                 }
 
             })
@@ -624,29 +635,34 @@ class MainActivity : AppCompatActivity() {
 
     private fun setSurfaces() {
         Log.i(TAG, "setSurfaces: ")
-        val previewAspectRatio = SettingsManager.instance.getPreviewAspectRatio()
-        val ratioValue: Float = when (previewAspectRatio) {
-            SettingsManager.PreviewAspectRatio.RATIO_1x1 -> 1f
-            SettingsManager.PreviewAspectRatio.RATIO_4x3 -> 4 / 3f
-            SettingsManager.PreviewAspectRatio.RATIO_16x9 -> 16 / 9f
-            // activity is portrait, so height < width
-            // and sensor is also height < width
-            SettingsManager.PreviewAspectRatio.RATIO_FULL -> previewSize.height / previewSize.width.toFloat()
-        }
+        val previewAspectRatio =
+            if (currentCameraMode == CameraMode.PHOTO) SettingsManager.instance.getPreviewAspectRatio()
+            else SettingsManager.PreviewAspectRatio.RATIO_16x9
+        val ratioValue: Float =
+            if (currentCameraMode == CameraMode.PHOTO) when (previewAspectRatio) {
+                SettingsManager.PreviewAspectRatio.RATIO_1x1 -> 1f
+                SettingsManager.PreviewAspectRatio.RATIO_4x3 -> 4 / 3f
+                SettingsManager.PreviewAspectRatio.RATIO_16x9 -> 16 / 9f
+                // activity is portrait, so height < width
+                // and sensor is also height < width
+                SettingsManager.PreviewAspectRatio.RATIO_FULL -> previewSize.height / previewSize.width.toFloat()
+            } else {
+                16 / 9f /* video 只支持16:9比率 */
+            }
         try {
-            isEnableZsl = cameraInfo!!.isSupportReproc() &&
-                    SettingsManager.instance
-                        .getBoolean(
-                            getString(R.string.settings_key_photo_zsl),
-                            SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
-                        )
-            val isHdr =
-                SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
-            Log.d(
-                TAG,
-                "setSurfaces enableZsl:$isEnableZsl, hdr:${isHdr}"
-            )
             if (currentCameraMode == CameraMode.PHOTO) {
+                isEnableZsl = cameraInfo!!.isSupportReproc() &&
+                        SettingsManager.instance
+                            .getBoolean(
+                                getString(R.string.settings_key_photo_zsl),
+                                SettingsManager.PHOTO_ZSL_DEFAULT_VALUE
+                            )
+                val isHdr =
+                    SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+                Log.d(
+                    TAG,
+                    "setSurfaces enableZsl:$isEnableZsl, hdr:${isHdr}"
+                )
                 // HDR on, then disable zsl
                 if (isHdr) {
                     val (chosenYuvSize, isTrueAspectRatioJpegSize) = chooseOptimalSize(
@@ -742,6 +758,47 @@ class MainActivity : AppCompatActivity() {
                 cameraOutputPreviewTextureSize.height
             )
             previewSurface = Surface(previewSurfaceTexture)
+            if (currentCameraMode == CameraMode.VIDEO) {
+                videoSize = cameraOutputPreviewTextureSize
+                if (App.DEBUG) {
+                    Log.d(TAG, "setSurfaces: videoSize:${videoSize}")
+                }
+                videoSurface = MediaCodec.createPersistentInputSurface()
+                mediaRecorder = MediaRecorder(this)
+                val videoUri = CaptureJob(this, captureJobManager, System.currentTimeMillis(), CaptureType.VIDEO).uri
+                val rotation = this.display!!.rotation
+                when (sensorOrientation) {
+                    SENSOR_ORIENTATION_DEFAULT_DEGREES ->
+                        mediaRecorder?.setOrientationHint(OREIENTATIONS.get(rotation))
+
+                    SENSOR_ORIENTATION_INVERSE_DEGREES ->
+                        mediaRecorder?.setOrientationHint(INVERSE_ORIENTATIONS.get(rotation))
+                }
+                val path: String =  Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).absolutePath + "/Camera/${System.currentTimeMillis()}.mp4"
+                Log.d(TAG, "setSurfaces: video path = $path")
+                mediaRecorder!!.apply {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setVideoSource(MediaRecorder.VideoSource.SURFACE)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+//                    setOutputFile(File(path))
+                    setOutputFile(
+                        this@MainActivity.contentResolver.openFileDescriptor(
+                            videoUri!!,
+                            "w"
+                        )!!.fileDescriptor
+
+                    )
+                    setVideoEncodingBitRate(10000000)
+                    setVideoFrameRate(30)
+                    setVideoSize(videoSize.width, videoSize.height)
+                    setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setAudioEncodingBitRate(16)
+                    setAudioSamplingRate(44100)
+                    setInputSurface(videoSurface)
+                    prepare()
+                }
+            }
             val previewTopMargin =
                 resources.getDimensionPixelSize(R.dimen.preview_top_margin) * resources.displayMetrics.density
             val previewRect = when (previewAspectRatio) {
@@ -800,7 +857,6 @@ class MainActivity : AppCompatActivity() {
     private fun setCaptureSession() {
         Log.i(TAG, "setCaptureSession: ")
         try {
-            Log.d(TAG, "setCaptureSession: previewSize:${previewSize} is set")
             val captureSessionStateCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onClosed(session: CameraCaptureSession) {
                     super.onClosed(session)
@@ -835,32 +891,43 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
-                val outputConfigurations = mutableListOf<OutputConfiguration>(
-                    OutputConfiguration(previewSurface),
-                    OutputConfiguration(jpegImageReader.surface)
-                )
-                val isHdr =
-                    SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
-                if (isEnableZsl || isHdr) {
-                    outputConfigurations.add(
-                        OutputConfiguration(yuvImageReader.surface)
-                    )
-                }
-                val sessionConfiguration = SessionConfiguration(
-                    SessionConfiguration.SESSION_REGULAR,
-                    outputConfigurations,
-                    cameraExecutor,
-                    captureSessionStateCallback
-                )
-                if (isEnableZsl && !isHdr) {
-                    sessionConfiguration.inputConfiguration =
-                        InputConfiguration(
-                            yuvImageReader.width,
-                            yuvImageReader.height,
-                            ImageFormat.YUV_420_888
+                val outputConfigurations = mutableListOf(OutputConfiguration(previewSurface))
+                if (currentCameraMode == CameraMode.PHOTO) {
+                    Log.d(TAG, "setCaptureSession: photo")
+                    outputConfigurations.add(OutputConfiguration(jpegImageReader.surface))
+                    val isHdr =
+                        SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
+                    if (isEnableZsl || isHdr) {
+                        outputConfigurations.add(
+                            OutputConfiguration(yuvImageReader.surface)
                         )
+                    }
+                    val sessionConfiguration = SessionConfiguration(
+                        SessionConfiguration.SESSION_REGULAR,
+                        outputConfigurations,
+                        cameraExecutor,
+                        captureSessionStateCallback
+                    )
+                    if (isEnableZsl && !isHdr) {
+                        sessionConfiguration.inputConfiguration =
+                            InputConfiguration(
+                                yuvImageReader.width,
+                                yuvImageReader.height,
+                                ImageFormat.YUV_420_888
+                            )
+                    }
+                    cameraDevice?.createCaptureSession(sessionConfiguration)
+                } else {
+                    Log.d(TAG, "setCaptureSession: video")
+                    outputConfigurations.add(OutputConfiguration(videoSurface))
+                    val sessionConfiguration = SessionConfiguration(
+                        SessionConfiguration.SESSION_REGULAR,
+                        outputConfigurations,
+                        cameraExecutor,
+                        captureSessionStateCallback
+                    )
+                    cameraDevice?.createCaptureSession(sessionConfiguration)
                 }
-                cameraDevice?.createCaptureSession(sessionConfiguration)
             } else {
                 if (isEnableZsl) {
 
@@ -881,33 +948,41 @@ class MainActivity : AppCompatActivity() {
     private fun closeCaptureSession() {
         // closeCaptureSession -> session.onClosed() -> closeCamera()
         Log.i(TAG, "closeCaptureSession: ")
-        previewStreamingSession!!.stopRepeating()
-        previewStreamingSession!!.close()
+        previewStreamingSession?.stopRepeating()
+        previewStreamingSession?.close()
         previewStreamingSession = null
     }
 
     private fun setPreviewRequest() {
+        Log.i(TAG, "setPreviewRequest: ")
         if (cameraDevice == null) return
         val isHdr = SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
-        if (isEnableZsl && !isHdr) {
-            zslImageWriter =
-                ImageWriter.newInstance(
-                    previewStreamingSession!!.inputSurface!!,
-                    ZSL_IMAGE_WRITER_SIZE
-                )
-            zslImageWriter?.setOnImageReleasedListener({ _ ->
-                {
-                    Log.d(TAG, "ZslImageWriter onImageReleased()")
-                }
-            }, cameraHandler)
-            Log.d(TAG, "onSessionConfigured: create ImageWriter")
+        if (currentCameraMode == CameraMode.PHOTO) {
+            if (isEnableZsl && !isHdr) {
+                zslImageWriter =
+                    ImageWriter.newInstance(
+                        previewStreamingSession!!.inputSurface!!,
+                        ZSL_IMAGE_WRITER_SIZE
+                    )
+                zslImageWriter?.setOnImageReleasedListener({ _ ->
+                    {
+                        Log.d(TAG, "ZslImageWriter onImageReleased()")
+                    }
+                }, cameraHandler)
+                Log.d(TAG, "onSessionConfigured: create ImageWriter")
+            }
         }
         try {
             previewRequestBuilder =
                 cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
             previewRequestBuilder.addTarget(previewSurface)
-            if (isEnableZsl && !isHdr) {
-                previewRequestBuilder.addTarget(yuvImageReader.surface)
+            if (currentCameraMode == CameraMode.PHOTO) {
+                if (isEnableZsl && !isHdr) {
+                    previewRequestBuilder.addTarget(yuvImageReader.surface)
+                }
+            }else if (currentCameraMode == CameraMode.VIDEO) {
+                previewRequestBuilder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                    CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
             }
 
             previewRequestBuilder.apply {
@@ -932,7 +1007,7 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
                 val controlZsl: Boolean? =
                     previewRequestBuilder.get(CaptureRequest.CONTROL_ENABLE_ZSL)
-                Log.d(TAG, "CaptureRequest: controlZsl=${controlZsl}")
+                Log.d(TAG, "setPreviewRequest: controlZsl=${controlZsl}")
             }
             previewRequest = previewRequestBuilder.build()
             previewStreamingSession?.setRepeatingRequest(
@@ -1077,7 +1152,11 @@ class MainActivity : AppCompatActivity() {
             }
             mediaActionSound.play(MediaActionSound.SHUTTER_CLICK)
             // HDR拍照先拍一张jpeg,生成临时照片和thumbnail; 再拍3张yuv图片用于合成
-            if (captureType == CaptureType.HDR && SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)) {
+            if (captureType == CaptureType.HDR && SettingsManager.instance.getBoolean(
+                    SettingsManager.KEY_HDR_ENABLE,
+                    false
+                )
+            ) {
                 Log.d(TAG, "captureStillPicture: HDR enable")
                 captureBuilder.removeTarget(jpegImageReader.surface)
                 captureBuilder.addTarget(yuvImageReader.surface)
@@ -1131,7 +1210,10 @@ class MainActivity : AppCompatActivity() {
                         requests.add(captureBuilder.build())
                     }
                 }
-                Log.d(TAG, "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}")
+                Log.d(
+                    TAG,
+                    "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}"
+                )
                 if (captureType == CaptureType.HDR) {
                     captureJobManager.addJob(
                         CaptureJob(
@@ -1155,7 +1237,10 @@ class MainActivity : AppCompatActivity() {
                             if (request.tag == RequestTagType.CAPTURE_YUV) {
                                 isCapturing = false
                                 unlockFocus()
-                                Log.d(TAG, "capture onCaptureCompleted for generating yuv frames, set isCapturing to $isCapturing\"")
+                                Log.d(
+                                    TAG,
+                                    "capture onCaptureCompleted for generating yuv frames, set isCapturing to $isCapturing\""
+                                )
                             }
                         }
                     }, cameraHandler)
@@ -1258,52 +1343,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(VERSION_CODES.S)
     private fun startVideo() {
         if (cameraDevice == null) return
         try {
-            closeSurfaces()
             previewStreamingSession!!.stopRepeating()
-            setUpMediaRecorder()
             previewRequestBuilder =
                 cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
                     .apply {
                         addTarget(previewSurface)
-                        addTarget(mediaRecorder!!.surface)
+                        addTarget(videoSurface)
                         set(
                             CaptureRequest.CONTROL_AF_MODE,
                             CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
                         )
+                        set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(30, 30))
+////                        set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+////                            CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
                     }
             previewStreamingSession!!.setRepeatingRequest(
-                previewRequestBuilder.build(),
-                object : CameraCaptureSession.CaptureCallback() {
-                    override fun onCaptureStarted(
-                        session: CameraCaptureSession,
-                        request: CaptureRequest,
-                        timestamp: Long,
-                        frameNumber: Long
-                    ) {
-                        super.onCaptureStarted(session, request, timestamp, frameNumber)
-                        Log.d(TAG, "startVideo onCaptureStarted: ")
-
-                        runOnUiThread {
-                            ivRecord.setImageResource(R.drawable.btn_record_stop)
-                            isRecordingVideo = true
-                            mediaRecorder?.start()
-                        }
-                    }
-
-                    override fun onCaptureCompleted(
-                        session: CameraCaptureSession,
-                        request: CaptureRequest,
-                        result: TotalCaptureResult
-                    ) {
-                        super.onCaptureCompleted(session, request, result)
-                        Log.d(TAG, "startVideo onCaptureCompleted: ")
-                    }
-                },
-                cameraHandler
+                previewRequestBuilder.build(),null, cameraHandler
             )
+            if (!isRecordingVideo) {
+                runOnUiThread {
+                    Log.d(TAG, "startVideo onCaptureStarted: ")
+                    ivRecord.setImageResource(R.drawable.btn_record_stop)
+                    isRecordingVideo = true
+                    mediaRecorder.apply {
+                        start()
+                    }
+                }
+            }
         } catch (e: CameraAccessException) {
             Log.e(TAG, "startVideo CameraAccessException", e)
         } catch (e: IOException) {
@@ -1311,59 +1381,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @RequiresApi(VERSION_CODES.S)
-    @Throws(IOException::class)
-    private fun setUpMediaRecorder() {
-        mediaRecorder = MediaRecorder(this)
-        val (videoSize, _) = chooseOptimalSize(
-            cameraInfo!!.getOutputPreviewSurfaceSizes(),
-            previewSize,
-            16 / 9f, /*todo: 支持更多分辨率的视频录制; 只支持 16/9， 4/3 */
-            true
-        )
-        if (App.DEBUG) {
-            Log.d(TAG, "setUpMediaRecorder: videoSize:${videoSize}")
-        }
-//        previewSurfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
-//        previewSurface = Surface(previewSurfaceTexture)
-
-        val videoUri = TODO()
-        val rotation = this.display!!.rotation
-        when (sensorOrientation) {
-            SENSOR_ORIENTATION_DEFAULT_DEGREES ->
-                mediaRecorder?.setOrientationHint(OREIENTATIONS.get(rotation))
-
-            SENSOR_ORIENTATION_INVERSE_DEGREES ->
-                mediaRecorder?.setOrientationHint(INVERSE_ORIENTATIONS.get(rotation))
-        }
-        mediaRecorder!!.apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
-            setVideoSource(MediaRecorder.VideoSource.SURFACE)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile(
-                this@MainActivity.contentResolver.openFileDescriptor(
-                    videoUri!!,
-                    "w"
-                )!!.fileDescriptor
-
-            )
-            setVideoEncodingBitRate(10000000)
-            setVideoFrameRate(30)
-            setVideoSize(videoSize.width, videoSize.height)
-            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            prepare()
-        }
-    }
-
     private fun stopVideo() {
+        Log.d(TAG, "stopVideo: ")
+        cameraHandler.post {
+            mediaRecorder?.apply {
+                stop()
+                reset()
+                release()
+            }
+            setCaptureSession()
+        }
         isRecordingVideo = false
         ivRecord.setImageResource(R.drawable.btn_record_start)
-        mediaRecorder?.apply {
-            stop()
-            reset()
-        }
-        setCaptureSession()
     }
 
     private fun handleRotation(rotateAngle: Int) {
