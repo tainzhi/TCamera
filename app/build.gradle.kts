@@ -24,8 +24,8 @@ android {
         applicationId = "com.tainzhi.android.tcamera"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1001
-        versionName = "1.1"
+        versionCode = 1002
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
