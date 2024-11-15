@@ -42,7 +42,7 @@ object ImageProcessor {
     }
 
     private external fun init(cachePath: String)
-    private external fun handlePreviewImage(yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer,  width: Int, height: Int)
+    private external fun handlePreviewImage(image: Image)
 
     private external fun capture(captureType: Int, jobId:Int, timeStamp: String, frameSize: Int, exposureTimes: List<Long>)
     private external fun processImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer,  width: Int, height: Int)

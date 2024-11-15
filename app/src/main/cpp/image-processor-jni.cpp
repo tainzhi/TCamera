@@ -9,8 +9,6 @@
 
 #define TAG "NativeImageProcessorJNI"
 
-// #define TEST
-
 Engine *engine = nullptr;
 
 static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
@@ -128,11 +126,51 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thi
     engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp),
                        frame_size, exposureTimes);
 }
-extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject y_plane,
-                                                                   jobject u_plane, jobject v_plane, jint width,
-                                                                   jint height) {
-}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_updateCaptureBackupFilePath(JNIEnv *env, jobject thiz, jstring path) {
+}
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
+    // 获取 Image 类的类对象
+    jclass imageClass = env->GetObjectClass(image);
+    jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
+
+    // 调用 getPlanes 方法获取 Plane 数组
+    jobjectArray planes = (jobjectArray) env->CallObjectMethod(image, getPlanesMethod);
+
+    // 获取 Plane 数组的长度
+    int planeCount = env->GetArrayLength(planes);
+
+    for (int i = 0; i < planeCount; i++) {
+        // 获取每个 Plane 对象
+        jobject plane = env->GetObjectArrayElement(planes, i);
+
+        // 获取 Plane 类的类对象
+        jclass planeClass = env->GetObjectClass(plane);
+        jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
+        jmethodID getRowStrideMethod = env->GetMethodID(planeClass, "getRowStride", "()I");
+        jmethodID getPixelStrideMethod = env->GetMethodID(planeClass, "getPixelStride", "()I");
+
+        // 调用 getBuffer 方法获取 ByteBuffer
+        jobject buffer = env->CallObjectMethod(plane, getBufferMethod);
+
+        // 调用 getRowStride 和 getPixelStride 方法获取行间距和像素间距
+        jint rowStride = env->CallIntMethod(plane, getRowStrideMethod);
+        jint pixelStride = env->CallIntMethod(plane, getPixelStrideMethod);
+
+        // // 获取 ByteBuffer 的直接缓冲区
+        // jbyteArray byteArray = (jbyteArray) env->NewByteArray(rowStride);
+        // env->GetByteArrayRegion((jbyteArray) buffer, 0, rowStride, byteArray);
+        //
+        // // 处理图像数据
+        // jsize length = env->GetArrayLength(byteArray);
+        // jbyte *bytes = env->GetByteArrayElements(byteArray, nullptr);
+        //
+        // // 这里可以对 bytes 进行处理
+        // __android_log_print(ANDROID_LOG_DEBUG, "JNI", "Processing plane %d with %d bytes", i, length);
+        //
+        // env->ReleaseByteArrayElements(byteArray, bytes, 0);
+        // env->DeleteLocalRef(byteArray);
+    }
 }

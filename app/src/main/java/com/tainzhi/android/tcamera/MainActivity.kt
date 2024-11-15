@@ -693,9 +693,15 @@ class MainActivity : AppCompatActivity() {
                     )
                     yuvImageReader.setOnImageAvailableListener({ reader ->
                         Log.d(TAG, "hdr: yuv image available")
-                        reader.acquireLatestImage()?.let{
-                            captureJobManager.processYuvImage(it)
+                        val image = reader.acquireLatestImage()
+                        if (image != null) {
+                            captureJobManager.processYuvImage(image)
+                        } else {
+                            Log.d(TAG, "hdr: yuv image is available but null")
                         }
+//                        reader.acquireLatestImage()?.let{
+//                            captureJobManager.processYuvImage(it)
+//                        }
                     }, cameraHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -1074,6 +1080,7 @@ class MainActivity : AppCompatActivity() {
                     CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
                 )
+                Log.d(TAG, "captureStillPicture: flashSupported:$flashSupported")
                 if (flashSupported) {
                     set(
                         CaptureRequest.CONTROL_AE_MODE,
@@ -1092,13 +1099,11 @@ class MainActivity : AppCompatActivity() {
             }
             captureBuilder.setTag(RequestTagType.CAPTURE_JPEG)
             if (captureType == CaptureType.JPEG) {
-                captureJobManager.addJob(
-                    CaptureJob(
-                        this,
-                        captureJobManager,
-                        System.currentTimeMillis(),
-                        captureType
-                    )
+                CaptureJob(
+                    this,
+                    captureJobManager,
+                    System.currentTimeMillis(),
+                    captureType
                 )
             }
             previewSession?.apply {
@@ -1133,6 +1138,10 @@ class MainActivity : AppCompatActivity() {
                 )
             ) {
                 Log.d(TAG, "captureStillPicture: HDR enable")
+                captureBuilder.set(
+                    CaptureRequest.CONTROL_AE_MODE,
+                    CaptureRequest.CONTROL_AE_MODE_OFF
+                )
                 captureBuilder.removeTarget(jpegImageReader.surface)
                 captureBuilder.addTarget(yuvImageReader.surface)
 
@@ -1189,17 +1198,13 @@ class MainActivity : AppCompatActivity() {
                     TAG,
                     "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}"
                 )
-                if (captureType == CaptureType.HDR) {
-                    captureJobManager.addJob(
-                        CaptureJob(
-                            this,
-                            captureJobManager,
-                            System.currentTimeMillis(),
-                            captureType,
-                            exposureTimeList
-                        )
-                    )
-                }
+                CaptureJob(
+                    this,
+                    captureJobManager,
+                    System.currentTimeMillis(),
+                    captureType,
+                    exposureTimeList
+                )
                 previewSession?.apply {
                     captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
                         override fun onCaptureCompleted(

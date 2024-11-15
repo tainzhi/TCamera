@@ -191,7 +191,6 @@ class CaptureJob {
         exposureTimes: List<Long>
     ) : this(context, captureJobManager, captureTime, captureType) {
         this.exposureTimes = exposureTimes
-        captureJobManager.addJob(this)
         if (captureType == CaptureType.HDR) {
             yuvImageSize = MainActivity.CAPTURE_HDR_FRAME_SIZE
             ImageProcessor.capture(id, "${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}", captureType.ordinal, yuvImageSize, exposureTimes)

@@ -28,16 +28,16 @@ void CaptureManager::addCapture(int jobId, CaptureType captureType, int frameSiz
 }
 
 void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
-    LOGD("%s, for job %d, jobs.size:%u", __FUNCTION__, jobId, jobs.size());
+    LOGD("%s, job-%d, jobs.size:%u", __FUNCTION__, jobId, jobs.size());
     if (jobs.size() == 0) {
         LOGE("%s, no jobs", __FUNCTION__ );
         return;
-    } else {
-        LOGD("%s, job-%d exists", __FUNCTION__ , jobId);
     }
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
         jobs[jobId]->frames.emplace_back(frame);
+        LOGD("%s, job-%d, frameSize:%d, already has:%d", __FUNCTION__ , jobId, jobs[jobId]->frameSize,
+             jobs[jobId]->frames.size());
         if (jobs[jobId]->frames.size() == jobs[jobId]->frameSize) {
             post(kMessage_Process, &jobId);
         }
@@ -53,6 +53,7 @@ void CaptureManager::updateCaptureBackupFilePath(int jobId, const std::string &b
 
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
 void CaptureManager::process(int jobId) {
+    LOGD("%s, begin job-%d", __FUNCTION__ , jobId);
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
         auto start_t = cv::getTickCount();
@@ -83,8 +84,8 @@ void CaptureManager::process(int jobId) {
         } else {
             LOGE("%s, job %d has no backup file path", __FUNCTION__, jobId);
         }
-        
     }
+    LOGD("%s, end job-%d", __FUNCTION__ , jobId);
 }
 
 void CaptureManager::handle(int what, void *data) {
