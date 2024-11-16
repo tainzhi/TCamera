@@ -38,6 +38,7 @@ public:
     virtual void handle(int what, void *data) = 0;
 
 private:
+    static bool DEBUG;
     void addMsg(LooperMessage *msg, bool flush);
 
     void loop();

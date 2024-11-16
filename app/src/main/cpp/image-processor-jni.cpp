@@ -53,6 +53,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
                                                              jobject u_plane, jobject v_plane, jint width,
                                                              jint height) {
+    LOGD("%s begin", __FUNCTION__ );
     jbyte* yPlane = (jbyte*)env->GetDirectBufferAddress(y_plane);
     jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
     // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
@@ -73,11 +74,8 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
     Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
 #endif
 
-
-    cv::Mat rgbMat;
-    cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
-    
-    engine->processImage(job_id, rgbMat);
+    engine->processImage(job_id, yuvMat);
+    LOGD("%s end", __FUNCTION__ );
     
 #ifdef TEST
         // cv 生成的 hdr 不能直接保存为 jpeg, 只能保存为 hdr 格式。
@@ -109,7 +107,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobjec
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thiz, jint capture_type, jint job_id,
+Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type,
                                                         jstring time_stamp, jint frame_size, jobject exposure_times) {
     LOGD("%s", __FUNCTION__);
     // java 传过来的exposure_time 是纳秒，需要转换为秒
@@ -173,4 +171,9 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_handlePreviewImage(JNIEnv *env, 
         // env->ReleaseByteArrayElements(byteArray, bytes, 0);
         // env->DeleteLocalRef(byteArray);
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tainzhi_android_tcamera_ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
+    LOGD("%s abort job-%d", __FUNCTION__, job_id);
 }

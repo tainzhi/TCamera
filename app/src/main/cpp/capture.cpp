@@ -70,6 +70,9 @@ void CaptureManager::process(int jobId) {
         
         cv::Mat fusion;
         cv::Ptr<cv::MergeMertens> merge_mertens = cv::createMergeMertens();
+        // todo: whether need to convert to RGB
+        // cv::Mat rgbMat;
+        // cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
         merge_mertens->process(jobs[jobId]->frames, fusion);
         auto hdr_t= cv::getTickCount();
         LOGD("%s, hdr processing cost %d s", __FUNCTION__, (hdr_t - start_t) / cv::getTickFrequency());
