@@ -692,17 +692,11 @@ class MainActivity : AppCompatActivity() {
                         CAPTURE_HDR_FRAME_SIZE
                     )
                     yuvImageReader.setOnImageAvailableListener({ reader ->
-                        Log.d(TAG, "hdr: yuv image available")
-                        val image = reader.acquireLatestImage()
-                        if (image != null) {
-                            captureJobManager.processYuvImage(image)
-                        } else {
-                            Log.d(TAG, "hdr: yuv image is available but null")
+                        if (App.DEBUG) {
+                            Log.d(TAG, "hdr: yuv image is available")
                         }
-//                        reader.acquireLatestImage()?.let{
-//                            captureJobManager.processYuvImage(it)
-//                        }
-                    }, cameraHandler)
+                        captureJobManager.processYuvImage(reader.acquireLatestImage())
+                    }, imageReaderHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
                         cameraInfo!!.largestYuvSize.width, cameraInfo!!.largestYuvSize.height,
@@ -712,7 +706,7 @@ class MainActivity : AppCompatActivity() {
                     yuvImageReader.setOnImageAvailableListener({ reader ->
                         yuvImage?.close()
                         yuvImage = reader.acquireLatestImage()
-                    }, cameraHandler)
+                    }, imageReaderHandler)
                 }
                 val (chosenJpegSize, isTrueAspectRatioJpegSize) = chooseOptimalSize(
                     cameraInfo!!.getOutputJpegSizes(),
@@ -949,7 +943,7 @@ class MainActivity : AppCompatActivity() {
                     {
                         Log.d(TAG, "ZslImageWriter onImageReleased()")
                     }
-                }, cameraHandler)
+                }, imageReaderHandler)
                 Log.d(TAG, "onSessionConfigured: create ImageWriter")
             }
         }
@@ -1196,7 +1190,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 Log.d(
                     TAG,
-                    "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}"
+                    "captureStillPicture: captureBurst for ${captureType}, requests.size: ${requests.size}, exposureTimes:[${exposureTimeList.joinToString(",")}]"
                 )
                 CaptureJob(
                     this,

@@ -76,9 +76,15 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         })
     }
 
-    fun processYuvImage(image: Image) {
+    fun processYuvImage(image: Image?) {
         handler.post({
-            ImageProcessor.processImage(currentJobId, image)
+            if (image != null) {
+                Log.d(TAG, "processYuvImage: ")
+                ImageProcessor.processImage(currentJobId, image)
+            } else {
+                Log.d(TAG, "processYuvImage but image is null, so abort capture job-${currentJobId}")
+                ImageProcessor.abortCapture(currentJobId)
+            }
         })
     }
 
@@ -149,7 +155,6 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
             Log.d(TAG, "close image")
             image.close()
         }
-        Log.d(TAG, "end run")
         Kpi.end(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
     }
 
@@ -166,6 +171,7 @@ class CaptureJob {
     val id = SettingsManager.instance.getJobId() + 1
     val uri by lazy { getMediaUri() }
     lateinit var jpegImage: Image
+    var yuvImageList = mutableListOf<Image>()
     private lateinit var exposureTimes: List<Long>
     private var yuvImageSize = 0
 
@@ -193,7 +199,7 @@ class CaptureJob {
         this.exposureTimes = exposureTimes
         if (captureType == CaptureType.HDR) {
             yuvImageSize = MainActivity.CAPTURE_HDR_FRAME_SIZE
-            ImageProcessor.capture(id, "${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}", captureType.ordinal, yuvImageSize, exposureTimes)
+            ImageProcessor.capture(id, captureType.ordinal,"${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}",  yuvImageSize, exposureTimes)
         }
     }
 
