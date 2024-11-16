@@ -13,25 +13,25 @@ object ImageProcessor {
     }
 
     // exposureTime in nanoseconds
-    fun processImage(jobId: Int, image: Image) {
+    fun collectImage(jobId: Int, image: Image) {
         assert(image.format == ImageFormat.YUV_420_888) { "imageFormat:${image.format}" }
         assert(image.planes[1].pixelStride == 2) {"imageFormat is not YUV420sp"}
         if (App.DEBUG) {
-            Log.d(TAG, "processImage, imageWidth:" + image.width + ", imageHeight:" + image.height)
+            Log.d(TAG, "collectImage, imageWidth:" + image.width + ", imageHeight:" + image.height)
             Log.d(
                 TAG,
-                "processImage, imagePlane[0] Size:${image.planes[0].buffer.remaining()}, rowStride:${image.planes[0].rowStride}, pixelStride:${image.planes[0].pixelStride}"
+                "collectImage, imagePlane[0] Size:${image.planes[0].buffer.remaining()}, rowStride:${image.planes[0].rowStride}, pixelStride:${image.planes[0].pixelStride}"
             )
             Log.d(
                 TAG,
-                "processImage, imagePlane[1] Size:${image.planes[1].buffer.remaining()}, rowStride:${image.planes[1].rowStride}, pixelStride:${image.planes[1].pixelStride}"
+                "collectImage, imagePlane[1] Size:${image.planes[1].buffer.remaining()}, rowStride:${image.planes[1].rowStride}, pixelStride:${image.planes[1].pixelStride}"
             )
             Log.d(
                 TAG,
-                "processImage, imagePlane[2] Size:${image.planes[2].buffer.remaining()}, rowStride:${image.planes[2].rowStride}, pixelStride:${image.planes[2].pixelStride}"
+                "collectImage, imagePlane[2] Size:${image.planes[2].buffer.remaining()}, rowStride:${image.planes[2].rowStride}, pixelStride:${image.planes[2].pixelStride}"
             )
         }
-        processImage(
+        collectImage(
             jobId,
             image.planes[0].buffer,
             image.planes[1].buffer,
@@ -40,7 +40,7 @@ object ImageProcessor {
             image.height,
         )
         if (App.DEBUG) {
-            Log.d(TAG, "processImage: close image")
+            Log.d(TAG, "collectImage: close image")
         }
         image.close()
     }
@@ -59,7 +59,7 @@ object ImageProcessor {
     external fun capture(jobId:Int, captureType: Int, timeStamp: String, frameSize: Int, exposureTimes: List<Long>)
     external fun abortCapture(jobId: Int)
 
-    private external fun processImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer,  width: Int, height: Int)
+    private external fun collectImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer, width: Int, height: Int)
     private external fun updateCaptureBackupFilePath(path: String)
     private external fun deinit()
 

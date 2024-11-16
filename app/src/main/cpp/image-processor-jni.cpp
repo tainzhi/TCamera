@@ -50,7 +50,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz
  * @exposure_time in nanoseconds
  */
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_processImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
+Java_com_tainzhi_android_tcamera_ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
                                                              jobject u_plane, jobject v_plane, jint width,
                                                              jint height) {
     LOGD("%s begin", __FUNCTION__ );

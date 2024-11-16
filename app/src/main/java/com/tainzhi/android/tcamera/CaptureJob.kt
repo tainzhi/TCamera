@@ -80,7 +80,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         handler.post({
             if (image != null) {
                 Log.d(TAG, "processYuvImage: ")
-                ImageProcessor.processImage(currentJobId, image)
+                ImageProcessor.collectImage(currentJobId, image)
             } else {
                 Log.d(TAG, "processYuvImage but image is null, so abort capture job-${currentJobId}")
                 ImageProcessor.abortCapture(currentJobId)
