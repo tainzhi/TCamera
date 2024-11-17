@@ -42,9 +42,12 @@ private:
     void addMsg(LooperMessage *msg, bool flush);
 
     void loop();
+    
+    bool loopOnce();
 
     LooperMessage *head;
     std::thread worker;
-    std::mutex lock;
+    std::mutex looperMutex;
+    std::condition_variable msgQueueChangedCond;
     bool running;
 };

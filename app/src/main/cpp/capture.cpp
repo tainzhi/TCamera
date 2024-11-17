@@ -39,7 +39,7 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
         LOGD("%s, job-%d, frameSize:%d, already has:%d", __FUNCTION__ , jobId, jobs[jobId]->frameSize,
              jobs[jobId]->frames.size());
         if (jobs[jobId]->frames.size() == jobs[jobId]->frameSize) {
-            post(kMessage_Process, &jobId);
+            post(kMessage_Process, &(it->second->id));
         }
     }
 }
@@ -94,8 +94,8 @@ void CaptureManager::process(int jobId) {
 void CaptureManager::handle(int what, void *data) {
     switch (what) {
         case kMessage_Process: {
-            int *jobId = static_cast<int *>(data);
-            process(*jobId);
+            int jobId = *reinterpret_cast<int *>(data);
+            process(jobId);
             break;
         }
     }

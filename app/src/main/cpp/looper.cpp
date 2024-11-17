@@ -1,8 +1,5 @@
 # include "looper.h"
 
-struct LooperMessage;
-typedef struct LooperMessage loopermessage;
-
 struct LooperMessage {
     int what;
     void *obj;
@@ -23,10 +20,10 @@ Looper::~Looper() {
     }
 }
 
+
 void Looper::post(int what, void *data, bool flush) {
     if (DEBUG)
         LOGD("%s, flush:%d", __FUNCTION__, flush);
-    std::lock_guard _l(lock);
     LooperMessage *msg = new LooperMessage();
     msg->what = what;
     msg->obj = data;
@@ -37,8 +34,9 @@ void Looper::post(int what, void *data, bool flush) {
 
 void Looper::addMsg(LooperMessage *msg, bool flush) {
     if (DEBUG)
-        LOGV("%s, msg:%d, flush:%d", __FUNCTION__ , msg->what, flush);
-    std::lock_guard _l(lock);
+        LOGV("%s, msg %d, dataAddress:%d, data:%d", __FUNCTION__, msg->what, reinterpret_cast<int *>(msg->obj),
+             *reinterpret_cast<int *>(msg->obj));
+    std::unique_lock<std::mutex> lock(looperMutex);
     LooperMessage *h = head;
     if (flush) {
         while (h) {
@@ -55,36 +53,39 @@ void Looper::addMsg(LooperMessage *msg, bool flush) {
         }
         h->next = msg;
     } else {
-        if (DEBUG)
-            LOGD("%s, h is null", __FUNCTION__ );
         head = msg;
     }
+    lock.unlock();
+    msgQueueChangedCond.notify_one();
 }
 
 void Looper::loop() {
-    while (true) {
-        lock.lock();
-        LooperMessage *msg = head;
-        if (msg == nullptr) {
-            lock.unlock();
-            continue;
-        }
-        if (DEBUG)
-            LOGD("%s, msg isn't null", __FUNCTION__);
-        head = msg->next;
-        lock.unlock();
+    do {
+    } while(loopOnce());
+}
 
-        if (msg->quit) {
-            if (DEBUG)
-                LOGV("%s, quitting", __FUNCTION__);
-            delete msg;
-            return;
-        }
-        if (DEBUG)
-            LOGV("%s, processing msg %d", __FUNCTION__, msg->what);
-        handle(msg->what, msg->obj);
-        delete msg;
+bool Looper::loopOnce() {
+    std::unique_lock<std::mutex> lock(looperMutex);
+    LooperMessage *msg = head;
+    if (msg == nullptr) {
+        msgQueueChangedCond.wait(lock);
+        return true;
     }
+    head = msg->next;
+    lock.unlock();
+    
+    if (msg->quit) {
+        if (DEBUG)
+            LOGV("%s, quitting", __FUNCTION__);
+        delete msg;
+        return false;
+    }
+    if (DEBUG)
+        LOGV("%s, msg %d, dataAddress:%d, data:%d", __FUNCTION__, msg->what, reinterpret_cast<int *>(msg->obj),
+             *reinterpret_cast<int *>(msg->obj));
+    handle(msg->what, msg->obj);
+    delete msg;
+    return true;
 }
 
 void Looper::quit() {
