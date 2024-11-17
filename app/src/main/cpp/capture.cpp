@@ -76,7 +76,9 @@ void CaptureManager::process(int jobId) {
         // cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
         merge_mertens->process(jobs[jobId]->frames, fusion);
         auto hdr_t= cv::getTickCount();
-        LOGD("%s, hdr processing cost %d s", __FUNCTION__, (hdr_t - start_t) / cv::getTickFrequency());
+        // int64 必须要转成 int，否则输出会丢失精度后变成负值
+        LOGD("%s, hdr processing cost %d s", __FUNCTION__, static_cast<int>((hdr_t - start_t) /
+        cv::getTickFrequency()));
 
         // // default set jpeg quality to 95
         // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
