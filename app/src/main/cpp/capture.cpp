@@ -39,6 +39,7 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
         LOGD("%s, job-%d, frameSize:%d, already has:%d", __FUNCTION__ , jobId, jobs[jobId]->frameSize,
              jobs[jobId]->frames.size());
         if (jobs[jobId]->frames.size() == jobs[jobId]->frameSize) {
+            // 不能传入 &jobId，因为jobId是栈内申请的int变量，退栈后会被清空
             post(kMessage_Process, &(it->second->id));
         }
     }

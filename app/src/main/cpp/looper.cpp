@@ -22,6 +22,7 @@ Looper::~Looper() {
 
 
 void Looper::post(int what, void *data, bool flush) {
+    // 不能加lock，否则会导致无法 addMsg 到队列中
     if (DEBUG)
         LOGD("%s, flush:%d", __FUNCTION__, flush);
     LooperMessage *msg = new LooperMessage();
@@ -34,8 +35,7 @@ void Looper::post(int what, void *data, bool flush) {
 
 void Looper::addMsg(LooperMessage *msg, bool flush) {
     if (DEBUG)
-        LOGV("%s, msg %d, dataAddress:%d, data:%d", __FUNCTION__, msg->what, reinterpret_cast<int *>(msg->obj),
-             *reinterpret_cast<int *>(msg->obj));
+        LOGV("%s, msg %d, data:%d", __FUNCTION__, msg->what, *reinterpret_cast<int *>(msg->obj));
     std::unique_lock<std::mutex> lock(looperMutex);
     LooperMessage *h = head;
     if (flush) {
@@ -81,8 +81,7 @@ bool Looper::loopOnce() {
         return false;
     }
     if (DEBUG)
-        LOGV("%s, msg %d, dataAddress:%d, data:%d", __FUNCTION__, msg->what, reinterpret_cast<int *>(msg->obj),
-             *reinterpret_cast<int *>(msg->obj));
+        LOGV("%s, msg %d, data:%d", __FUNCTION__, msg->what, *reinterpret_cast<int *>(msg->obj));
     handle(msg->what, msg->obj);
     delete msg;
     return true;
