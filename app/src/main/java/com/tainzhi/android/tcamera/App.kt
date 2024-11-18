@@ -14,7 +14,7 @@ class App: Application(), ActivityLifecycleCallbacks {
         INSTANCE = this
         registerActivityLifecycleCallbacks(this)
         ShaderCache.load()
-        ImageProcessor.create()
+        ImageProcessor.create(applicationContext)
     }
 
     override fun onTerminate() {

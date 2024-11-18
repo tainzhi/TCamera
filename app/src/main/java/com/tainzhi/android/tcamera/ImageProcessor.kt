@@ -1,5 +1,6 @@
 package com.tainzhi.android.tcamera
 
+import android.content.Context
 import android.graphics.ImageFormat
 import android.media.Image
 import android.util.Log
@@ -7,9 +8,9 @@ import java.nio.ByteBuffer
 
 
 object ImageProcessor {
-    fun create() {
+    fun create(context: Context) {
         System.loadLibrary("image-processor")
-        init(App.getCachePath())
+        init(context)
     }
 
     // exposureTime in nanoseconds
@@ -49,11 +50,13 @@ object ImageProcessor {
         deinit()
     }
 
-    fun postFromNative(jobId: Int, what: Int) {
-
+    fun postFromNative(jobId: Int, resultImagePath: String) {
+        cpatureJobManager.onNativeProcessed(jobId)
     }
 
-    private external fun init(cachePath: String)
+    lateinit var cpatureJobManager: CaptureJobManager
+
+    private external fun init(context: Context)
     private external fun handlePreviewImage(image: Image)
 
     external fun capture(jobId:Int, captureType: Int, timeStamp: String, frameSize: Int, exposureTimes: List<Long>)

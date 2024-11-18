@@ -88,6 +88,10 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         })
     }
 
+    fun onNativeProcessed(jobId: Int) {
+        Log.d(TAG, "onNativeProcessed: job-${jobId}")
+    }
+
     fun processVideo() {
         Log.d(TAG, "processVideo: ")
         handler.post({

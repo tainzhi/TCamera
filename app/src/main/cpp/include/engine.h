@@ -8,12 +8,13 @@
 
 #include "util.h"
 #include "capture.h"
+#include <jni.h>
 
 #define TAG "NativeEngine"
 
 class Engine {
 public:
-    Engine();
+    Engine(std::string cachePath);
     void init();
     void processImage(int jobId, cv::Mat &image);
     void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int frameSize, std::vector<float>
@@ -24,6 +25,7 @@ public:
     static void resetInstance();
 private:
     CaptureManager *capture;
+    std::string cachePath;
 };
 
 

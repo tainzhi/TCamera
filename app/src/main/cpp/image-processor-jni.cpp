@@ -24,8 +24,48 @@ static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jstring cache_path) {
+Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
+    jclass contextClass = env->GetObjectClass(context);
+    if (contextClass == NULL) {
+        LOGD("Failed to get context class");
+        return;
+    }
+    // 获取 getCacheDir 方法 ID
+    jmethodID getCacheDirMethod = env->GetMethodID(contextClass, "getCacheDir", "()Ljava/io/File;");
+    if (getCacheDirMethod == NULL) {
+        LOGD("Failed to get getCacheDir method ID");
+        return ;
+    }
+    // 调用 getCacheDir 方法
+    jobject fileObject = env->CallObjectMethod(context, getCacheDirMethod);
+    if (fileObject == NULL) {
+        LOGD("Failed to call getCacheDir method");
+        return ;
+    }
+    // 获取 File 类
+    jclass fileClass = env->GetObjectClass(fileObject);
+    if (fileClass == NULL) {
+        LOGD("Failed to get File class");
+        return ;
+    }
+    
+    // 获取 getAbsolutePath 方法 ID
+    jmethodID getAbsolutePathMethod = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
+    if (getAbsolutePathMethod == NULL) {
+        LOGD("Failed to get getAbsolutePath method ID");
+        return ;
+    }
+    
+    // 调用 getAbsolutePath 方法
+    jstring pathString = (jstring) env->CallObjectMethod(fileObject, getAbsolutePathMethod);
+    if (pathString == NULL) {
+        LOGD("Failed to call getAbsolutePath method");
+        return ;
+    } else {
+        LOGD("cache dir path: %s", jstring_to_string(env, pathString).c_str());
+    }
+    
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
     if (!ctx.ptr())
@@ -36,9 +76,10 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, 
     }
     // cv::setUseOptimized(true); enable SIMD optimized
     LOGV("cv use optimized: %d", cv::useOptimized());
-    engine = new Engine();
+    engine = new Engine(jstring_to_string(env, pathString));
     engine->init();
 }
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
@@ -76,34 +117,6 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_collectImage(JNIEnv *env, jobjec
 
     engine->processImage(job_id, yuvMat);
     LOGD("%s end", __FUNCTION__ );
-    
-#ifdef TEST
-        // cv 生成的 hdr 不能直接保存为 jpeg, 只能保存为 hdr 格式。
-        hdr = hdr * 255;
-        auto hdr_jpeg = ImageProcessor::convertMatToJpeg(hdr);
-        std::string dump_hdr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
-                std::to_string(Util::getCurrentTimestampMs()) + ".hdr_.jpeg";
-        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_hdr_jpeg_path.c_str());
-        Util::dumpBinary(dump_hdr_jpeg_path.c_str(),reinterpret_cast<uchar *>(hdr_jpeg.data()), hdr_jpeg.size());
-        
-        // 要把 hdr 映射成 ldr，才能保存为 jpeg 格式
-        ldr = ldr * 255;
-        auto ldr_jpeg = ImageProcessor::convertMatToJpeg(ldr);
-        std::string dump_ldr_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
-                                         std::to_string(Util::getCurrentTimestampMs()) + ".ldr_.jpeg";
-        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_ldr_jpeg_path.c_str());
-        Util::dumpBinary(dump_ldr_jpeg_path.c_str(),reinterpret_cast<uchar *>(ldr_jpeg.data()), ldr_jpeg.size());
-        fusion = fusion * 255;
-        auto fusion_jpeg = ImageProcessor::convertMatToJpeg(fusion);
-        std::string dump_fusion_jpeg_path = jstring_to_string(env, cache_path)+ '/' +
-                                         std::to_string(Util::getCurrentTimestampMs()) + ".fusion_.jpeg";
-        LOGD("%s dump hdr jpeg to %s", __FUNCTION__, dump_fusion_jpeg_path.c_str());
-        Util::dumpBinary(dump_fusion_jpeg_path.c_str(),reinterpret_cast<uchar *>(fusion_jpeg.data()), fusion_jpeg.size());
-        
-        imageMats.clear();
-        imageExposureTimes.clear();
-#endif
-    
 }
 
 extern "C" JNIEXPORT void JNICALL

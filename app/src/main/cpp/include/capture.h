@@ -27,7 +27,6 @@ struct CaptureJob {
     int frameSize;
     int frameWidth;
     int frameHeight;
-    std::string backupFilePath;
     std::vector<cv::Mat> frames;
     std::vector<float> exposureTimes;
     CaptureJob(int id, CaptureType captureType, std::string timeStamp, int frameSize): id(id),
@@ -37,9 +36,8 @@ struct CaptureJob {
 class CaptureManager: Looper {
 public:
     ~CaptureManager();
-    CaptureManager();
+    CaptureManager(std::string cachePath);
     void addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes);
-    void updateCaptureBackupFilePath(int jobId, const std::string &backupFilePath);
     void collectFrame(int jobId, cv::Mat frame);
 private:
     void handle(int what, void *data);
@@ -49,6 +47,7 @@ private:
     std::mutex mutex;
     bool isRunning = false;
     std::condition_variable quitCond;
+    std::string cachePath;
     
     
     

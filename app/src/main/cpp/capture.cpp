@@ -15,7 +15,7 @@ CaptureManager::~CaptureManager() {
     LOGD("%s, CaptureManager released", __FUNCTION__);
 }
 
-CaptureManager::CaptureManager() {
+CaptureManager::CaptureManager(std::string cachePath): cachePath(cachePath) {
     LOGD("%s, CaptureManager created", __FUNCTION__);
 }
 
@@ -45,13 +45,6 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
     }
 }
 
-void CaptureManager::updateCaptureBackupFilePath(int jobId, const std::string &backupFilePath) {
-    auto it = jobs.find(jobId);
-    if (it != jobs.end()) {
-        jobs[jobId]->backupFilePath = backupFilePath;
-    }
-}
-
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
 void CaptureManager::process(int jobId) {
     LOGD("%s, begin job-%d", __FUNCTION__ , jobId);
@@ -59,38 +52,49 @@ void CaptureManager::process(int jobId) {
     if (it != jobs.end()) {
         auto start_t = cv::getTickCount();
         // // hdr 图片不能用普通的jpeg格式保存， 故在这里只生成 fusion 照片
-        // need transport expsosure times
-        // Mat response;
+        // // need transport expsosure times
+        // cv::Mat response;
+        // auto hdr = cv::Mat();
+        // auto ldr = cv::Mat();
         // cv::Ptr<cv::CalibrateDebevec> calibrate = cv::createCalibrateDebevec();
-        // calibrate->process(images, response, exposure_times);
-        // Ptr<MergeDebevec> merge_debevec = cv::createMergeDebevec();
-        // merge_debevec->process(images, hdr, exposure_times, response);
+        // calibrate->process(jobs[jobId]->frames, response, jobs[jobId]->exposureTimes);
+        // cv::Ptr<cv::MergeDebevec> merge_debevec = cv::createMergeDebevec();
+        // merge_debevec->process(jobs[jobId]->frames, hdr, jobs[jobId]->exposureTimes), response);
         //
         // cv::Ptr<cv::Tonemap> tonemap = cv::createTonemap(2.2f);
         // tonemap->process(hdr, ldr);
+        // // 注意：若要保存成 jpeg，必须把数据转成 [0,255]. 因为cv hdr算法处理后的值范围在[0,1]
+        // // hdr = hdr * 255
+        // // ldr = ldr * 255
         
         cv::Mat fusion;
         cv::Ptr<cv::MergeMertens> merge_mertens = cv::createMergeMertens();
-        // todo: whether need to convert to RGB
+        // todo: whether need to convert to RGB, not need
+        // todo: deprecated then remove
         // cv::Mat rgbMat;
         // cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
         merge_mertens->process(jobs[jobId]->frames, fusion);
+        // 必须把[0,1]转到[0,255], 才能保存成jpeg
+        fusion = fusion * 255;
         auto hdr_t= cv::getTickCount();
         // int64 必须要转成 int，否则输出会丢失精度后变成负值
         LOGD("%s, hdr processing cost %d s", __FUNCTION__, static_cast<int>((hdr_t - start_t) /
         cv::getTickFrequency()));
 
+        // 在这里无需手动转成jpeg，直接 cv:imwrite(jpeg)即可
         // // default set jpeg quality to 95
         // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
         // std::vector<uchar> buffer;
         // cv::imencode(".jpg", fusion, buffer, params);
+        std::string filePath = cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
         
-        if (jobs[jobId]->backupFilePath.size() > 0) {
-            cv::imwrite(jobs[jobId]->backupFilePath, fusion);
-        } else {
-            LOGE("%s, job %d has no backup file path", __FUNCTION__, jobId);
-        }
+        LOGD("%s, save hdr image to %s", __FUNCTION__, filePath.c_str());
+        
+        // 把生成的写到jpeg图片写到 filePath， quality 为 100
+        cv::imwrite(filePath, fusion, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
     }
+    // 处理完 job，从 jobs 中移除
+    jobs.erase(it);
     LOGD("%s, end job-%d", __FUNCTION__ , jobId);
 }
 

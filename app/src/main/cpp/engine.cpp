@@ -5,10 +5,10 @@
 
 #include "engine.h"
 
-Engine::Engine() {}
+Engine::Engine(std::string cachePath): cachePath(cachePath) {}
 
 void Engine::init(){
-    capture = new CaptureManager();
+    capture = new CaptureManager(cachePath);
 }
 
 void Engine::processImage(int jobId, cv::Mat &image) {
