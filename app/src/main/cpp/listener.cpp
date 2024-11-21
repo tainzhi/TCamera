@@ -40,5 +40,4 @@ void Listener::onCaptured(int jobId, std::string cacheImagePath) {
         env->ExceptionClear();
         LOGE("%s, exception occurred while calling postFromNative", __FUNCTION__ );
     }
-    
 }

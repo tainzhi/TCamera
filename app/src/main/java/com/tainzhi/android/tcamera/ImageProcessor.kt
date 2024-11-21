@@ -53,6 +53,7 @@ object ImageProcessor {
         deinit()
     }
 
+    @JvmStatic
     fun postFromNative(jobId: Int, resultImagePath: String) {
         Log.d(TAG, "postFromNative: job-${jobId}, cacheImagePath:${resultImagePath}")
         cpatureJobManager.onNativeProcessed(jobId)

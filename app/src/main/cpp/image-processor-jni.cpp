@@ -33,8 +33,6 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
     
-    Util::gCachedJniEnv = env;
-    
     jclass contextClass = env->GetObjectClass(context);
     if (contextClass == NULL) {
         LOGD("Failed to get context class");
