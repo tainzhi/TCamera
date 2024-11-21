@@ -5,6 +5,8 @@
 
 #include "engine.h"
 
+#define TAG "NativeEngine"
+
 Engine::Engine(std::string cachePath): cachePath(cachePath) {}
 
 void Engine::init(){

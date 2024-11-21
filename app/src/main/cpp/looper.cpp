@@ -1,5 +1,7 @@
 # include "looper.h"
 
+#define TAG "NativeLooper"
+
 struct LooperMessage {
     int what;
     void *obj;

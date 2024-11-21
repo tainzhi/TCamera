@@ -17,8 +17,6 @@
 #include "util.h"
 #include <thread>
 
-#define TAG "NativeLooper"
-
 struct LooperMessage;
 
 class Looper {

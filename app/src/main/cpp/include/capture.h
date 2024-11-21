@@ -12,6 +12,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include "looper.h"
 #include "util.h"
+#include "listener.h"
 
 enum  CaptureType {
     UNKNOWN,

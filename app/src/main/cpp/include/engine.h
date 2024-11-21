@@ -10,8 +10,6 @@
 #include "capture.h"
 #include <jni.h>
 
-#define TAG "NativeEngine"
-
 class Engine {
 public:
     Engine(std::string cachePath);

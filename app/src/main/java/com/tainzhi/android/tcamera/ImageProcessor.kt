@@ -9,6 +9,9 @@ import java.nio.ByteBuffer
 
 object ImageProcessor {
     fun create(context: Context) {
+        // 加载 libimage-processor.so
+        // 不需要prefix lib，和suffix .so
+        // 不存在unloadLibrary()库，因为加载后lib成为程序的一部分，若unload可能导致程序崩溃
         System.loadLibrary("image-processor")
         init(context)
     }
@@ -51,6 +54,7 @@ object ImageProcessor {
     }
 
     fun postFromNative(jobId: Int, resultImagePath: String) {
+        Log.d(TAG, "postFromNative: job-${jobId}, cacheImagePath:${resultImagePath}")
         cpatureJobManager.onNativeProcessed(jobId)
     }
 

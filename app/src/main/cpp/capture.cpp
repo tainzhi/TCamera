@@ -92,10 +92,11 @@ void CaptureManager::process(int jobId) {
         
         // 把生成的写到jpeg图片写到 filePath， quality 为 100
         cv::imwrite(filePath, fusion, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
+        Listener::onCaptured(jobId, filePath);
+        LOGD("%s, end job-%d", __FUNCTION__ , jobId);
     }
     // 处理完 job，从 jobs 中移除
     jobs.erase(it);
-    LOGD("%s, end job-%d", __FUNCTION__ , jobId);
 }
 
 void CaptureManager::handle(int what, void *data) {

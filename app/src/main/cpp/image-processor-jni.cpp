@@ -11,6 +11,12 @@
 
 Engine *engine = nullptr;
 
+extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
+    LOGD("JNI_onLoad");
+    Util::gCachedJavaVm = vm;
+    return JNI_VERSION_1_6;
+}
+
 static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
     const char *cstring = env->GetStringUTFChars(jstr, nullptr);
     if (cstring == nullptr) {
@@ -26,6 +32,9 @@ static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
+    
+    Util::gCachedJniEnv = env;
+    
     jclass contextClass = env->GetObjectClass(context);
     if (contextClass == NULL) {
         LOGD("Failed to get context class");
@@ -49,14 +58,14 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, 
         LOGD("Failed to get File class");
         return ;
     }
-    
+
     // 获取 getAbsolutePath 方法 ID
     jmethodID getAbsolutePathMethod = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
     if (getAbsolutePathMethod == NULL) {
         LOGD("Failed to get getAbsolutePath method ID");
         return ;
     }
-    
+
     // 调用 getAbsolutePath 方法
     jstring pathString = (jstring) env->CallObjectMethod(fileObject, getAbsolutePathMethod);
     if (pathString == NULL) {
@@ -65,7 +74,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, 
     } else {
         LOGD("cache dir path: %s", jstring_to_string(env, pathString).c_str());
     }
-    
+
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
     if (!ctx.ptr())
