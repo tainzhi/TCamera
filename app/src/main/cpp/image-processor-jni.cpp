@@ -32,39 +32,31 @@ static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
-    
     jclass contextClass = env->GetObjectClass(context);
     if (contextClass == NULL) {
         LOGD("Failed to get context class");
         return;
     }
-    // 获取 getCacheDir 方法 ID
     jmethodID getCacheDirMethod = env->GetMethodID(contextClass, "getCacheDir", "()Ljava/io/File;");
     if (getCacheDirMethod == NULL) {
         LOGD("Failed to get getCacheDir method ID");
         return ;
     }
-    // 调用 getCacheDir 方法
     jobject fileObject = env->CallObjectMethod(context, getCacheDirMethod);
     if (fileObject == NULL) {
         LOGD("Failed to call getCacheDir method");
         return ;
     }
-    // 获取 File 类
     jclass fileClass = env->GetObjectClass(fileObject);
     if (fileClass == NULL) {
         LOGD("Failed to get File class");
         return ;
     }
-
-    // 获取 getAbsolutePath 方法 ID
     jmethodID getAbsolutePathMethod = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
     if (getAbsolutePathMethod == NULL) {
         LOGD("Failed to get getAbsolutePath method ID");
         return ;
     }
-
-    // 调用 getAbsolutePath 方法
     jstring pathString = (jstring) env->CallObjectMethod(fileObject, getAbsolutePathMethod);
     if (pathString == NULL) {
         LOGD("Failed to call getAbsolutePath method");
@@ -83,6 +75,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, 
     }
     // cv::setUseOptimized(true); enable SIMD optimized
     LOGV("cv use optimized: %d", cv::useOptimized());
+    
     engine = new Engine(jstring_to_string(env, pathString));
     engine->init();
 }
@@ -90,8 +83,8 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
-    delete engine;
     LOGV("deinit");
+    delete engine;
 }
 
 /**
@@ -133,7 +126,6 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thi
     // java 传过来的exposure_time 是纳秒，需要转换为秒
     // 获取List类和相关方法ID
     jclass listClass = env->FindClass("java/util/List");
-    jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
     jmethodID getMethod = env->GetMethodID(listClass, "get", "(I)Ljava/lang/Object;");
     std::vector<float> exposureTimes;
     for (int i = 0; i < frame_size; i++) {
