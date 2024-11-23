@@ -6,9 +6,19 @@
 #include "thread.h"
 
 void Thread::start() {
-    _thread = std::thread([this] { this->run(); });
+    _thread = std::thread([this] {
+        this->isRunning = true;
+        this->run();
+        this->isRunning = false;
+    });
+}
+
+void Thread::stop() {
+
 }
 
 void Thread::join() {
-    _thread.join();
+    if (isRunning) {
+        _thread.join();
+    }
 }

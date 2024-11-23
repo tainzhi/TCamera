@@ -21,9 +21,10 @@ public:
     ~Engine();
     static Engine *getInstance();
     static void resetInstance();
+    std::shared_ptr<CaptureManager> getCaptureManager();
 private:
-    CaptureManager *capture;
     std::string cachePath;
+    ThreadHolder<CaptureManager> captureManagerHolder;
 };
 
 

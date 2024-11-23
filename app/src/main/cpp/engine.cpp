@@ -10,20 +10,22 @@
 Engine::Engine(std::string cachePath): cachePath(cachePath) {}
 
 void Engine::init(){
-    capture = new CaptureManager(cachePath);
+}
+
+std::shared_ptr<CaptureManager> Engine::getCaptureManager() {
+    return getThread<CaptureManager>(captureManagerHolder);
 }
 
 void Engine::processImage(int jobId, cv::Mat &image) {
-    capture->collectFrame(jobId, image);
+    getCaptureManager()->collectFrame(jobId, image);
 }
 
 void Engine::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int frameSize, std::vector<float> exposureTimes) {
-    capture->addCapture(jobId, captureType, frameSize, std::move(timeStamp), std::move(exposureTimes));
+    getCaptureManager()->addCapture(jobId, captureType, frameSize, std::move(timeStamp), std::move(exposureTimes));
 }
 
 
 void Engine::deinit() {
-    delete capture;
 }
 
 Engine::~Engine(){
