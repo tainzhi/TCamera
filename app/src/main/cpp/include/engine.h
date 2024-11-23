@@ -19,8 +19,6 @@ public:
             exposureTimes);
     void deinit();
     ~Engine();
-    static Engine *getInstance();
-    static void resetInstance();
     std::shared_ptr<CaptureManager> getCaptureManager();
 private:
     std::string cachePath;

@@ -7,10 +7,14 @@
 
 void Thread::start() {
     _thread = std::thread([this] {
-        this->isRunning = true;
+        this->started = true;
         this->run();
-        this->isRunning = false;
+        this->started = false;
     });
+}
+
+bool Thread::isRunning() {
+    return started;
 }
 
 void Thread::stop() {

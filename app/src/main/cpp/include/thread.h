@@ -15,11 +15,12 @@ class Thread {
 private:
     std::thread _thread;
     virtual void run() = 0;
-    bool isRunning = false;
+    bool started = false;
 public:
     void join();
     void start();
     void stop();
+    bool isRunning();
 };
 
 template <class T>
