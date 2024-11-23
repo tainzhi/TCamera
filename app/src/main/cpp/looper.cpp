@@ -10,7 +10,7 @@ struct LooperMessage {
 };
 
 bool Looper::DEBUG =true;
-Looper::Looper(): running(true), worker(&Looper::loop, this){
+Looper::Looper(): running(true) {
     LOGD("%s created", __FUNCTION__);
     head = nullptr;
 }
@@ -20,6 +20,10 @@ Looper::~Looper() {
         LOGV("%s, Looper deleted while still running. Some messages will not be processed", __FUNCTION__ );
         quit();
     }
+}
+
+void Looper::run() {
+    loop();
 }
 
 
@@ -48,7 +52,6 @@ void Looper::addMsg(LooperMessage *msg, bool flush) {
         }
         h = nullptr;
     }
-
     if (h) {
         while (h->next) {
             h = h->next;
@@ -98,8 +101,6 @@ void Looper::quit() {
     msg->next = nullptr;
     msg->quit = true;
     addMsg(msg, false);
-    if (worker.joinable()) {
-        worker.join();
-    }
+    join();
     running = false;
 }

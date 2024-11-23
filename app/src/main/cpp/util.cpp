@@ -38,4 +38,3 @@ bool Util::dumpBinary(const char * path, void *data, size_t size)
 }
 
 JavaVM * Util::gCachedJavaVm = nullptr;
-JNIEnv * Util::gCachedJniEnv = nullptr;

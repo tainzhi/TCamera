@@ -15,17 +15,19 @@
  */
 
 #include "util.h"
-#include <thread>
+#include "thread.h"
 
 struct LooperMessage;
 
-class Looper {
+class Looper: public Thread {
 public:
     Looper();
 
     Looper &operator=(const Looper &) = delete;
 
     Looper(Looper &) = delete;
+    
+    void run() override;
 
     virtual ~Looper();
 
@@ -44,7 +46,6 @@ private:
     bool loopOnce();
 
     LooperMessage *head;
-    std::thread worker;
     std::mutex looperMutex;
     std::condition_variable msgQueueChangedCond;
     bool running;
