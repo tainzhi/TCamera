@@ -40,13 +40,14 @@ public:
     CaptureManager(std::string cachePath);
     void addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes);
     void collectFrame(int jobId, cv::Mat frame);
+    
+    bool isRunning = false;
 private:
     void handle(int what, void *data);
     void process(int jobId);
     
     std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};
     std::mutex mutex;
-    bool isRunning = false;
     std::condition_variable quitCond;
     std::string cachePath;
     

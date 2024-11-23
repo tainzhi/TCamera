@@ -22,7 +22,7 @@ void Thread::stop() {
 }
 
 void Thread::join() {
-    if (isRunning) {
+    if (started) {
         _thread.join();
     }
 }
