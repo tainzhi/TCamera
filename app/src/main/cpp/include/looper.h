@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+
+#ifndef TCAMERA_LOOPER_H
+#define TCAMERA_LOOPER_H
+
 #include "util.h"
 #include "thread.h"
 
@@ -50,3 +54,5 @@ private:
     std::condition_variable msgQueueChangedCond;
     bool running;
 };
+
+#endif TCAMERA_LOOPER_H

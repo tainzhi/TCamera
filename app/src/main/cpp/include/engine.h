@@ -8,6 +8,7 @@
 
 #include "util.h"
 #include "capture.h"
+#include "thread.h"
 #include <jni.h>
 
 class Engine {

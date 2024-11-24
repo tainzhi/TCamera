@@ -34,10 +34,10 @@ struct CaptureJob {
     captureType(captureType), timeStamp(timeStamp), frameSize(frameSize) {}
 };
 
-class CaptureManager: Looper {
+class CaptureManager: public Looper {
 public:
     ~CaptureManager();
-    CaptureManager(std::string cachePath);
+    CaptureManager();
     void addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes);
     void collectFrame(int jobId, cv::Mat frame);
     
@@ -49,8 +49,6 @@ private:
     std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};
     std::mutex mutex;
     std::condition_variable quitCond;
-    std::string cachePath;
-    
     
     
     enum kMessage {

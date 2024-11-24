@@ -6,8 +6,6 @@
 #ifndef TCAMERA_THREAD_H
 #define TCAMERA_THREAD_H
 
-#endif //TCAMERA_THREAD_H
-
 #include "util.h"
 #include <thread>
 
@@ -38,9 +36,10 @@ public:
         if (thread == nullptr) {
             thread = std::make_shared<T>();
         }
-        if (!(thread->isRunning())) {
-            thread->start();
-        }
+        // if (!(thread->isRunning())) {
+        //     thread->start();
+        // }
+        thread->start();
         return thread;
     }
 };
@@ -49,3 +48,5 @@ template <typename T>
 std::shared_ptr<T> getThread(ThreadHolder<T> &threadHolder) {
     return threadHolder.get();
 };
+
+#endif //TCAMERA_THREAD_H

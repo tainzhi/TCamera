@@ -6,8 +6,6 @@
 #ifndef TCAMERA_IMAGE_PROCESSOR_H
 #define TCAMERA_IMAGE_PROCESSOR_H
 
-#endif //TCAMERA_IMAGE_PROCESSOR_H
-
 #include <vector>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/photo.hpp>
@@ -27,3 +25,6 @@ public:
     
     static std::vector<uchar> convertMatToJpeg(cv::Mat &mat, int quality = 100);
 };
+
+#endif //TCAMERA_IMAGE_PROCESSOR_H
+

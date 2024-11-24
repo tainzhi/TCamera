@@ -15,7 +15,7 @@ CaptureManager::~CaptureManager() {
     LOGD("%s, CaptureManager released", __FUNCTION__);
 }
 
-CaptureManager::CaptureManager(std::string cachePath): cachePath(cachePath) {
+CaptureManager::CaptureManager() {
     LOGD("%s, CaptureManager created", __FUNCTION__);
 }
 
@@ -86,13 +86,15 @@ void CaptureManager::process(int jobId) {
         // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
         // std::vector<uchar> buffer;
         // cv::imencode(".jpg", fusion, buffer, params);
-        std::string filePath = cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
-        
-        LOGD("%s, save hdr image to %s", __FUNCTION__, filePath.c_str());
-        
-        // 把生成的写到jpeg图片写到 filePath， quality 为 100
-        cv::imwrite(filePath, fusion, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
-        Listener::onCaptured(jobId, filePath);
+        std::string cachePath = "/storage/temp";
+        // std::string filePath = cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
+        //
+        // LOGD("%s, save hdr image to %s", __FUNCTION__, filePath.c_str());
+        //
+        // // 把生成的写到jpeg图片写到 filePath， quality 为 100
+        // cv::imwrite(filePath, fusion, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
+        // Listener::onCaptured(jobId, filePath);
+        Listener::onCaptured(jobId, cachePath);
         LOGD("%s, end job-%d", __FUNCTION__ , jobId);
     }
     // 处理完 job，从 jobs 中移除
