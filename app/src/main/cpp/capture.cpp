@@ -9,7 +9,7 @@
 
 CaptureManager::~CaptureManager() {
     std::unique_lock<std::mutex> lock(mutex);
-    while (isRunning) {
+    while (isRunning()) {
         quitCond.wait(lock);
     }
     LOGD("%s, CaptureManager released", __FUNCTION__);

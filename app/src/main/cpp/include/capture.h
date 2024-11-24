@@ -40,8 +40,6 @@ public:
     CaptureManager();
     void addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes);
     void collectFrame(int jobId, cv::Mat frame);
-    
-    bool isRunning = false;
 private:
     void handle(int what, void *data);
     void process(int jobId);

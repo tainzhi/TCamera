@@ -36,10 +36,9 @@ public:
         if (thread == nullptr) {
             thread = std::make_shared<T>();
         }
-        // if (!(thread->isRunning())) {
-        //     thread->start();
-        // }
-        thread->start();
+        if (!(thread->isRunning())) {
+            thread->start();
+        }
         return thread;
     }
 };
