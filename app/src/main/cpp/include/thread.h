@@ -28,13 +28,12 @@ private:
     std::mutex mutex;
     
 public:
-    ThreadHolder() {
-        thread = nullptr;
-    }
-    std::shared_ptr<T> get() {
+    ThreadHolder(): thread(nullptr) {}
+    template <typename... Args>
+    std::shared_ptr<T> get(Args... args) {
         std::lock_guard<std::mutex> lock(mutex);
         if (thread == nullptr) {
-            thread = std::make_shared<T>();
+            thread = std::make_shared<T>(args...);
         }
         if (!(thread->isRunning())) {
             thread->start();
@@ -43,9 +42,9 @@ public:
     }
 };
 
-template <typename T>
-std::shared_ptr<T> getThread(ThreadHolder<T> &threadHolder) {
-    return threadHolder.get();
+template <typename T, typename... Args>
+std::shared_ptr<T> getThread(ThreadHolder<T> &threadHolder, Args... args) {
+    return threadHolder.get(args...);
 };
 
 #endif //TCAMERA_THREAD_H

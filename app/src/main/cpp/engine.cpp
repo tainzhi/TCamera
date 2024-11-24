@@ -13,7 +13,7 @@ void Engine::init(){
 }
 
 std::shared_ptr<CaptureManager> Engine::getCaptureManager() {
-    return getThread<CaptureManager>(captureManagerHolder);
+    return getThread(captureManagerHolder, cachePath);
 }
 
 void Engine::processImage(int jobId, cv::Mat &image) {
