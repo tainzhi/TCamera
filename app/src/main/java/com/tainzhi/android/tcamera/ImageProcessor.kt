@@ -68,7 +68,6 @@ object ImageProcessor {
     external fun abortCapture(jobId: Int)
 
     private external fun collectImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer, width: Int, height: Int)
-    private external fun updateCaptureBackupFilePath(path: String)
     private external fun deinit()
 
     private val TAG = ImageProcessor.javaClass.simpleName

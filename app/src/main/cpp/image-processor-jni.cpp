@@ -11,12 +11,7 @@
 
 Engine *engine = nullptr;
 
-extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
-    LOGD("JNI_onLoad");
-    Util::gCachedJavaVm = vm;
-    return JNI_VERSION_1_6;
-}
-
+static const char * CLASS_NAME = "com/tainzhi/android/tcamera/ImageProcessor";
 static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
     const char *cstring = env->GetStringUTFChars(jstr, nullptr);
     if (cstring == nullptr) {
@@ -30,7 +25,7 @@ static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
+ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
     jclass contextClass = env->GetObjectClass(context);
     if (contextClass == NULL) {
@@ -82,7 +77,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_init(JNIEnv *env, jobject thiz, 
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
+ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
     LOGV("deinit");
     delete engine;
 }
@@ -91,7 +86,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_deinit(JNIEnv *env, jobject thiz
  * @exposure_time in nanoseconds
  */
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
+ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
                                                              jobject u_plane, jobject v_plane, jint width,
                                                              jint height) {
     LOGD("%s begin", __FUNCTION__ );
@@ -120,7 +115,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_collectImage(JNIEnv *env, jobjec
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type,
+ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type,
                                                         jstring time_stamp, jint frame_size, jobject exposure_times) {
     LOGD("%s", __FUNCTION__);
     // java 传过来的exposure_time 是纳秒，需要转换为秒
@@ -138,10 +133,7 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_capture(JNIEnv *env, jobject thi
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_updateCaptureBackupFilePath(JNIEnv *env, jobject thiz, jstring path) {
-}
-extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
+ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
@@ -186,6 +178,40 @@ Java_com_tainzhi_android_tcamera_ImageProcessor_handlePreviewImage(JNIEnv *env, 
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tainzhi_android_tcamera_ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
+ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
     LOGD("%s abort job-%d", __FUNCTION__, job_id);
+};
+
+static JNINativeMethod methods[] = {
+    {"init", "(Landroid/content/Context;)V", (void *) ImageProcessor_init},
+    {"deinit", "()V", (void *) ImageProcessor_deinit},
+    {"collectImage", "(ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;II)V", (void *) ImageProcessor_collectImage},
+    {"capture", "(IILjava/lang/String;ILjava/util/List;)V", (void *) ImageProcessor_capture},
+    {"handlePreviewImage", "(Landroid/media/Image;)V", (void *) ImageProcessor_handlePreviewImage},
+    {"abortCapture", "(I)V", (void *) ImageProcessor_abortCapture}
+};
+
+
+
+extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
+    LOGD("JNI_onLoad");
+    JNIEnv  *env = nullptr;
+    if (vm->GetEnv((void **)&env, JNI_VERSION_1_6) != JNI_OK) {
+        LOGE("%s, failed to get env", __FUNCTION__);
+        return JNI_ERR;
+    }
+    jclass clazz;
+    clazz = env->FindClass(CLASS_NAME);
+    if (clazz == nullptr) {
+        LOGE("%s, failed to find %s", __FUNCTION__ , CLASS_NAME);
+        return JNI_ERR;
+    }
+    bool registerResult = env->RegisterNatives(clazz, methods, sizeof(methods)/sizeof(methods[0]));
+    if (registerResult != JNI_OK) {
+        LOGE("%s, failed to register natives methods");
+        return JNI_ERR;
+    }
+    Util::gCachedJavaVm = vm;
+    return JNI_VERSION_1_6;
 }
+
