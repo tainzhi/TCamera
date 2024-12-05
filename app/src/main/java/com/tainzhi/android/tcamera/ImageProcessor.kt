@@ -70,7 +70,7 @@ class ImageProcessor private constructor(val context: Context) {
         @JvmStatic
         fun postFromNative(jobId: Int, resultImagePath: String) {
             Log.d(TAG, "postFromNative: job-${jobId}, cacheImagePath:${resultImagePath}")
-            captureJobManager.onNativeProcessed(jobId)
+            captureJobManager.onNativeProcessed(jobId, resultImagePath)
         }
 
         lateinit var captureJobManager: CaptureJobManager

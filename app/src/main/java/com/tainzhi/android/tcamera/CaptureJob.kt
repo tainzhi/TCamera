@@ -18,6 +18,8 @@ import com.tainzhi.android.tcamera.MainActivity.Companion.CameraMode
 import com.tainzhi.android.tcamera.util.Kpi
 import com.tainzhi.android.tcamera.util.SettingsManager
 import kotlinx.coroutines.Runnable
+import java.io.File
+import java.io.FileInputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -91,8 +93,51 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         })
     }
 
-    fun onNativeProcessed(jobId: Int) {
-        Log.d(TAG, "onNativeProcessed: job-${jobId}")
+    fun onNativeProcessed(jobId: Int, resultImagePath: String) {
+        if (App.DEBUG) {
+            Log.d(TAG, "onNativeProcessed: job-${jobId}")
+        }
+        handler.post( {
+            replaceJpegImage(jobId, resultImagePath)
+            }
+        )
+    }
+
+    /**
+     * HDR: 多帧拍经过 native 处理生成的图片要替换到普通拍照的 JPEG
+     */
+    private fun replaceJpegImage(jobId: Int, resultImagePath: String) {
+        Log.d(TAG, "replaceJpegImage: jobMaphasJob:${jobMap.containsKey(jobId)}, AppDebug:${App.DEBUG}")
+        val job = jobMap[jobId] ?: return
+        if (App.DEBUG) {
+            Log.d(TAG, "replaceJpegImage: job-${job.id} ${job.captureType}")
+        }
+        Kpi.start(Kpi.TYPE.PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE)
+        try {
+            val processedImageFile = File(resultImagePath)
+            val processedImageBytes = FileInputStream(processedImageFile).use {
+                it.readBytes()
+            }
+            val resolver = context.contentResolver
+            job.uri?.let { uri ->
+                val stream = resolver.openOutputStream(uri)
+                if (stream != null) {
+                    stream.write(processedImageBytes)
+                    stream.close()
+                    generateThumbnail(job.id)
+                } else {
+                    throw IOException("Failed to create new MediaStore record")
+                }
+            }
+        } catch (e: IOException) {
+            throw IOException(e)
+        } catch (e: Exception) {
+            throw (e)
+        } finally {
+            // 必须关掉, 否则不能连续拍照
+            Log.d(TAG, "close image")
+        }
+        Kpi.end(Kpi.TYPE.PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE)
     }
 
     fun processVideo() {
@@ -149,6 +194,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
                 if (stream != null) {
                     stream.write(bytes)
                     stream.close()
+                    Log.d(TAG, "save jpeg to ${job.uri}")
                     generateThumbnail(job.id)
                 } else {
                     throw IOException("Failed to create new MediaStore record")
@@ -159,7 +205,6 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
             throw IOException(e)
         } finally {
             // 必须关掉, 否则不能连续拍照
-            Log.d(TAG, "close image")
             image.close()
         }
         Kpi.end(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)

@@ -11,6 +11,7 @@ object Kpi {
     enum class TYPE {
         SHOT_TO_SHOT,
         SHOT_TO_SAVE_IMAGE,
+        PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE,
         IMAGE_TO_THUMBNAIL,
     }
 
