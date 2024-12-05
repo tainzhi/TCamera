@@ -14,11 +14,11 @@ class App: Application(), ActivityLifecycleCallbacks {
         INSTANCE = this
         registerActivityLifecycleCallbacks(this)
         ShaderCache.load()
-        ImageProcessor.create(applicationContext)
+        ImageProcessor.instance.create()
     }
 
     override fun onTerminate() {
-        ImageProcessor.destroy()
+        ImageProcessor.instance.destroy()
         super.onTerminate()
     }
 

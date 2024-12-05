@@ -7,37 +7,30 @@
 
 
 #define TAG "NativeListener"
+
+extern fields_t fields;
+
 void Listener::onCaptured(int jobId, std::string cacheImagePath) {
     JNIEnv *env = nullptr;
-    jint result = Util::gCachedJavaVm->GetEnv((void **) &env, JNI_VERSION_1_6);
-    if (result == JNI_EDETACHED) {
-        result = Util::gCachedJavaVm->AttachCurrentThread(&env, nullptr);
-        if (result != JNI_OK) {
-            LOGE("%s, failed to attache current thread to JVM", __FUNCTION__);
-            return ;
-        }
-    } else if (result == JNI_EVERSION) {
-        LOGE("%s, JNI interface version is not supported", __FUNCTION__ );
-        return;
-    }
+    Util::get_env(&env);
     if (env == nullptr) {
         LOGE("%s, failed to get JNIEnv", __FUNCTION__ );
         return;
     }
-    jclass jc = env->FindClass("com/tainzhi/android/tcamera/ImageProcessor");
-    if (jc == nullptr) {
-        LOGE("%s, failed to find ImageProcessor class", __FUNCTION__ );
+    jmethodID postFromNativeMethod = env->GetStaticMethodID(fields.image_processor, "postFromNative", "(ILjava/lang/String;)V");
+    if (postFromNativeMethod == nullptr) {
+        LOGE("%s, failed to get ImageProcessor.postFromNative", __FUNCTION__ );
         return;
     }
-    jmethodID jmethodId = env->GetStaticMethodID(jc, "postFromNative", "(ILjava/lang/String:)V");
-    if (jmethodId == nullptr) {
-        LOGE("%s, failed to get ImageProcessor.postFromNative");
+    jstring imagePath = env->NewStringUTF(cacheImagePath.c_str());
+    if (imagePath == nullptr) {
+        LOGE("%s, failed to create jstring for %s", __FUNCTION__ , cacheImagePath.c_str());
         return;
     }
-    env->CallStaticVoidMethod(jc, jmethodId, jobId, env->NewStringUTF(cacheImagePath.c_str()));
+    env->CallStaticVoidMethod(fields.image_processor, postFromNativeMethod, jobId, imagePath);
     if (env->ExceptionCheck()) {
-        env->ExceptionDescribe();
-        env->ExceptionClear();
+        Util::handleEnvException(env);
         LOGE("%s, exception occurred while calling postFromNative", __FUNCTION__ );
     }
+    env->DeleteLocalRef(imagePath);
 }

@@ -4,14 +4,18 @@ import android.content.Context
 import android.graphics.ImageFormat
 import android.media.Image
 import android.util.Log
+import com.tainzhi.android.tcamera.util.SettingsManager
 import java.nio.ByteBuffer
+import kotlin.jvm.javaClass
 
 
-object ImageProcessor {
-    fun create(context: Context) {
+class ImageProcessor private constructor(val context: Context) {
+    
+    fun create() {
         // 加载 libimage-processor.so
         // 不需要prefix lib，和suffix .so
         // 不存在unloadLibrary()库，因为加载后lib成为程序的一部分，若unload可能导致程序崩溃
+        Log.d(TAG, "create: ")
         System.loadLibrary("image-processor")
         init(context)
     }
@@ -19,9 +23,12 @@ object ImageProcessor {
     // exposureTime in nanoseconds
     fun collectImage(jobId: Int, image: Image) {
         assert(image.format == ImageFormat.YUV_420_888) { "imageFormat:${image.format}" }
-        assert(image.planes[1].pixelStride == 2) {"imageFormat is not YUV420sp"}
+        assert(image.planes[1].pixelStride == 2) { "imageFormat is not YUV420sp" }
         if (App.DEBUG) {
-            Log.d(TAG, "collectImage, imageWidth:" + image.width + ", imageHeight:" + image.height)
+            Log.d(
+                TAG,
+                "collectImage, imageWidth:" + image.width + ", imageHeight:" + image.height
+            )
             Log.d(
                 TAG,
                 "collectImage, imagePlane[0] Size:${image.planes[0].buffer.remaining()}, rowStride:${image.planes[0].rowStride}, pixelStride:${image.planes[0].pixelStride}"
@@ -53,22 +60,44 @@ object ImageProcessor {
         deinit()
     }
 
-    @JvmStatic
-    fun postFromNative(jobId: Int, resultImagePath: String) {
-        Log.d(TAG, "postFromNative: job-${jobId}, cacheImagePath:${resultImagePath}")
-        cpatureJobManager.onNativeProcessed(jobId)
+    companion object {
+        val instance: ImageProcessor by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            ImageProcessor(App.getInstance().applicationContext)
+        }
+        private val TAG = ImageProcessor.javaClass.simpleName
+
+
+        @JvmStatic
+        fun postFromNative(jobId: Int, resultImagePath: String) {
+            Log.d(TAG, "postFromNative: job-${jobId}, cacheImagePath:${resultImagePath}")
+            captureJobManager.onNativeProcessed(jobId)
+        }
+
+        lateinit var captureJobManager: CaptureJobManager
     }
 
-    lateinit var cpatureJobManager: CaptureJobManager
 
-    private external fun init(context: Context)
-    private external fun handlePreviewImage(image: Image)
+    external fun init(context: Context)
+    external fun handlePreviewImage(image: Image)
 
-    external fun capture(jobId:Int, captureType: Int, timeStamp: String, frameSize: Int, exposureTimes: List<Long>)
+    external fun capture(
+        jobId: Int,
+        captureType: Int,
+        timeStamp: String,
+        frameSize: Int,
+        exposureTimes: List<Long>
+    )
+
     external fun abortCapture(jobId: Int)
 
-    private external fun collectImage(jobId: Int, yPlane: ByteBuffer, uPlane: ByteBuffer, vPlane: ByteBuffer, width: Int, height: Int)
-    private external fun deinit()
+    external fun collectImage(
+        jobId: Int,
+        yPlane: ByteBuffer,
+        uPlane: ByteBuffer,
+        vPlane: ByteBuffer,
+        width: Int,
+        height: Int
+    )
 
-    private val TAG = ImageProcessor.javaClass.simpleName
+    external fun deinit()
 }

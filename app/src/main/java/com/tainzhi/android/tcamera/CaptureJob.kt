@@ -41,6 +41,9 @@ enum class CaptureType {
 }
 
 class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitmap: Bitmap, captureType: CaptureType) -> Unit) {
+    init {
+        ImageProcessor.captureJobManager = this
+    }
     private val thread = HandlerThread("CaptureJobManagerThread").apply { start() }
     private val handler = Handler(thread.looper) { msg ->
         when (msg.what) {
@@ -80,10 +83,10 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         handler.post({
             if (image != null) {
                 Log.d(TAG, "processYuvImage: ")
-                ImageProcessor.collectImage(currentJobId, image)
+                ImageProcessor.instance.collectImage(currentJobId, image)
             } else {
                 Log.d(TAG, "processYuvImage but image is null, so abort capture job-${currentJobId}")
-                ImageProcessor.abortCapture(currentJobId)
+                ImageProcessor.instance.abortCapture(currentJobId)
             }
         })
     }
@@ -203,7 +206,7 @@ class CaptureJob {
         this.exposureTimes = exposureTimes
         if (captureType == CaptureType.HDR) {
             yuvImageSize = MainActivity.CAPTURE_HDR_FRAME_SIZE
-            ImageProcessor.capture(id, captureType.ordinal,"${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}",  yuvImageSize, exposureTimes)
+            ImageProcessor.instance.capture(id, captureType.ordinal,"${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}",  yuvImageSize, exposureTimes)
         }
     }
 

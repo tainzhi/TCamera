@@ -3,15 +3,39 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/core/ocl.hpp"
 #include "opencv2/core.hpp"
-#include "image-processor.h"
 #include "util.h"
 #include "engine.h"
 
 #define TAG "NativeImageProcessorJNI"
 
+#define BUILD_CLASS_GLOBAL_REF(FILEDNAME, CLASSNAME) \
+    do {                                             \
+        fields. FILEDNAME = env->FindClass(k ## CLASSNAME ## ClassPathName); \
+        if (fields. FILEDNAME == nullptr) {          \
+            LOGE("Failed to find class %s", CLASSNAME); \
+            return; \
+        }                                            \
+        fields. FILEDNAME = static_cast<jclass>(env->NewGlobalRef(fields. FILEDNAME)); \
+        if (fields. FILEDNAME == nullptr) {          \
+            LOGE("Failed to create global ref for %s", CLASSNAME);          \
+            return; \
+        }                                            \
+        LOGD("class %s retrieved (clazz=%p)", k ## CLASSNAME ## ClassPathName, fields. FILEDNAME); \
+    } while(0)
+
+#define DESTROY_CLASS_GLOBAL_REF(FIELDNAME) \
+    do {                                    \
+        if (fields. FIELDNAME != nullptr) { \
+            env->DeleteGlobalRef(fields. FIELDNAME); \
+            LOGD("destroy global ref %s", FIELDNAME); \
+        }                                   \
+    } while(0)
+
+static const char * kImageProcessorClassPathName = "com/tainzhi/android/tcamera/ImageProcessor";
 Engine *engine = nullptr;
 
-static const char * CLASS_NAME = "com/tainzhi/android/tcamera/ImageProcessor";
+fields_t fields;
+
 static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
     const char *cstring = env->GetStringUTFChars(jstr, nullptr);
     if (cstring == nullptr) {
@@ -27,6 +51,20 @@ static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
+
+    fields.image_processor = env->FindClass(kImageProcessorClassPathName);
+    if (fields.image_processor == nullptr) {
+        LOGE("%s, Failed to find class %s", __FUNCTION__, kImageProcessorClassPathName);
+        return;
+    }
+    fields.image_processor = static_cast<jclass>(env->NewGlobalRef(fields.image_processor));
+    if (fields.image_processor == nullptr) {
+        LOGE("%s, Failed to make global reference to %s class.", __FUNCTION__ , kImageProcessorClassPathName);
+        return;
+    } else {
+        LOGD("%s, class image_processor retrieved (clazz=%p)", __FUNCTION__ , fields.image_processor);
+    }
+
     jclass contextClass = env->GetObjectClass(context);
     if (contextClass == NULL) {
         LOGD("Failed to get context class");
@@ -59,6 +97,9 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     } else {
         LOGD("cache dir path: %s", jstring_to_string(env, pathString).c_str());
     }
+    env->DeleteLocalRef(contextClass);
+    env->DeleteLocalRef(fileObject);
+    env->DeleteLocalRef(fileClass);
 
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
@@ -79,6 +120,10 @@ extern "C"
 JNIEXPORT void JNICALL
 ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
     LOGV("deinit");
+    if (fields.image_processor != nullptr) {
+        env->DeleteGlobalRef(fields.image_processor);
+        LOGD("destroy global ref %s", "field.image_processor");
+    }
     delete engine;
 }
 
@@ -128,6 +173,7 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
         jlong exposureTime = env->CallLongMethod(item, env->GetMethodID(env->GetObjectClass(item), "longValue", "()J"));
         exposureTimes.push_back(exposureTime / 1000000000.0);
     }
+    env->DeleteLocalRef(listClass);
     engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp),
                        frame_size, exposureTimes);
 }
@@ -161,6 +207,7 @@ ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
         jint rowStride = env->CallIntMethod(plane, getRowStrideMethod);
         jint pixelStride = env->CallIntMethod(plane, getPixelStrideMethod);
 
+        // kepp 保留, 不要删除
         // // 获取 ByteBuffer 的直接缓冲区
         // jbyteArray byteArray = (jbyteArray) env->NewByteArray(rowStride);
         // env->GetByteArrayRegion((jbyteArray) buffer, 0, rowStride, byteArray);
@@ -174,7 +221,10 @@ ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
         //
         // env->ReleaseByteArrayElements(byteArray, bytes, 0);
         // env->DeleteLocalRef(byteArray);
+        env->DeleteLocalRef(buffer);
+        env->DeleteLocalRef(planeClass);
     }
+    env->DeleteLocalRef(imageClass);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -201,14 +251,14 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
         return JNI_ERR;
     }
     jclass clazz;
-    clazz = env->FindClass(CLASS_NAME);
+    clazz = env->FindClass(kImageProcessorClassPathName);
     if (clazz == nullptr) {
-        LOGE("%s, failed to find %s", __FUNCTION__ , CLASS_NAME);
+        LOGE("%s, failed to find %s", __FUNCTION__ , kImageProcessorClassPathName);
         return JNI_ERR;
     }
     bool registerResult = env->RegisterNatives(clazz, methods, sizeof(methods)/sizeof(methods[0]));
     if (registerResult != JNI_OK) {
-        LOGE("%s, failed to register natives methods");
+        LOGE("%s, failed to register natives methods", __FUNCTION__);
         return JNI_ERR;
     }
     Util::gCachedJavaVm = vm;

@@ -26,6 +26,17 @@ public:
     static unsigned long long getCurrentTimestampMs();
     static bool dumpBinary( const char * path, void *data, size_t size);
     static JavaVM *gCachedJavaVm __attribute__ ((visibility(("default"))));
+    static bool get_env(JNIEnv **);
+    static void release_env();
+    static void handleEnvException(JNIEnv * env);
+};
+
+
+// 必须在java首调用的thread中定义 ImageProcessor 的 global ref, 才能在新的 std::thread 中使用
+// 否则直接在 new std::thread 中 attach thread之后是无法 find class的
+struct fields_t {
+    jclass image_processor;
+    jmethodID post_from_native;
 };
 
 #endif //TCAMERA_UTIL_H

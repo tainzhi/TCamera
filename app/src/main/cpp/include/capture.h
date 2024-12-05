@@ -14,7 +14,7 @@
 #include "util.h"
 #include "listener.h"
 
-enum  CaptureType {
+enum CaptureType {
     UNKNOWN,
     JPEG,
     HDR,

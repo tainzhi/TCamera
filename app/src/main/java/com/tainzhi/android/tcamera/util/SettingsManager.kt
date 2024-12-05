@@ -6,8 +6,9 @@ import androidx.preference.PreferenceManager
 import com.tainzhi.android.tcamera.App
 import com.tainzhi.android.tcamera.CaptureType
 import com.tainzhi.android.tcamera.R
+import kotlin.jvm.javaClass
 
-class SettingsManager(val context: Context) {
+class SettingsManager private constructor(val context: Context) {
     private val sp = PreferenceManager.getDefaultSharedPreferences(context)
     private val spEditor = sp.edit()
     fun setBoolean(key: String, value: Boolean, defaultValue: Boolean = false) {
