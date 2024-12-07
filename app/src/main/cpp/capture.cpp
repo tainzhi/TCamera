@@ -69,11 +69,12 @@ void CaptureManager::process(int jobId) {
         
         cv::Mat fusion;
         cv::Ptr<cv::MergeMertens> merge_mertens = cv::createMergeMertens();
-        // todo: whether need to convert to RGB, not need
-        // todo: deprecated then remove
-        // cv::Mat rgbMat;
-        // cv::cvtColor(yuvMat, rgbMat, cv::COLOR_YUV420sp2RGB);
-        merge_mertens->process(jobs[jobId]->frames, fusion);
+        // must needed:  to convert to RGB
+        std::vector<cv::Mat> rgbMats(jobs[jobId]->frameSize);
+        for (size_t i = 0; i < jobs[jobId]->frameSize; i++) {
+            cv::cvtColor(jobs[jobId]->frames[i], rgbMats[i], cv::COLOR_YUV420sp2RGB);
+        }
+        merge_mertens->process(rgbMats, fusion);
         // 必须把[0,1]转到[0,255], 才能保存成jpeg
         fusion = fusion * 255;
         auto hdr_t= cv::getTickCount();

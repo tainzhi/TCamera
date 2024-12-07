@@ -154,8 +154,8 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_pl
     LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
     Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
 #endif
-
-    engine->processImage(job_id, yuvMat);
+    
+    engine->collectImage(job_id, yuvMat);
     LOGD("%s end", __FUNCTION__ );
 }
 
