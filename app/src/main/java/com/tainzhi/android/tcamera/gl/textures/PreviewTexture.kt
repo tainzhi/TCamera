@@ -9,6 +9,7 @@ import com.tainzhi.android.tcamera.gl.GlUtil
 import com.tainzhi.android.tcamera.gl.Shader
 import com.tainzhi.android.tcamera.gl.ShaderFactory
 import com.tainzhi.android.tcamera.gl.ShaderType
+import com.tainzhi.android.tcamera.ui.FilterType
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -22,7 +23,8 @@ class PreviewTexture : Texture() {
     private lateinit var vertexBuffer: FloatBuffer
     private lateinit var textureVertexBuffer: FloatBuffer
     private var filterTextureId: Int = 0
-    var filterType = 0
+    private var filterType: FilterType = FilterType("Original", 0, 0)
+    private var isLutFilter = false
 
     //纹理坐标
     private var textureVertices = floatArrayOf(
@@ -37,7 +39,6 @@ class PreviewTexture : Texture() {
     override fun load(shaderFactory: ShaderFactory) {
         super.load(shaderFactory)
         hTexturePosition = GLES20.glGetAttribLocation(shader.programHandle, "a_TexturePosition")
-        filterTextureId = GlUtil.loadTextureFromRes(R.raw.filter_amatorka)
         textureVertexBuffer = ByteBuffer.allocateDirect(textureVertices.size * 4)
             .order(ByteOrder.nativeOrder()).asFloatBuffer()
         textureVertexBuffer.put(textureVertices).position(0)
@@ -45,7 +46,10 @@ class PreviewTexture : Texture() {
 
     override fun unload() {
         GlUtil.deleteTexture(textureId)
-        GlUtil.deleteTexture(filterTextureId)
+        if (isLutFilter) {
+            isLutFilter = false
+            GlUtil.deleteTexture(filterTextureId)
+        }
         super.unload()
     }
 
@@ -62,7 +66,9 @@ class PreviewTexture : Texture() {
         GLES20.glActiveTexture(FILTER_TEXTURE)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, filterTextureId)
         setInt("u_textureLUT", FILTER_TEXTURE - GLES20.GL_TEXTURE0)
-        setInt("u_filterType", filterType)
+        if (isLutFilter) {
+            setInt("u_filterType", filterType.tag)
+        }
         // set vertex attribute
         GLES20.glVertexAttribPointer(programHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer)
         GLES20.glEnableVertexAttribArray(programHandle)
@@ -80,9 +86,13 @@ class PreviewTexture : Texture() {
         GLES20.glDisableVertexAttribArray(hTexturePosition)
     }
 
-    fun changeFilterType() {
-        filterType =( filterType + 1) % 7
+    fun changeFilterType(type: FilterType) {
         Log.d(TAG, "changeFilterType: type=$filterType")
+        filterType = type
+        if (type.tag in 10..12) {
+            filterTextureId = GlUtil.loadTextureFromRes(type.resId)
+            isLutFilter = true
+        }
     }
 
     fun setLayout(

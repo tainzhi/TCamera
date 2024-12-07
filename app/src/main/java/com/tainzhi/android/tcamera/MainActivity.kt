@@ -41,6 +41,7 @@ import com.tainzhi.android.tcamera.ui.CircleImageView
 import com.tainzhi.android.tcamera.ui.ControlBar
 import com.tainzhi.android.tcamera.ui.ErrorDialog
 import com.tainzhi.android.tcamera.ui.FilterBar
+import com.tainzhi.android.tcamera.ui.FilterType
 import com.tainzhi.android.tcamera.ui.VideoIndicator
 import com.tainzhi.android.tcamera.ui.scrollpicker.OnSelectedListener
 import com.tainzhi.android.tcamera.ui.scrollpicker.ScrollPickerView
@@ -73,6 +74,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivRecord: ImageView
     private lateinit var ivSwitchCamera: ImageView
     private lateinit var controlBar: ControlBar
+    private lateinit var filterBar: FilterBar
     private lateinit var videoIndicator: VideoIndicator
 
     private val unGrantedPermissionList: MutableList<String> = ArrayList()
@@ -341,9 +343,9 @@ class MainActivity : AppCompatActivity() {
             isNeedRecreateCaptureSession = true
         })
         videoIndicator = VideoIndicator(this, _binding)
-        FilterBar(this, _binding) {
-            cameraPreviewView.changeFilterType()
-            Log.d(TAG, "onFilterTypeSelected: ${it}")
+        filterBar = FilterBar(this, _binding) { it: FilterType ->
+            Log.d(TAG, "onFilterTypeSelected: ${it.name}")
+            cameraPreviewView.changeFilterType(it)
         }
 
         cameraPreviewView = findViewById(R.id.previewView)
@@ -406,19 +408,21 @@ class MainActivity : AppCompatActivity() {
             setOnSelectedListener(object : OnSelectedListener {
                 override fun onSelected(scrollPickerView: ScrollPickerView<*>?, position: Int) {
                     val mode = CameraMode.fromInt(position)
+                    Log.d(TAG, "onSelected: $mode")
                     when (mode) {
                         CameraMode.PHOTO -> {
-                            Log.d(TAG, "onSelected: $mode")
                             ivRecord.visibility = View.INVISIBLE
                             ivTakePicture.visibility = View.VISIBLE
                             videoIndicator.hide()
+                            filterBar.show()
                         }
 
                         CameraMode.VIDEO -> {
-                            Log.d(TAG, "onSelected: $mode")
                             ivRecord.visibility = View.VISIBLE
                             ivTakePicture.visibility = View.INVISIBLE
                             videoIndicator.show()
+                            filterBar.resetEffect()
+                            filterBar.hide()
                         }
                     }
                     isNeedRecreateCaptureSession = true

@@ -58,12 +58,6 @@ void light(inout vec4 color) {
     color = vec4(hsl2rgb(hslColor), color.a);
 }
 
-void light2(inout vec4 color) {
-    color.r += 0.15;
-    color.g += 0.15;
-    color.b += 0.15;
-}
-
 //查找表滤镜
 vec4 lookupTable(vec4 color) {
     float blueColor = color.b * 63.0;
@@ -143,31 +137,40 @@ void main() {
         mixColor = texture(u_TextureSampler, normalizedTexCoord);
     }
     if (u_filterType == 0) {
+        // non filter
         outColor = mixColor;
         return;
     }
     else if (u_filterType == 1) {
         //灰度
         grey(mixColor);
+        outColor = mixColor;
+        return;
     } else if (u_filterType == 2) {
         //黑白
         blackAndWhite(mixColor);
+        outColor = mixColor;
+        return;
     } else if (u_filterType == 3) {
         //反向
         reverse(mixColor);
+        outColor = mixColor;
+        return;
     } else if (u_filterType == 4) {
         //亮度
         light(mixColor);
+        outColor = mixColor;
+        return;
     } else if (u_filterType == 5) {
-        //亮度2
-        light2(mixColor);
-    } else if (u_filterType == 6) {
+        //色调分离
+        posterization(mixColor);
+        outColor = mixColor;
+        return;
+    } else if (u_filterType >= 10 && u_filterType <= 12) {
         //lut
         outColor = lookupTable(mixColor);
         return;
-    } else if (u_filterType == 7) {
-        //色调分离
-        posterization(mixColor);
+    } else {
+        outColor = mixColor;
     }
-    outColor = mixColor;
 }

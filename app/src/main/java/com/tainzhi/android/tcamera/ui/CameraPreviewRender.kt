@@ -155,8 +155,8 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
         }
     }
 
-    fun changeFilterType() {
-        previewTexture.changeFilterType()
+    fun changeFilterType(type: FilterType) {
+        previewTexture.changeFilterType(type)
     }
 
     fun changePreviewAspectRatio() {

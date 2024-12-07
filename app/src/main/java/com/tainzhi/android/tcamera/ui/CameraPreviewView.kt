@@ -47,8 +47,8 @@ class CameraPreviewView : GLSurfaceView {
         }
     }
 
-    fun changeFilterType() {
-        cameraPreviewRender.changeFilterType()
+    fun changeFilterType(filterType: FilterType) {
+        cameraPreviewRender.changeFilterType(filterType)
     }
 
     fun changePreviewAspectRatio() {

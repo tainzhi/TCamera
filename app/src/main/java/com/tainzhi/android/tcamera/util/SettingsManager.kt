@@ -109,12 +109,4 @@ class SettingsManager private constructor(val context: Context) {
         GOLDEN_SECTION_3x3,
         GOLDEN_SPIRAL,
     }
-
-    enum class FilterType {
-        ORIGINAL,
-        LUT_AMATORKA,
-        LUT_HIGHKEY,
-        LUT_PURITY,
-        POSTERIZATION,
-    }
 }

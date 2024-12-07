@@ -22,12 +22,26 @@ import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.R
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.NON_INIT_SELECTED
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.TAG
+import com.tainzhi.android.tcamera.util.SettingsManager
 
-class FilterBar(val context: Context, val binding: ActivityMainBinding, private val onFilterTypeSelected: (type: String) -> Unit) {
+class FilterBar(val context: Context, val binding: ActivityMainBinding, private val onFilterTypeSelected: (type: FilterType) -> Unit) {
     private lateinit var inflatedView: View
     private lateinit var filterTypeTV: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var filterAdapter: FilterAdapter
+    private val types =  mutableListOf<FilterType>()
+    init {
+        types.add(FilterType("Original", 0, 0))
+        types.add(FilterType("Grey", 1, 0))
+        types.add(FilterType("BlackWhite", 2, 0))
+        types.add(FilterType("Reverse", 3, 0))
+        types.add(FilterType("Brightness", 4, 0))
+        types.add(FilterType("Posterization", 5, 0))
+        types.add(FilterType("Amatorka", 10, R.raw.lut_filter_amatorka))
+        types.add(FilterType("HighKey", 11, R.raw.lut_filter_highkey))
+        types.add(FilterType("Purity", 12, R.raw.lut_filter_purity))
+    }
+
     private var selectedTypePosition = NON_INIT_SELECTED
     private val snapHelper = LinearSnapHelper()
     private val scrollListener = object: RecyclerView.OnScrollListener() {
@@ -35,17 +49,11 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             if (dx != 0) {
                 snapHelper.findSnapView(recyclerView.layoutManager)?.let {
                     val position = recyclerView.getChildAdapterPosition(it)
-                    // recyclerView.post {
-                    //     (recyclerView.adapter as FilterAdapter).setItemSelected(selectedTypePosition)
-                    //     filterTypeTV.text = types[selectedTypePosition]
-                    // }
                     updateStatus(position)
                 }
             }
         }
     }
-    private val types =
-        listOf("Original", "YUV1", "YUV2", "LUT3", "LUT4", "LUT5")
     private val filterView = binding.filter.apply {
         setOnClickListener {
             show()
@@ -53,7 +61,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     }
     private fun updateStatus(position: Int) {
         selectedTypePosition = position
-        filterTypeTV.text = types[position]
+        filterTypeTV.text = types[position].name
         filterAdapter.setItemSelected(position)
         onFilterTypeSelected.invoke(types[position])
         if (selectedTypePosition != NON_INIT_SELECTED) {
@@ -66,14 +74,14 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     fun show() {
         filterView.visibility = View.GONE
         if (!this::inflatedView.isInitialized) {
-            filterAdapter = FilterAdapter(types.map { FilterItem(it) }.toMutableList()).apply {
+            filterAdapter = FilterAdapter(types.map { FilterItem(it.name) }.toMutableList()).apply {
                     setOnItemClickListener { _,_, position ->
                         updateStatus(position)
                     }
                 }
             inflatedView = binding.vsFilter.inflate()
             filterTypeTV = inflatedView.findViewById<TextView?>(R.id.tv_filter_type).apply {
-                text = types[0]
+                text = types[0].name
             }
             inflatedView.findViewById<AppCompatImageView>(R.id.iv_filter_close).setOnClickListener {
                 hide()
@@ -121,6 +129,10 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         filterView.visibility = View.VISIBLE
     }
 
+    fun resetEffect() {
+        // todo
+    }
+
 
     companion object {
         val TAG = FilterBar::class.java.simpleName
@@ -128,7 +140,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     }
 }
 
-data class FilterItem(val type: String)
+data class FilterItem(val name: String)
 
 class FilterViewHolder(itemView: View): BaseViewHolder(itemView) {
     private val imageView = itemView.findViewById<AppCompatImageView>(R.id.image_item_filter)
@@ -178,3 +190,8 @@ class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterIte
         selectedFilter.value = position
     }
 }
+
+//data class FilterType(val name: String, val bitmap: Bitmap? = null)
+
+// color filter is in [0, 9), lut filter is in [10, )
+data class FilterType(val name: String, val tag: Int, val resId: Int)
