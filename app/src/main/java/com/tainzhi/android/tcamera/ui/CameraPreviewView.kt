@@ -48,7 +48,10 @@ class CameraPreviewView : GLSurfaceView {
     }
 
     fun changeFilterType(filterType: FilterType) {
-        cameraPreviewRender.changeFilterType(filterType)
+        // 必须 GLThread 中才能施加新特效
+        queueEvent {
+            cameraPreviewRender.changeFilterType(filterType)
+        }
     }
 
     fun changePreviewAspectRatio() {

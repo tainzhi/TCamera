@@ -37,9 +37,21 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         types.add(FilterType("Reverse", 3, 0))
         types.add(FilterType("Brightness", 4, 0))
         types.add(FilterType("Posterization", 5, 0))
-        types.add(FilterType("Amatorka", 10, R.raw.lut_filter_amatorka))
-        types.add(FilterType("HighKey", 11, R.raw.lut_filter_highkey))
-        types.add(FilterType("Purity", 12, R.raw.lut_filter_purity))
+        types.add(FilterType("Amatorka", 10, R.raw.lut_amatorka))
+        types.add(FilterType("Beagle", 11, R.raw.lut_beagle))
+        types.add(FilterType("Birman", 12, R.raw.lut_birman))
+        types.add(FilterType("Corgis", 13, R.raw.lut_corgis))
+        types.add(FilterType("HighKey", 14, R.raw.lut_highkey))
+        types.add(FilterType("Labrador", 15, R.raw.lut_labrador))
+        types.add(FilterType("Maine", 16, R.raw.lut_maine))
+        types.add(FilterType("Mono", 17, R.raw.lut_mono))
+        types.add(FilterType("Persian", 18, R.raw.lut_persian))
+        types.add(FilterType("Poodle", 19, R.raw.lut_poodle))
+        types.add(FilterType("Pug", 290, R.raw.lut_pug))
+        types.add(FilterType("Purity", 21, R.raw.lut_purity))
+        types.add(FilterType("ShortHair", 22, R.raw.lut_shorthair))
+        types.add(FilterType("Siamese", 23, R.raw.lut_siamese))
+        types.add(FilterType("Vertical", 24, R.raw.lut_vertical))
     }
 
     private var selectedTypePosition = NON_INIT_SELECTED
@@ -189,7 +201,6 @@ class FilterViewHolder(itemView: View): BaseViewHolder(itemView) {
 class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterItem, FilterViewHolder>(R.layout.item_filter, types) {
     private var selectedFilter = MutableLiveData(NON_INIT_SELECTED)
     override fun convert(holder: FilterViewHolder, item: FilterItem) {
-        // holder.setText(R.id.tv_item_filter_type, item)
         holder.apply {
             index = holder.layoutPosition
             selected = selectedFilter
@@ -207,7 +218,6 @@ class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterIte
     }
 }
 
-//data class FilterType(val name: String, val bitmap: Bitmap? = null)
 
 // color filter is in [0, 9), lut filter is in [10, )
 data class FilterType(val name: String, val tag: Int, val resId: Int)

@@ -18,11 +18,11 @@ object GlUtil {
 
     var glVersion = 3
 
-    fun loadTextureFromRes(sourceId: Int): Int {
+    fun loadTextureFromRes(resId: Int): Int {
         val options = BitmapFactory.Options().apply {
             inScaled = false
         }
-        val bitmap = BitmapFactory.decodeResource(App.getInstance().resources, sourceId, options)
+        val bitmap = BitmapFactory.decodeResource(App.getInstance().resources, resId, options)
         if (bitmap == null) {
             Log.e(TAG, "loadTextureFromRes: bitmap is null")
         }

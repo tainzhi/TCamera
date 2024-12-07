@@ -42,6 +42,7 @@ class PreviewTexture : Texture() {
         textureVertexBuffer = ByteBuffer.allocateDirect(textureVertices.size * 4)
             .order(ByteOrder.nativeOrder()).asFloatBuffer()
         textureVertexBuffer.put(textureVertices).position(0)
+        isLutFilter = true
     }
 
     override fun unload() {
@@ -66,9 +67,8 @@ class PreviewTexture : Texture() {
         GLES20.glActiveTexture(FILTER_TEXTURE)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, filterTextureId)
         setInt("u_textureLUT", FILTER_TEXTURE - GLES20.GL_TEXTURE0)
-        if (isLutFilter) {
-            setInt("u_filterType", filterType.tag)
-        }
+        Log.d(TAG, "onDraw: isLutFilter:$isLutFilter, filterTextureId:${filterTextureId}")
+        setInt("u_filterType", filterType.tag)
         // set vertex attribute
         GLES20.glVertexAttribPointer(programHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer)
         GLES20.glEnableVertexAttribArray(programHandle)
@@ -87,10 +87,12 @@ class PreviewTexture : Texture() {
     }
 
     fun changeFilterType(type: FilterType) {
-        Log.d(TAG, "changeFilterType: type=$filterType")
+        // 必须要在GLThread才有效果
         filterType = type
-        if (type.tag in 10..12) {
-            filterTextureId = GlUtil.loadTextureFromRes(type.resId)
+        // 10 以上是 lut filter
+        if (type.tag >= 10) {
+            Log.d(TAG, "changeFilterType: type=$filterType")
+            filterTextureId = GlUtil.loadTextureFromRes(filterType.resId)
             isLutFilter = true
         }
     }
