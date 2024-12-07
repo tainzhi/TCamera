@@ -16,7 +16,8 @@ public:
     Engine(std::string cachePath);
     void init();
     void collectImage(int jobId, cv::Mat &image);
-    void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int frameSize, std::vector<float>
+    void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
+                    std::vector<float>
             exposureTimes);
     void deinit();
     ~Engine();

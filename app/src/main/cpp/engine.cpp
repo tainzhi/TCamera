@@ -20,8 +20,10 @@ void Engine::collectImage(int jobId, cv::Mat &image) {
     getCaptureManager()->collectFrame(jobId, image);
 }
 
-void Engine::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int frameSize, std::vector<float> exposureTimes) {
-    getCaptureManager()->addCapture(jobId, captureType, frameSize, std::move(timeStamp), std::move(exposureTimes));
+void Engine::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
+                        std::vector<float> exposureTimes) {
+    getCaptureManager()->addCapture(jobId, captureType, std::move(timeStamp), orientation, frameSize, std::move
+    (exposureTimes));
 }
 
 

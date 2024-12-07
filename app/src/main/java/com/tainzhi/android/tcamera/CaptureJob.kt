@@ -1,5 +1,6 @@
 package com.tainzhi.android.tcamera
 
+import android.R.attr.orientation
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -246,12 +247,13 @@ class CaptureJob {
         captureJobManager: CaptureJobManager,
         captureTime: Long,
         captureType: CaptureType,
+        orientation: Int,
         exposureTimes: List<Long>
     ) : this(context, captureJobManager, captureTime, captureType) {
         this.exposureTimes = exposureTimes
         if (captureType == CaptureType.HDR) {
             yuvImageSize = MainActivity.CAPTURE_HDR_FRAME_SIZE
-            ImageProcessor.instance.capture(id, captureType.ordinal,"${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}",  yuvImageSize, exposureTimes)
+            ImageProcessor.instance.capture(id, captureType.ordinal,"${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}", orientation,  yuvImageSize, exposureTimes)
         }
     }
 

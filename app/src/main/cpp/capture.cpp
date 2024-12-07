@@ -19,9 +19,11 @@ CaptureManager::CaptureManager(std::string cachePath): cachePath(cachePath) {
     LOGD("%s, CaptureManager created", __FUNCTION__);
 }
 
-void CaptureManager::addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes) {
+void
+CaptureManager::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
+                           std::vector<float> exposureTimes) {
     LOGD("%s, addCapture job:%d, jobs size:%u", __FUNCTION__, jobId, jobs.size());
-    auto job = std::make_shared<CaptureJob>(jobId, captureType, timeStamp, frameSize);
+    auto job = std::make_shared<CaptureJob>(jobId, captureType, timeStamp, orientation, frameSize);
     job->exposureTimes = exposureTimes;
     auto it = jobs.find(jobId);
     jobs[jobId] = job;
@@ -74,15 +76,33 @@ void CaptureManager::process(int jobId) {
         for (size_t i = 0; i < jobs[jobId]->frameSize; i++) {
             cv::cvtColor(jobs[jobId]->frames[i], rgbMats[i], cv::COLOR_YUV420sp2RGB);
         }
+        jobs[jobId]->frames.clear();
         merge_mertens->process(rgbMats, fusion);
+        rgbMats.clear();
         // 必须把[0,1]转到[0,255], 才能保存成jpeg
         fusion = fusion * 255;
+        
+        cv::Mat rotatedImage;
+        LOGD("%s, orientation:%d", __FUNCTION__, jobs[jobId]->orientation);
+        switch (jobs[jobId]->orientation) {
+            case 90:
+                cv::rotate(fusion, rotatedImage, cv::ROTATE_90_CLOCKWISE);
+                break;
+            case 180:
+                cv::rotate(fusion, rotatedImage, cv::ROTATE_180);
+                break;
+            case 270:
+                cv::rotate(fusion, rotatedImage, cv::ROTATE_90_COUNTERCLOCKWISE);
+                break;
+        }
+        fusion.release();
+        
         auto hdr_t= cv::getTickCount();
         // int64 必须要转成 int，否则输出会丢失精度后变成负值
         LOGD("%s, hdr processing cost %d s", __FUNCTION__, static_cast<int>((hdr_t - start_t) /
         cv::getTickFrequency()));
 
-        // 在这里无需手动转成jpeg，直接 cv:imwrite(jpeg)即可
+        // not needed: 在这里无需手动转成jpeg，直接 cv:imwrite(jpeg)即可
         // // default set jpeg quality to 95
         // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
         // std::vector<uchar> buffer;
@@ -90,7 +110,7 @@ void CaptureManager::process(int jobId) {
         std::string filePath = cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
         LOGD("%s, save hdr image to %s", __FUNCTION__, filePath.c_str());
         // 把生成的写到jpeg图片写到 filePath， quality 为 100
-        cv::imwrite(filePath, fusion, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
+        cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
         Listener::onCaptured(jobId, filePath);
         LOGD("%s, end job-%d", __FUNCTION__ , jobId);
     }

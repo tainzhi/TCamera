@@ -84,6 +84,7 @@ class ImageProcessor private constructor(val context: Context) {
         jobId: Int,
         captureType: Int,
         timeStamp: String,
+        orientation: Int,
         frameSize: Int,
         exposureTimes: List<Long>
     )

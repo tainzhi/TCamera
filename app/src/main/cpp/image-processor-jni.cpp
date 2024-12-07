@@ -161,7 +161,8 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_pl
 
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type,
-                                                        jstring time_stamp, jint frame_size, jobject exposure_times) {
+                                                        jstring time_stamp, jint orientation, jint frame_size, jobject
+                                                        exposure_times) {
     LOGD("%s", __FUNCTION__);
     // java 传过来的exposure_time 是纳秒，需要转换为秒
     // 获取List类和相关方法ID
@@ -174,7 +175,7 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
         exposureTimes.push_back(exposureTime / 1000000000.0);
     }
     env->DeleteLocalRef(listClass);
-    engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp),
+    engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp), orientation,
                        frame_size, exposureTimes);
 }
 
@@ -236,7 +237,7 @@ static JNINativeMethod methods[] = {
     {"init", "(Landroid/content/Context;)V", (void *) ImageProcessor_init},
     {"deinit", "()V", (void *) ImageProcessor_deinit},
     {"collectImage", "(ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;II)V", (void *) ImageProcessor_collectImage},
-    {"capture", "(IILjava/lang/String;ILjava/util/List;)V", (void *) ImageProcessor_capture},
+    {"capture", "(IILjava/lang/String;IILjava/util/List;)V", (void *) ImageProcessor_capture},
     {"handlePreviewImage", "(Landroid/media/Image;)V", (void *) ImageProcessor_handlePreviewImage},
     {"abortCapture", "(I)V", (void *) ImageProcessor_abortCapture}
 };

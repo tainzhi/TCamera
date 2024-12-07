@@ -1039,7 +1039,6 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "captureStillPicture: no yuv image available")
                 return
             }
-            val displayRotation = this.display!!.rotation
             val captureBuilder =
                 if (zslImageWriter != null && captureType != CaptureType.HDR
                 ) {
@@ -1066,10 +1065,7 @@ class MainActivity : AppCompatActivity() {
                 // https://developer.android.com/training/camera2/camera-preview#orientation_calculation
                 // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
                 // sign 1 for front-facing cameras, -1 for back-facing cameras
-                set(
-                    CaptureRequest.JPEG_ORIENTATION,
-                    (sensorOrientation!! - OREIENTATIONS.get(displayRotation) * (if (useCameraFront) 1 else -1) + 360) % 360
-                )
+                set(CaptureRequest.JPEG_ORIENTATION, getMediaOrientation())
                 set(
                     CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
@@ -1197,6 +1193,7 @@ class MainActivity : AppCompatActivity() {
                     captureJobManager,
                     System.currentTimeMillis(),
                     captureType,
+                    getMediaOrientation(),
                     exposureTimeList
                 )
                 previewSession?.apply {
@@ -1343,9 +1340,8 @@ class MainActivity : AppCompatActivity() {
                 System.currentTimeMillis(),
                 CaptureType.VIDEO
             ).uri
-            val displayRotation = this.display!!.rotation
             mediaRecorder.apply {
-                setOrientationHint((sensorOrientation!! - OREIENTATIONS.get(displayRotation) * (if (useCameraFront) 1 else -1) + 360) % 360)
+                setOrientationHint(getMediaOrientation())
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -1470,6 +1466,11 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             window.attributes = layoutAttributes
         }
+    }
+
+    private fun getMediaOrientation(): Int {
+        val displayRotation = this.display!!.rotation
+        return (sensorOrientation!! - OREIENTATIONS.get(displayRotation) * (if (useCameraFront) 1 else -1) + 360) % 360
     }
 
     companion object {

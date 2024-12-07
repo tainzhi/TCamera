@@ -25,20 +25,22 @@ struct CaptureJob {
     int id;
     CaptureType captureType;
     std::string timeStamp;
+    int orientation;
     int frameSize;
     int frameWidth;
     int frameHeight;
     std::vector<cv::Mat> frames;
     std::vector<float> exposureTimes;
-    CaptureJob(int id, CaptureType captureType, std::string timeStamp, int frameSize): id(id),
-    captureType(captureType), timeStamp(timeStamp), frameSize(frameSize) {}
+    CaptureJob(int id, CaptureType captureType, std::string timeStamp, int orientation, int frameSize): id(id),
+    captureType(captureType), timeStamp(timeStamp), orientation(orientation), frameSize(frameSize) {}
 };
 
 class CaptureManager: public Looper {
 public:
     ~CaptureManager();
     CaptureManager(std::string cachePath);
-    void addCapture(int jobId, CaptureType captureType, int frameSize, std::string timeStamp, std::vector<float> exposureTimes);
+    void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
+                    std::vector<float> exposureTimes);
     void collectFrame(int jobId, cv::Mat frame);
 private:
     void handle(int what, void *data);
