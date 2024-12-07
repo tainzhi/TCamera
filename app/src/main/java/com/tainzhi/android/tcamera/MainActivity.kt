@@ -414,7 +414,7 @@ class MainActivity : AppCompatActivity() {
                             ivRecord.visibility = View.INVISIBLE
                             ivTakePicture.visibility = View.VISIBLE
                             videoIndicator.hide()
-                            filterBar.show()
+                            filterBar.showTrigger()
                         }
 
                         CameraMode.VIDEO -> {
@@ -422,7 +422,8 @@ class MainActivity : AppCompatActivity() {
                             ivTakePicture.visibility = View.INVISIBLE
                             videoIndicator.show()
                             filterBar.resetEffect()
-                            filterBar.hide()
+                            filterBar.hideFilterChooser()
+                            filterBar.hideTrigger()
                         }
                     }
                     isNeedRecreateCaptureSession = true

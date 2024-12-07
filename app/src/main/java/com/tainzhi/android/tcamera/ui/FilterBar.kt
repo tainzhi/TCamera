@@ -18,16 +18,16 @@ import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.viewholder.BaseViewHolder
+import com.tainzhi.android.tcamera.App
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.R
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.NON_INIT_SELECTED
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.TAG
-import com.tainzhi.android.tcamera.util.SettingsManager
 
 class FilterBar(val context: Context, val binding: ActivityMainBinding, private val onFilterTypeSelected: (type: FilterType) -> Unit) {
-    private lateinit var inflatedView: View
     private lateinit var filterTypeTV: TextView
-    private lateinit var recyclerView: RecyclerView
+    private var inflatedView: View? = null
+    private var recyclerView: RecyclerView? = null
     private lateinit var filterAdapter: FilterAdapter
     private val types =  mutableListOf<FilterType>()
     init {
@@ -56,7 +56,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     }
     private val filterView = binding.filter.apply {
         setOnClickListener {
-            show()
+            showFilterChooser()
         }
     }
     private fun updateStatus(position: Int) {
@@ -71,22 +71,22 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         }
     }
 
-    fun show() {
+    fun showFilterChooser() {
         filterView.visibility = View.GONE
-        if (!this::inflatedView.isInitialized) {
+        if (inflatedView == null) {
             filterAdapter = FilterAdapter(types.map { FilterItem(it.name) }.toMutableList()).apply {
                     setOnItemClickListener { _,_, position ->
                         updateStatus(position)
                     }
                 }
             inflatedView = binding.vsFilter.inflate()
-            filterTypeTV = inflatedView.findViewById<TextView?>(R.id.tv_filter_type).apply {
+            filterTypeTV = inflatedView!!.findViewById<TextView?>(R.id.tv_filter_type).apply {
                 text = types[0].name
             }
-            inflatedView.findViewById<AppCompatImageView>(R.id.iv_filter_close).setOnClickListener {
-                hide()
+            inflatedView!!.findViewById<AppCompatImageView>(R.id.iv_filter_close).setOnClickListener {
+                hideFilterChooser()
             }
-            inflatedView.findViewById<RecyclerView>(R.id.filter_recylerview).run {
+            inflatedView!!.findViewById<RecyclerView>(R.id.filter_recylerview).run {
                 recyclerView = this
                 addOnScrollListener(scrollListener)
                 snapHelper.attachToRecyclerView(this)
@@ -118,19 +118,35 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
 
             }
         } else {
-            inflatedView.visibility = View.VISIBLE
-            recyclerView.addOnScrollListener(scrollListener)
+            inflatedView!!.visibility = View.VISIBLE
+            recyclerView?.addOnScrollListener(scrollListener)
         }
     }
 
-    fun hide() {
-        recyclerView.removeOnScrollListener(scrollListener)
-        inflatedView.visibility = View.GONE
+    fun hideFilterChooser() {
+        recyclerView?.removeOnScrollListener(scrollListener)
+        inflatedView?.visibility = View.GONE
         filterView.visibility = View.VISIBLE
     }
 
     fun resetEffect() {
-        // todo
+        if (App.DEBUG) {
+            Log.d(TAG, "resetEffect: ")
+        }
+    }
+
+    fun showTrigger() {
+        if (App.DEBUG) {
+            Log.d(TAG, "showTrigger: ")
+        }
+        filterView.visibility = View.VISIBLE
+    }
+
+    fun hideTrigger() {
+        if (App.DEBUG) {
+            Log.d(TAG, "hideTrigger: ")
+        }
+        filterView.visibility = View.GONE
     }
 
 
