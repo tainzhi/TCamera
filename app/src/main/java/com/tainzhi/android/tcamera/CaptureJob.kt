@@ -125,7 +125,6 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
                 if (stream != null) {
                     stream.write(processedImageBytes)
                     stream.close()
-                    generateThumbnail(job.id)
                 } else {
                     throw IOException("Failed to create new MediaStore record")
                 }
@@ -259,7 +258,6 @@ class CaptureJob {
 
     private fun getMediaUri(): Uri? {
         val relativeLocation = Environment.DIRECTORY_DCIM + "/Camera"
-        // todo: 用拍照时间做文件名，而不是当前保存文件时间
         lateinit var fileName: String
         var mediaUri: Uri?
         val contentValues = ContentValues().apply {
