@@ -67,7 +67,6 @@ class PreviewTexture : Texture() {
         GLES20.glActiveTexture(FILTER_TEXTURE)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, filterTextureId)
         setInt("u_textureLUT", FILTER_TEXTURE - GLES20.GL_TEXTURE0)
-        Log.d(TAG, "onDraw: isLutFilter:$isLutFilter, filterTextureId:${filterTextureId}")
         setInt("u_filterType", filterType.tag)
         // set vertex attribute
         GLES20.glVertexAttribPointer(programHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer)

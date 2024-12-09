@@ -124,6 +124,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var jpegImageReader: ImageReader
     private lateinit var yuvImageReader: ImageReader
     private var yuvImage: Image? = null
+    // todo: 目前有两路preview流，一路preview到屏幕 + 一路yuv用于生成filter thumbnail
+    // 后期优化中，只使用一路yuv流，既可以渲染到屏幕，也能生成filter thumbnail
+    private lateinit var previewYuvImageReader: ImageReader
 
     // todo: 启用MediaRecorder后，也不再每次拍照时都需创建 CameraCaptureSession
     // 只需创建一次 previewSession.addTarget(previewSurface, recorder.surface)
@@ -733,6 +736,12 @@ class MainActivity : AppCompatActivity() {
                         captureJobManager.processJpegImage(it)
                     }
                 }, imageReaderHandler)
+                previewYuvImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.YUV_420_888, 1)
+                previewYuvImageReader.setOnImageAvailableListener({ reader ->
+                    reader.acquireLatestImage()?.let {
+                        ImageProcessor.instance.handlePreviewImage(it)
+                    }
+                }, imageReaderHandler)
             }
 //        make activity portrait, so not handle sensor rotation
 //        // device display rotation
@@ -828,6 +837,7 @@ class MainActivity : AppCompatActivity() {
         previewSurface.release()
         // close target surface in CaptureSession.onClosed
         jpegImageReader.close()
+        previewYuvImageReader.close();
         if (isEnableZsl) {
             yuvImageReader.close()
             zslImageWriter?.close()
@@ -873,10 +883,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val outputConfigurations = mutableListOf(OutputConfiguration(previewSurface))
+                val outputConfigurations = mutableListOf(
+                    OutputConfiguration(previewSurface),
+                )
                 if (currentCameraMode == CameraMode.PHOTO) {
                     Log.d(TAG, "setPreviewSession: photo")
                     outputConfigurations.add(OutputConfiguration(jpegImageReader.surface))
+                    outputConfigurations.add(OutputConfiguration(previewYuvImageReader.surface))
                     val isHdr =
                         SettingsManager.instance.getBoolean(SettingsManager.KEY_HDR_ENABLE, false)
                     if (isEnableZsl || isHdr) {
@@ -957,6 +970,7 @@ class MainActivity : AppCompatActivity() {
                 cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
             previewRequestBuilder.addTarget(previewSurface)
             if (currentCameraMode == CameraMode.PHOTO) {
+                previewRequestBuilder.addTarget(previewYuvImageReader.surface)
                 if (isEnableZsl && !isHdr) {
                     previewRequestBuilder.addTarget(yuvImageReader.surface)
                 }

@@ -162,7 +162,7 @@ class CameraInfoCache(cameraManager: CameraManager, useFrontCamera: Boolean = fa
          * 时返回的结果size大小
          * Portrait方向时，width < height转换下， landscape方向时，width > height 无需转换
          *                      确保 viewSize.width > view.height
-         * @param aspectRatio   需要选的sensor输出的image的w:h比例
+         * @param ratioValue   需要选的sensor输出的image的w:h比例
          *      比如 1:1, 4:3, 16:9, full=device最长的边: device的短边
          * @return size和是否size的w:h == aspectRatio
          */

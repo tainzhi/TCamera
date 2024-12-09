@@ -181,6 +181,7 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
 
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
+    LOGD("%s", __FUNCTION__);
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
@@ -194,20 +195,20 @@ ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
     for (int i = 0; i < planeCount; i++) {
         // 获取每个 Plane 对象
         jobject plane = env->GetObjectArrayElement(planes, i);
-
+        
         // 获取 Plane 类的类对象
         jclass planeClass = env->GetObjectClass(plane);
         jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
         jmethodID getRowStrideMethod = env->GetMethodID(planeClass, "getRowStride", "()I");
         jmethodID getPixelStrideMethod = env->GetMethodID(planeClass, "getPixelStride", "()I");
-
+        
         // 调用 getBuffer 方法获取 ByteBuffer
         jobject buffer = env->CallObjectMethod(plane, getBufferMethod);
-
+        
         // 调用 getRowStride 和 getPixelStride 方法获取行间距和像素间距
         jint rowStride = env->CallIntMethod(plane, getRowStrideMethod);
         jint pixelStride = env->CallIntMethod(plane, getPixelStrideMethod);
-
+        
         // kepp 保留, 不要删除
         // // 获取 ByteBuffer 的直接缓冲区
         // jbyteArray byteArray = (jbyteArray) env->NewByteArray(rowStride);
@@ -225,6 +226,8 @@ ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
         env->DeleteLocalRef(buffer);
         env->DeleteLocalRef(planeClass);
     }
+    jmethodID closeMethod = env->GetMethodID(imageClass, "close", "()V");
+    env->CallVoidMethod(image, closeMethod);
     env->DeleteLocalRef(imageClass);
 }
 
