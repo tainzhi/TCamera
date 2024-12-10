@@ -37,6 +37,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         types.add(FilterType("Reverse", 3, 0))
         types.add(FilterType("Brightness", 4, 0))
         types.add(FilterType("Posterization", 5, 0))
+        // non-lut < 10, lut filter >= 10
         types.add(FilterType("Amatorka", 10, R.raw.lut_amatorka))
         types.add(FilterType("Beagle", 11, R.raw.lut_beagle))
         types.add(FilterType("Birman", 12, R.raw.lut_birman))
@@ -47,7 +48,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         types.add(FilterType("Mono", 17, R.raw.lut_mono))
         types.add(FilterType("Persian", 18, R.raw.lut_persian))
         types.add(FilterType("Poodle", 19, R.raw.lut_poodle))
-        types.add(FilterType("Pug", 290, R.raw.lut_pug))
+        types.add(FilterType("Pug", 20, R.raw.lut_pug))
         types.add(FilterType("Purity", 21, R.raw.lut_purity))
         types.add(FilterType("ShortHair", 22, R.raw.lut_shorthair))
         types.add(FilterType("Siamese", 23, R.raw.lut_siamese))
@@ -61,34 +62,34 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             if (dx != 0) {
                 snapHelper.findSnapView(recyclerView.layoutManager)?.let {
                     val position = recyclerView.getChildAdapterPosition(it)
-                    updateStatus(position)
+                    updateTriggerStatus(position)
                 }
             }
         }
     }
-    private val filterView = binding.filter.apply {
+    private val filterTrigger = binding.ivFilterTrigger.apply {
         setOnClickListener {
             showFilterChooser()
         }
     }
-    private fun updateStatus(position: Int) {
+    private fun updateTriggerStatus(position: Int) {
         selectedTypePosition = position
         filterTypeTV.text = types[position].name
         filterAdapter.setItemSelected(position)
         onFilterTypeSelected.invoke(types[position])
         if (selectedTypePosition != NON_INIT_SELECTED) {
-            filterView.setImageResource(R.drawable.ic_filter_selected)
+            filterTrigger.setImageResource(R.drawable.ic_filter_selected)
         } else {
-            filterView.setImageResource(R.drawable.ic_filter)
+            filterTrigger.setImageResource(R.drawable.ic_filter)
         }
     }
 
     fun showFilterChooser() {
-        filterView.visibility = View.GONE
+        filterTrigger.visibility = View.GONE
         if (inflatedView == null) {
             filterAdapter = FilterAdapter(types.map { FilterItem(it.name) }.toMutableList()).apply {
                     setOnItemClickListener { _,_, position ->
-                        updateStatus(position)
+                        updateTriggerStatus(position)
                     }
                 }
             inflatedView = binding.vsFilter.inflate()
@@ -138,7 +139,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     fun hideFilterChooser() {
         recyclerView?.removeOnScrollListener(scrollListener)
         inflatedView?.visibility = View.GONE
-        filterView.visibility = View.VISIBLE
+        filterTrigger.visibility = View.VISIBLE
     }
 
     fun resetEffect() {
@@ -151,14 +152,14 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         if (App.DEBUG) {
             Log.d(TAG, "showTrigger: ")
         }
-        filterView.visibility = View.VISIBLE
+        filterTrigger.visibility = View.VISIBLE
     }
 
     fun hideTrigger() {
         if (App.DEBUG) {
             Log.d(TAG, "hideTrigger: ")
         }
-        filterView.visibility = View.GONE
+        filterTrigger.visibility = View.GONE
     }
 
 

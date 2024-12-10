@@ -268,4 +268,3 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     Util::gCachedJavaVm = vm;
     return JNI_VERSION_1_6;
 }
-
