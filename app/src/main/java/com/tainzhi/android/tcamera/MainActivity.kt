@@ -739,7 +739,7 @@ class MainActivity : AppCompatActivity() {
                 previewYuvImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.YUV_420_888, 1)
                 previewYuvImageReader.setOnImageAvailableListener({ reader ->
                     reader.acquireLatestImage()?.let {
-                        ImageProcessor.instance.handlePreviewImage(it)
+                        filterBar.processPreviewToGenerateFilterEffects(it)
                     }
                 }, imageReaderHandler)
             }

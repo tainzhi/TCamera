@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.media.Image
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -19,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.viewholder.BaseViewHolder
 import com.tainzhi.android.tcamera.App
+import com.tainzhi.android.tcamera.ImageProcessor
 import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.R
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.NON_INIT_SELECTED
@@ -136,6 +138,10 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         }
     }
 
+    fun processPreviewToGenerateFilterEffects(image: Image) {
+        ImageProcessor.instance.handlePreviewImage(image)
+    }
+
     fun hideFilterChooser() {
         recyclerView?.removeOnScrollListener(scrollListener)
         inflatedView?.visibility = View.GONE
@@ -221,4 +227,4 @@ class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterIte
 
 
 // color filter is in [0, 9), lut filter is in [10, )
-data class FilterType(val name: String, val tag: Int, val resId: Int)
+data class FilterType(val name: String, val tag: Int, val resId: Int, var bitmap: Bitmap? = null)
