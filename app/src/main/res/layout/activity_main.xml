@@ -92,7 +92,7 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/filter"
+            android:id="@+id/iv_filter_trigger"
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginEnd="24dp"
@@ -133,7 +133,7 @@
                 android:layout_width="200dp"
                 android:layout_height="30dp"
                 android:layout_marginBottom="24dp"
-                app:layout_constraintBottom_toTopOf="@id/picture"
+                app:layout_constraintBottom_toTopOf="@id/iv_picture"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:spv_alignment="center"
@@ -162,7 +162,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 />
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_thumbnail_video"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
@@ -175,8 +175,8 @@
                 tools:visibility="visible"
                 />
 
-        <ImageView
-                android:id="@+id/picture"
+        <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/iv_picture"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/btn_take_picture"
@@ -186,7 +186,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 />
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_record"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -199,7 +199,7 @@
                 tools:visibility="visible"
                 />
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_switch_camera"
                 android:layout_width="0dp"
                 android:layout_height="0dp"

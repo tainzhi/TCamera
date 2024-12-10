@@ -351,13 +351,13 @@ class MainActivity : AppCompatActivity() {
             cameraPreviewView.changeFilterType(it)
         }
 
-        cameraPreviewView = findViewById(R.id.previewView)
-        ivThumbnail = findViewById<CircleImageView>(R.id.iv_thumbnail).apply {
+        cameraPreviewView = _binding.previewView
+        ivThumbnail = _binding.ivThumbnail.apply {
             setOnClickListener {
                 viewMedia()
             }
         }
-        ivThumbnailVideo = findViewById(R.id.iv_thumbnail_video)
+        ivThumbnailVideo = _binding.ivThumbnailVideo
         SettingsManager.instance.getLastCapturedMediaUri()?.let {
             imageReaderHandler.post({
                 lastCapturedMediaUri = SettingsManager.instance.getLastCapturedMediaUri()
@@ -377,7 +377,7 @@ class MainActivity : AppCompatActivity() {
                 }
             })
         }
-        ivTakePicture = findViewById<ImageView>(R.id.picture).apply {
+        ivTakePicture = _binding.ivPicture.apply {
             setOnClickListener {
                 // Most device front lenses/camera have a fixed focal length
                 // for front camera, doesn't need lock focus
@@ -390,12 +390,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        ivRecord = findViewById<ImageView>(R.id.iv_record).apply {
+        ivRecord = _binding.ivRecord.apply {
             setOnClickListener {
                 if (isRecordingVideo) stopVideo() else startVideo()
             }
         }
-        ivSwitchCamera = findViewById<ImageView>(R.id.iv_switch_camera).apply {
+        ivSwitchCamera = _binding.ivSwitchCamera.apply {
             setOnClickListener {
                 Log.d(TAG, "click switch camera icon")
                 isNeedReopenCamera = true
