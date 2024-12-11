@@ -3,8 +3,10 @@ package com.tainzhi.android.tcamera.ui
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.media.Image
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -25,6 +27,8 @@ import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.R
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.NON_INIT_SELECTED
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.TAG
+import com.tainzhi.android.tcamera.util.Kpi
+import kotlin.math.roundToInt
 
 class FilterBar(val context: Context, val binding: ActivityMainBinding, private val onFilterTypeSelected: (type: FilterType) -> Unit) {
     private lateinit var filterTypeTV: TextView
@@ -56,6 +60,8 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         types.add(FilterType("Siamese", 23, R.raw.lut_siamese))
         types.add(FilterType("Vertical", 24, R.raw.lut_vertical))
     }
+    private val lutBitmaps = mutableListOf<Bitmap?>()
+    private var filterChooserShow = false
 
     private var selectedTypePosition = NON_INIT_SELECTED
     private val snapHelper = LinearSnapHelper()
@@ -136,22 +142,77 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             inflatedView!!.visibility = View.VISIBLE
             recyclerView?.addOnScrollListener(scrollListener)
         }
+        configureFilterThumbnails()
+        filterChooserShow = true
     }
 
-    fun processPreviewToGenerateFilterEffects(image: Image) {
-        ImageProcessor.instance.handlePreviewImage(image)
+    private fun configureFilterThumbnails() {
+        Log.d(TAG, "configureFilterThumbnails: ")
+        Kpi.start(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
+        val thumbnailSize = getThumbnailSize()
+        types.forEach { t ->
+            t.bitmap = Bitmap.createBitmap(thumbnailSize, thumbnailSize, Bitmap.Config.ARGB_8888)
+        }
+        val bitmapOptions = BitmapFactory.Options().apply {
+            inScaled = false
+        }
+        for (i in 0 until types.size) {
+            if (i < 10) {
+                lutBitmaps.add(null)
+            } else {
+                val bitmap = BitmapFactory.decodeResource(
+                    App.getInstance().resources,
+                    types[i].resId,
+                    bitmapOptions
+                )
+                if (bitmap == null) {
+                    Log.e(TAG, "load bitmap from lut ${types[i].name} failed: bitmap is null")
+                }
+                lutBitmaps.add(bitmap)
+            }
+        }
+        ImageProcessor.instance.configureFilterThumbnails(
+            thumbnailSize, thumbnailSize, types.map{it.name}, types.map { it.tag}, lutBitmaps
+        )
+        Kpi.end(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
+    }
+
+    fun processThumbnails(image: Image) {
+        if (filterChooserShow) {
+            Kpi.start(Kpi.TYPE.PROCESS_FILTER_THUMBNAIL)
+            if (ImageProcessor.instance.processFilterThumbnails(image)) {
+                filterAdapter.updateFilterEffectBitmaps(types.map { it.bitmap } as List<Bitmap>)
+            } else {
+                Log.e(TAG, "processThumbnails: failed to process thumbnails")
+            }
+            Kpi.start(Kpi.TYPE.PROCESS_FILTER_THUMBNAIL)
+        }
     }
 
     fun hideFilterChooser() {
         recyclerView?.removeOnScrollListener(scrollListener)
         inflatedView?.visibility = View.GONE
         filterTrigger.visibility = View.VISIBLE
+        filterChooserShow = false
     }
 
     fun resetEffect() {
         if (App.DEBUG) {
             Log.d(TAG, "resetEffect: ")
         }
+        types.forEach { t ->
+            {
+                t.bitmap?.recycle()
+                t.bitmap = null
+            }
+        }
+        lutBitmaps.forEach { t ->
+            {
+                t?.recycle()
+            }
+        }
+        lutBitmaps.clear()
+        ImageProcessor.instance.clearFilterThumbnails()
     }
 
     fun showTrigger() {
@@ -166,6 +227,14 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             Log.d(TAG, "hideTrigger: ")
         }
         filterTrigger.visibility = View.GONE
+    }
+
+    private fun getThumbnailSize(): Int {
+        val dpi = context.resources.displayMetrics.densityDpi
+        val dp = context.resources.getDimension(R.dimen.camera_filter_item_width)
+        var size = (dp * ((dpi.toFloat() / DisplayMetrics.DENSITY_DEFAULT))).roundToInt()
+        // make to even
+        return size + size % 2;
     }
 
 
@@ -206,11 +275,13 @@ class FilterViewHolder(itemView: View): BaseViewHolder(itemView) {
 }
 
 class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterItem, FilterViewHolder>(R.layout.item_filter, types) {
-    private var selectedFilter = MutableLiveData(NON_INIT_SELECTED)
+    private var selectedIndex = MutableLiveData(NON_INIT_SELECTED)
+    private var bitmapsLiveData = ArrayList<MutableLiveData<Bitmap>>(types.size)
     override fun convert(holder: FilterViewHolder, item: FilterItem) {
         holder.apply {
             index = holder.layoutPosition
-            selected = selectedFilter
+            selected = selectedIndex
+            bitmap = bitmapsLiveData[holder.layoutPosition]
             addObservable()
         }
     }
@@ -221,7 +292,13 @@ class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterIte
     }
 
     fun setItemSelected(position: Int) {
-        selectedFilter.value = position
+        selectedIndex.value = position
+    }
+
+    fun updateFilterEffectBitmaps(bitmaps: List<Bitmap>) {
+        for (i in 0 until bitmaps.size) {
+            bitmapsLiveData[i].value = bitmaps[i]
+        }
     }
 }
 

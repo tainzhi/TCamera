@@ -1,10 +1,10 @@
 package com.tainzhi.android.tcamera
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.ImageFormat
 import android.media.Image
 import android.util.Log
-import com.tainzhi.android.tcamera.util.SettingsManager
 import java.nio.ByteBuffer
 import kotlin.jvm.javaClass
 
@@ -78,8 +78,6 @@ class ImageProcessor private constructor(val context: Context) {
 
 
     external fun init(context: Context)
-    external fun handlePreviewImage(image: Image)
-
     external fun capture(
         jobId: Int,
         captureType: Int,
@@ -99,6 +97,15 @@ class ImageProcessor private constructor(val context: Context) {
         width: Int,
         height: Int
     )
+
+    external fun configureFilterThumbnails(
+        thumbnailWidth: Int, thumbnailHeight: Int, filterNames: List<String>, filterTags: List<Int>, lutBitmaps: List<Bitmap?>
+    ): Boolean
+
+    external fun processFilterThumbnails(image: Image): Boolean
+
+    external fun clearFilterThumbnails()
+
 
     external fun deinit()
 }

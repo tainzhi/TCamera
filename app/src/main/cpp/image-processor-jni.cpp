@@ -180,18 +180,29 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
+ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
+    LOGD("%s abort job-%d", __FUNCTION__, job_id);
+};
+
+extern "C" JNIEXPORT jboolean JNICALL
+ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbnail_width, jint thumbnail_height,
+                                         jobject filter_names, jobject filter_tags, jobject lut_bitmaps) {
+    // TODO: implement configureFilterThumbnails()
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image) {
     LOGD("%s", __FUNCTION__);
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
-
+    
     // 调用 getPlanes 方法获取 Plane 数组
     jobjectArray planes = (jobjectArray) env->CallObjectMethod(image, getPlanesMethod);
-
+    
     // 获取 Plane 数组的长度
     int planeCount = env->GetArrayLength(planes);
-
+    
     for (int i = 0; i < planeCount; i++) {
         // 获取每个 Plane 对象
         jobject plane = env->GetObjectArrayElement(planes, i);
@@ -229,21 +240,23 @@ ImageProcessor_handlePreviewImage(JNIEnv *env, jobject thiz, jobject image) {
     jmethodID closeMethod = env->GetMethodID(imageClass, "close", "()V");
     env->CallVoidMethod(image, closeMethod);
     env->DeleteLocalRef(imageClass);
+    return true;
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
-    LOGD("%s abort job-%d", __FUNCTION__, job_id);
-};
+ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
+    LOGD("%s", __FUNCTION__ );
+}
 
-static JNINativeMethod methods[] = {
-    {"init", "(Landroid/content/Context;)V", (void *) ImageProcessor_init},
-    {"deinit", "()V", (void *) ImageProcessor_deinit},
-    {"collectImage", "(ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;II)V", (void *) ImageProcessor_collectImage},
-    {"capture", "(IILjava/lang/String;IILjava/util/List;)V", (void *) ImageProcessor_capture},
-    {"handlePreviewImage", "(Landroid/media/Image;)V", (void *) ImageProcessor_handlePreviewImage},
-    {"abortCapture", "(I)V", (void *) ImageProcessor_abortCapture}
-};
+
+static JNINativeMethod methods[] = {{"init",                      "(Landroid/content/Context;)V",                                          (void *) ImageProcessor_init},
+                                    {"deinit",                    "()V",                                                                   (void *) ImageProcessor_deinit},
+                                    {"collectImage",              "(ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;II)V", (void *) ImageProcessor_collectImage},
+                                    {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) ImageProcessor_capture},
+                                    {"abortCapture",              "(I)V",                                                                  (void *) ImageProcessor_abortCapture},
+                                    {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;)Z",                 (void *) ImageProcessor_configureFilterThumbnails},
+                                    {"processFilterThumbnails",   "(Landroid/media/Image;)Z",                                              (void *) ImageProcessor_processFilterThumbnails},
+                                    {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 
 
 

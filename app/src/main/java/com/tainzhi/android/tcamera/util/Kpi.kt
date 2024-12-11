@@ -13,6 +13,10 @@ object Kpi {
         SHOT_TO_SAVE_IMAGE,
         PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE,
         IMAGE_TO_THUMBNAIL,
+
+        // filter
+        CONFIGURE_FILTER_THUMBNAIL,
+        PROCESS_FILTER_THUMBNAIL,
     }
 
     fun start(type: TYPE) {
