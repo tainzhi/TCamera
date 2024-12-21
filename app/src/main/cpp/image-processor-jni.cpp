@@ -36,18 +36,6 @@ Engine *engine = nullptr;
 
 fields_t fields;
 
-static std::string jstring_to_string(JNIEnv *env, jstring jstr) {
-    const char *cstring = env->GetStringUTFChars(jstr, nullptr);
-    if (cstring == nullptr) {
-        // 异常处理
-        return "";
-    }
-    
-    std::string result(cstring);
-    env->ReleaseStringUTFChars(jstr, cstring);
-    return result;
-}
-
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
@@ -95,7 +83,7 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
         LOGD("Failed to call getAbsolutePath method");
         return ;
     } else {
-        LOGD("cache dir path: %s", jstring_to_string(env, pathString).c_str());
+        LOGD("cache dir path: %s", Util::jstring_to_string(env, pathString).c_str());
     }
     env->DeleteLocalRef(contextClass);
     env->DeleteLocalRef(fileObject);
@@ -112,7 +100,7 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     // cv::setUseOptimized(true); enable SIMD optimized
     LOGV("cv use optimized: %d", cv::useOptimized());
     
-    engine = new Engine(jstring_to_string(env, pathString));
+    engine = new Engine(Util::jstring_to_string(env, pathString));
     engine->init();
 }
 
@@ -175,7 +163,8 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
         exposureTimes.push_back(exposureTime / 1000000000.0);
     }
     env->DeleteLocalRef(listClass);
-    engine->addCapture(job_id, static_cast<CaptureType>(capture_type), jstring_to_string(env, time_stamp), orientation,
+    engine->addCapture(job_id, static_cast<CaptureType>(capture_type), Util::jstring_to_string(env, time_stamp),
+                       orientation,
                        frame_size, exposureTimes);
 }
 
@@ -186,8 +175,12 @@ ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
 
 extern "C" JNIEXPORT jboolean JNICALL
 ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbnail_width, jint thumbnail_height,
-                                         jobject filter_names, jobject filter_tags, jobject lut_bitmaps) {
-    // TODO: implement configureFilterThumbnails()
+                                         jobject filter_names, jobject filter_tags,jobject filter_thumbnail_bitmaps ,
+                                         jobject lut_bitmaps) {
+    LOGD("%s", __FUNCTION__ );
+    engine->getFilterManager()->configureThumbnails(env, thumbnail_width, thumbnail_height, filter_names,
+                                                    filter_tags, filter_thumbnail_bitmaps, lut_bitmaps);
+    return true;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -196,49 +189,37 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
-    
     // 调用 getPlanes 方法获取 Plane 数组
     jobjectArray planes = (jobjectArray) env->CallObjectMethod(image, getPlanesMethod);
-    
+    jint width = env->CallIntMethod(image, env->GetMethodID(imageClass, "getWidth", "()I"));
+    jint height = env->CallIntMethod(image, env->GetMethodID(imageClass, "getHeight", "()I"));
     // 获取 Plane 数组的长度
     int planeCount = env->GetArrayLength(planes);
-    
-    for (int i = 0; i < planeCount; i++) {
-        // 获取每个 Plane 对象
-        jobject plane = env->GetObjectArrayElement(planes, i);
-        
-        // 获取 Plane 类的类对象
-        jclass planeClass = env->GetObjectClass(plane);
-        jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
-        jmethodID getRowStrideMethod = env->GetMethodID(planeClass, "getRowStride", "()I");
-        jmethodID getPixelStrideMethod = env->GetMethodID(planeClass, "getPixelStride", "()I");
-        
-        // 调用 getBuffer 方法获取 ByteBuffer
-        jobject buffer = env->CallObjectMethod(plane, getBufferMethod);
-        
-        // 调用 getRowStride 和 getPixelStride 方法获取行间距和像素间距
-        jint rowStride = env->CallIntMethod(plane, getRowStrideMethod);
-        jint pixelStride = env->CallIntMethod(plane, getPixelStrideMethod);
-        
-        // kepp 保留, 不要删除
-        // // 获取 ByteBuffer 的直接缓冲区
-        // jbyteArray byteArray = (jbyteArray) env->NewByteArray(rowStride);
-        // env->GetByteArrayRegion((jbyteArray) buffer, 0, rowStride, byteArray);
-        //
-        // // 处理图像数据
-        // jsize length = env->GetArrayLength(byteArray);
-        // jbyte *bytes = env->GetByteArrayElements(byteArray, nullptr);
-        //
-        // // 这里可以对 bytes 进行处理
-        // __android_log_print(ANDROID_LOG_DEBUG, "JNI", "Processing plane %d with %d bytes", i, length);
-        //
-        // env->ReleaseByteArrayElements(byteArray, bytes, 0);
-        // env->DeleteLocalRef(byteArray);
-        env->DeleteLocalRef(buffer);
-        env->DeleteLocalRef(planeClass);
+    LOGD("%s, planeCount:%d", __FUNCTION__, planeCount);
+    if (planeCount != 3) {
+        LOGE("%s, planeCount:%d, not 3", __FUNCTION__, planeCount);
+        return false;
     }
-    jmethodID closeMethod = env->GetMethodID(imageClass, "close", "()V");
-    env->CallVoidMethod(image, closeMethod);
+    jclass planeClass = env->FindClass("android/media/Image$Plane");
+    jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
+    jobject yPlane = env->GetObjectArrayElement(planes, 0);
+    jobject yBuffer = env->CallObjectMethod(yPlane, getBufferMethod);
+    jbyte* yBytes = (jbyte*)env->GetDirectBufferAddress(yBuffer);
+    jobject uPlane = env->GetObjectArrayElement(planes, 1);
+    jobject uBuffer = env->CallObjectMethod(uPlane, getBufferMethod);
+    jbyte* uBytes = (jbyte*)env->GetDirectBufferAddress(uBuffer);
+    cv::Mat yuvMat(height + height/2, width, CV_8UC1);
+    memcpy(yuvMat.data, yBytes, height * width);
+    // 在这里使用的是 plane[0] + plane[1]
+    // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
+    memcpy(yuvMat.data + width * height, uBytes, height * width / 2 - 1);
+    engine->getFilterManager()->processThumbnails(yuvMat);
+    env->DeleteLocalRef(yBuffer);
+    env->DeleteLocalRef(uBuffer);
+    env->DeleteLocalRef(planeClass);
+    env->DeleteLocalRef(yPlane);
+    env->DeleteLocalRef(uPlane);
+    env->DeleteLocalRef(planes);
     env->DeleteLocalRef(imageClass);
     return true;
 }
@@ -246,6 +227,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
     LOGD("%s", __FUNCTION__ );
+    engine->getFilterManager()->clearThumbnails(env);
 }
 
 
@@ -254,7 +236,7 @@ static JNINativeMethod methods[] = {{"init",                      "(Landroid/con
                                     {"collectImage",              "(ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;II)V", (void *) ImageProcessor_collectImage},
                                     {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) ImageProcessor_capture},
                                     {"abortCapture",              "(I)V",                                                                  (void *) ImageProcessor_abortCapture},
-                                    {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;)Z",                 (void *) ImageProcessor_configureFilterThumbnails},
+                                    {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
                                     {"processFilterThumbnails",   "(Landroid/media/Image;)Z",                                              (void *) ImageProcessor_processFilterThumbnails},
                                     {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 

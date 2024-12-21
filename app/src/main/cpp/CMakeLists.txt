@@ -36,5 +36,6 @@ target_link_libraries(
         image-processor
         ${OpenCV_LIBS}
         android
+        jnigraphics # for AndroidBitmap_*
         log
 )

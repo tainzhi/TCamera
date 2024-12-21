@@ -16,6 +16,10 @@ std::shared_ptr<CaptureManager> Engine::getCaptureManager() {
     return getThread(captureManagerHolder, cachePath);
 }
 
+std::shared_ptr<FilterManager> Engine::getFilterManager() {
+    return getThread(filterHolder);
+}
+
 void Engine::collectImage(int jobId, cv::Mat &image) {
     getCaptureManager()->collectFrame(jobId, image);
 }

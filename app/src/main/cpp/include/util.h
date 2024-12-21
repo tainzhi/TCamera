@@ -13,6 +13,7 @@
 #include <android/log.h>
 #include <time.h>
 #include <jni.h>
+#include <vector>
 
 #define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
@@ -29,6 +30,9 @@ public:
     static bool get_env(JNIEnv **);
     static void release_env();
     static void handleEnvException(JNIEnv * env);
+    static std::string jstring_to_string(JNIEnv *env, jstring jstr);
+    static void jobject_to_stringVector(JNIEnv *env, jobject jList, std::vector<std::string> &result);
+    static void jobject_to_intVector(JNIEnv *env, jobject jList, std::vector<int> &result);
 };
 
 

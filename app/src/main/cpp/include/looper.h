@@ -55,4 +55,4 @@ private:
     bool running;
 };
 
-#endif TCAMERA_LOOPER_H
+#endif //TCAMERA_LOOPER_H

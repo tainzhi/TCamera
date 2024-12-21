@@ -99,7 +99,7 @@ class ImageProcessor private constructor(val context: Context) {
     )
 
     external fun configureFilterThumbnails(
-        thumbnailWidth: Int, thumbnailHeight: Int, filterNames: List<String>, filterTags: List<Int>, lutBitmaps: List<Bitmap?>
+        thumbnailWidth: Int, thumbnailHeight: Int, filterNames: List<String>, filterTags: List<Int>, filterThumbnailBitmaps: List<Bitmap?>, lutBitmaps: List<Bitmap?>
     ): Boolean
 
     external fun processFilterThumbnails(image: Image): Boolean

@@ -93,7 +93,9 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     }
 
     fun showFilterChooser() {
+        Log.d(TAG, "showFilterChooser: ")
         filterTrigger.visibility = View.GONE
+        configureFilterThumbnails()
         if (inflatedView == null) {
             filterAdapter = FilterAdapter(types.map { FilterItem(it.name) }.toMutableList()).apply {
                     setOnItemClickListener { _,_, position ->
@@ -142,7 +144,6 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             inflatedView!!.visibility = View.VISIBLE
             recyclerView?.addOnScrollListener(scrollListener)
         }
-        configureFilterThumbnails()
         filterChooserShow = true
     }
 
@@ -151,7 +152,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         Kpi.start(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
         val thumbnailSize = getThumbnailSize()
         types.forEach { t ->
-            t.bitmap = Bitmap.createBitmap(thumbnailSize, thumbnailSize, Bitmap.Config.ARGB_8888)
+            t.thumbnailBitmap = Bitmap.createBitmap(thumbnailSize, thumbnailSize, Bitmap.Config.ARGB_8888)
         }
         val bitmapOptions = BitmapFactory.Options().apply {
             inScaled = false
@@ -172,16 +173,17 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             }
         }
         ImageProcessor.instance.configureFilterThumbnails(
-            thumbnailSize, thumbnailSize, types.map{it.name}, types.map { it.tag}, lutBitmaps
+            thumbnailSize, thumbnailSize, types.map{it.name}, types.map { it.tag}, types.map{it.thumbnailBitmap}, lutBitmaps
         )
         Kpi.end(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
     }
 
     fun processThumbnails(image: Image) {
         if (filterChooserShow) {
+            Log.d(TAG, "processThumbnails: ")
             Kpi.start(Kpi.TYPE.PROCESS_FILTER_THUMBNAIL)
             if (ImageProcessor.instance.processFilterThumbnails(image)) {
-                filterAdapter.updateFilterEffectBitmaps(types.map { it.bitmap } as List<Bitmap>)
+                filterAdapter.updateFilterEffectBitmaps(types.map { it.thumbnailBitmap } as List<Bitmap?>)
             } else {
                 Log.e(TAG, "processThumbnails: failed to process thumbnails")
             }
@@ -194,6 +196,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         inflatedView?.visibility = View.GONE
         filterTrigger.visibility = View.VISIBLE
         filterChooserShow = false
+        resetEffect()
     }
 
     fun resetEffect() {
@@ -202,8 +205,8 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         }
         types.forEach { t ->
             {
-                t.bitmap?.recycle()
-                t.bitmap = null
+                t.thumbnailBitmap?.recycle()
+                t.thumbnailBitmap = null
             }
         }
         lutBitmaps.forEach { t ->
@@ -274,9 +277,9 @@ class FilterViewHolder(itemView: View): BaseViewHolder(itemView) {
     }
 }
 
-class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterItem, FilterViewHolder>(R.layout.item_filter, types) {
-    private var selectedIndex = MutableLiveData(NON_INIT_SELECTED)
-    private var bitmapsLiveData = ArrayList<MutableLiveData<Bitmap>>(types.size)
+class FilterAdapter(val types: MutableList<FilterItem>) : BaseQuickAdapter<FilterItem, FilterViewHolder>(R.layout.item_filter, types) {
+    private val selectedIndex = MutableLiveData(NON_INIT_SELECTED)
+    private val bitmapsLiveData = Array(types.size) { MutableLiveData<Bitmap>() }
     override fun convert(holder: FilterViewHolder, item: FilterItem) {
         holder.apply {
             index = holder.layoutPosition
@@ -295,13 +298,16 @@ class FilterAdapter(types: MutableList<FilterItem>) : BaseQuickAdapter<FilterIte
         selectedIndex.value = position
     }
 
-    fun updateFilterEffectBitmaps(bitmaps: List<Bitmap>) {
-        for (i in 0 until bitmaps.size) {
-            bitmapsLiveData[i].value = bitmaps[i]
+    fun updateFilterEffectBitmaps(bitmaps: List<Bitmap?>) {
+        recyclerView?.post {
+            Log.d(TAG, "updateFilterEffectBitmaps: bitmapSize:${bitmaps.size}")
+            for (i in 0 until bitmaps.size) {
+                bitmapsLiveData[i].value = bitmaps[i]
+            }
         }
     }
 }
 
 
 // color filter is in [0, 9), lut filter is in [10, )
-data class FilterType(val name: String, val tag: Int, val resId: Int, var bitmap: Bitmap? = null)
+data class FilterType(val name: String, val tag: Int, val resId: Int, var thumbnailBitmap: Bitmap? = null)

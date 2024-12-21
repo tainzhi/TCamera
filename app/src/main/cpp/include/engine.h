@@ -9,6 +9,7 @@
 #include "util.h"
 #include "capture.h"
 #include "thread.h"
+#include "filter.h"
 #include <jni.h>
 
 class Engine {
@@ -22,9 +23,11 @@ public:
     void deinit();
     ~Engine();
     std::shared_ptr<CaptureManager> getCaptureManager();
+    std::shared_ptr<FilterManager> getFilterManager();
 private:
     std::string cachePath;
     ThreadHolder<CaptureManager> captureManagerHolder;
+    ThreadHolder<FilterManager> filterHolder;
 };
 
 

@@ -18,9 +18,54 @@ unsigned long long Util::getCurrentTimestampMs()
     return timestampMs;
 }
 
+std::string Util::jstring_to_string(JNIEnv *env, jstring jstr) {
+    const char *cstring = env->GetStringUTFChars(jstr, nullptr);
+    if (cstring == nullptr) {
+        // 异常处理
+        return "";
+    }
+    
+    std::string result(cstring);
+    env->ReleaseStringUTFChars(jstr, cstring);
+    return result;
+}
+
+void Util::jobject_to_stringVector(JNIEnv *env, jobject jList, std::vector<std::string> &result) {
+    jclass listClass = env->GetObjectClass(jList);
+    jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
+    jmethodID getMethod = env->GetMethodID(listClass, "get", "(I)Ljava/lang/Object;");
+
+    jint size = env->CallIntMethod(jList, sizeMethod);
+    for (jint i = 0; i < size; ++i) {
+        jobject jstrObj = env->CallObjectMethod(jList, getMethod, i);
+        jstring jstr = static_cast<jstring>(jstrObj);
+        const char *cstring = env->GetStringUTFChars(jstr, nullptr);
+        result.emplace_back(cstring);
+        env->ReleaseStringUTFChars(jstr, cstring);
+        env->DeleteLocalRef(jstr);
+    }
+    env->DeleteLocalRef(listClass);
+}
+
+void Util::jobject_to_intVector(JNIEnv *env, jobject jList, std::vector<int> &result) {
+    jclass listClass = env->GetObjectClass(jList);
+    jmethodID sizeMethod = env->GetMethodID(listClass, "size", "()I");
+    jmethodID getMethod = env->GetMethodID(listClass, "get", "(I)Ljava/lang/Object;");
+
+    jint size = env->CallIntMethod(jList, sizeMethod);
+    for (jint i = 0; i < size; ++i) {
+        jobject jintObj = env->CallObjectMethod(jList, getMethod, i);
+        jint value = env->CallIntMethod(jintObj, env->GetMethodID(env->GetObjectClass(jintObj), "intValue", "()I"));
+        result.push_back(value);
+        env->DeleteLocalRef(jintObj);
+    }
+    env->DeleteLocalRef(listClass);
+}
+
+
 bool Util::get_env(JNIEnv **env)
 {
-    bool needsDetach = false;
+    // bool needsDetach = false;
     jint envResult = Util::gCachedJavaVm->GetEnv(reinterpret_cast<void **>(env), JNI_VERSION_1_6);
     switch(envResult) {
         case JNI_OK:
@@ -32,7 +77,7 @@ bool Util::get_env(JNIEnv **env)
                 LOGE("%s, failed to attache current thread to JVM", __FUNCTION__);
                 return JNI_ERR;
             }
-            needsDetach = true;
+            // needsDetach = true;
         }
             break;
         default:
