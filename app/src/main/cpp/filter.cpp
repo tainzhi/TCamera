@@ -77,21 +77,17 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
 #endif
     cv::Mat rgbMat;
     for (size_t i = 0; i < thumbnailBitmaps.size(); i++) {
-        switch (filterTags[i]) {
-            case 0:
-                cv::cvtColor(centerMat, rgbMat, cv::COLOR_YUV420sp2RGBA);
-                assert(rgbMat.type() == CV_8UC4);
-                LOGD("%s, rgbaMat:width:%d, height:%d, type:%d", __FUNCTION__, rgbMat.cols, rgbMat.rows,
-                     rgbMat.type());
+        if (filterTags[i] == 0) {
+            cv::cvtColor(centerMat, rgbMat, cv::COLOR_YUV420sp2RGBA);
+            assert(rgbMat.type() == CV_8UC4);
+            LOGD("%s, rgbaMat:width:%d, height:%d, type:%d", __FUNCTION__, rgbMat.cols, rgbMat.rows,
+                 rgbMat.type());
 #ifdef TEST
-                std::string filePath = Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".png";
-                LOGD("%s, save rgba image to %s", __FUNCTION__, filePath.c_str());
-                Util::dumpBinary(filePath.c_str(), rgbMat.data, rgbMat.cols * rgbMat.rows * 1.5);
+            std::string rgbFile(Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".png");
+            LOGD("%s, save rgba mat to %s", __FUNCTION__, rgbFile.c_str());
+            Util::dumpBinary(rgbFile.c_str(), rgbMat.data, rgbMat.cols * rgbMat.rows * 1.5);
 #endif
-                thumbnailBitmaps[i].render(rgbMat);
-                break;
-            default:
-                break;
+            thumbnailBitmaps[i].render(rgbMat);
         }
     }
     delete yuvBuffer;
