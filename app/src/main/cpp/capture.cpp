@@ -15,22 +15,18 @@ CaptureManager::~CaptureManager() {
     LOGD("%s, CaptureManager released", __FUNCTION__);
 }
 
-CaptureManager::CaptureManager(std::string cachePath): cachePath(cachePath) {
-    LOGD("%s, CaptureManager created", __FUNCTION__);
-}
 
 void
 CaptureManager::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
                            std::vector<float> exposureTimes) {
-    LOGD("%s, addCapture job:%d, jobs size:%u", __FUNCTION__, jobId, jobs.size());
+    LOGD("%s, addCapture job:%d, jobs size:%zu", __FUNCTION__, jobId, jobs.size());
     auto job = std::make_shared<CaptureJob>(jobId, captureType, timeStamp, orientation, frameSize);
     job->exposureTimes = exposureTimes;
-    auto it = jobs.find(jobId);
     jobs[jobId] = job;
 }
 
 void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
-    LOGD("%s, job-%d, jobs.size:%u", __FUNCTION__, jobId, jobs.size());
+    LOGD("%s, job-%d, jobs.size:%zu", __FUNCTION__, jobId, jobs.size());
     if (jobs.size() == 0) {
         LOGE("%s, no jobs", __FUNCTION__ );
         return;
@@ -38,7 +34,7 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
         jobs[jobId]->frames.emplace_back(frame);
-        LOGD("%s, job-%d, frameSize:%d, already has:%d", __FUNCTION__ , jobId, jobs[jobId]->frameSize,
+        LOGD("%s, job-%d, frameSize:%d, already has:%zu", __FUNCTION__ , jobId, jobs[jobId]->frameSize,
              jobs[jobId]->frames.size());
         if (jobs[jobId]->frames.size() == jobs[jobId]->frameSize) {
             // 不能传入 &jobId，因为jobId是栈内申请的int变量，退栈后会被清空
@@ -107,7 +103,7 @@ void CaptureManager::process(int jobId) {
         // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
         // std::vector<uchar> buffer;
         // cv::imencode(".jpg", fusion, buffer, params);
-        std::string filePath = cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
+        std::string filePath = Util::cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
         LOGD("%s, save hdr image to %s", __FUNCTION__, filePath.c_str());
         // 把生成的写到jpeg图片写到 filePath， quality 为 100
         cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});

@@ -33,6 +33,7 @@ public:
     static std::string jstring_to_string(JNIEnv *env, jstring jstr);
     static void jobject_to_stringVector(JNIEnv *env, jobject jList, std::vector<std::string> &result);
     static void jobject_to_intVector(JNIEnv *env, jobject jList, std::vector<int> &result);
+    static std::string cachePath;
 };
 
 

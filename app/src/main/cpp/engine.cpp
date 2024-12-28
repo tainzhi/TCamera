@@ -7,13 +7,12 @@
 
 #define TAG "NativeEngine"
 
-Engine::Engine(std::string cachePath): cachePath(cachePath) {}
 
 void Engine::init(){
 }
 
 std::shared_ptr<CaptureManager> Engine::getCaptureManager() {
-    return getThread(captureManagerHolder, cachePath);
+    return getThread(captureManagerHolder);
 }
 
 std::shared_ptr<FilterManager> Engine::getFilterManager() {

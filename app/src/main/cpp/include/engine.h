@@ -14,7 +14,6 @@
 
 class Engine {
 public:
-    Engine(std::string cachePath);
     void init();
     void collectImage(int jobId, cv::Mat &image);
     void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
@@ -25,7 +24,6 @@ public:
     std::shared_ptr<CaptureManager> getCaptureManager();
     std::shared_ptr<FilterManager> getFilterManager();
 private:
-    std::string cachePath;
     ThreadHolder<CaptureManager> captureManagerHolder;
     ThreadHolder<FilterManager> filterHolder;
 };

@@ -9,6 +9,9 @@
 
 
 JavaVM * Util::gCachedJavaVm = nullptr;
+
+std::string Util::cachePath = "";
+
 unsigned long long Util::getCurrentTimestampMs()
 {
     struct timeval tv;

@@ -17,10 +17,11 @@ public:
     Bitmap(Bitmap &&bitmap) noexcept;
     Bitmap& operator=(const Bitmap &bitmap) = delete;
     ~Bitmap();
-    
     void destroy(JNIEnv *env);
+    bool render(u_char * data, int width, int height);
 private:
     jobject globalRef;
+    JNIEnv *env;
     AndroidBitmapInfo bitmapInfo;
 };
 

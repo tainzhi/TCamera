@@ -100,8 +100,9 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     // cv::setUseOptimized(true); enable SIMD optimized
     LOGV("cv use optimized: %d", cv::useOptimized());
     
-    engine = new Engine(Util::jstring_to_string(env, pathString));
+    engine = new Engine();
     engine->init();
+    Util::cachePath = Util::jstring_to_string(env, pathString);
 }
 
 extern "C"
@@ -195,7 +196,6 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
     jint height = env->CallIntMethod(image, env->GetMethodID(imageClass, "getHeight", "()I"));
     // 获取 Plane 数组的长度
     int planeCount = env->GetArrayLength(planes);
-    LOGD("%s, planeCount:%d", __FUNCTION__, planeCount);
     if (planeCount != 3) {
         LOGE("%s, planeCount:%d, not 3", __FUNCTION__, planeCount);
         return false;
@@ -208,11 +208,12 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
     jobject uPlane = env->GetObjectArrayElement(planes, 1);
     jobject uBuffer = env->CallObjectMethod(uPlane, getBufferMethod);
     jbyte* uBytes = (jbyte*)env->GetDirectBufferAddress(uBuffer);
-    cv::Mat yuvMat(height + height/2, width, CV_8UC1);
-    memcpy(yuvMat.data, yBytes, height * width);
+    // 必须要在堆上申请内存，否则在传递到另一个线程时会被释放导致内存错误
+    cv::Mat *yuvMat = new cv::Mat(height + height/2, width, CV_8UC1);
+    memcpy((*yuvMat).data, yBytes, height * width);
     // 在这里使用的是 plane[0] + plane[1]
     // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
-    memcpy(yuvMat.data + width * height, uBytes, height * width / 2 - 1);
+    memcpy((*yuvMat).data + width * height, uBytes, height * width / 2 - 1);
     engine->getFilterManager()->processThumbnails(yuvMat);
     env->DeleteLocalRef(yBuffer);
     env->DeleteLocalRef(uBuffer);
