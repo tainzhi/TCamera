@@ -224,6 +224,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
     memcpy(yuvBuffer->y, yBytes, height * width);
     // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
     memcpy(yuvBuffer->uv, uBytes, height * width / 2 - 1);
+    yuvBuffer->uv[height * width / 2 - 1] = 0;
     
     engine->getFilterManager()->processThumbnails(yuvBuffer);
     env->DeleteLocalRef(yBuffer);

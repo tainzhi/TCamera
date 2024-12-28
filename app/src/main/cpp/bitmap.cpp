@@ -29,17 +29,16 @@ Bitmap::~Bitmap() {
     }
 }
 
-bool Bitmap::render(u_char * data, int width, int height)  {
+bool Bitmap::render(std::shared_ptr<cv::Mat> image)  {
     LOGD("%s", __FUNCTION__ );
     void *dstBuf;
-    assert(globalRef != nullptr);
     if (AndroidBitmap_lockPixels(env, globalRef, &dstBuf) < 0) {
         LOGE("%s, lock bitmap failed", __FUNCTION__);
         return false;
     }
-    for (int y = 0; y < height; ++y) {
+    for (int y = 0; y < image->rows; ++y) {
         auto line = (u_char *) dstBuf + y * bitmapInfo.stride;
-        memcpy(line, data + y, width * 4);
+        memcpy(line, image->data + y, image->cols * 4);
     }
     AndroidBitmap_unlockPixels(env, globalRef);
 }

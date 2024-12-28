@@ -9,6 +9,7 @@
 #include <jni.h>
 #include <cassert>
 #include <android/bitmap.h>
+#include <opencv2/core/mat.hpp>
 #include "util.h"
 
 struct Bitmap {
@@ -19,7 +20,7 @@ public:
     Bitmap& operator=(const Bitmap &bitmap) = delete;
     ~Bitmap();
     void destroy(JNIEnv *env);
-    bool render(u_char * data, int width, int height);
+    bool render(std::shared_ptr<cv::Mat> image);
 private:
     jobject globalRef;
     JNIEnv *env;
