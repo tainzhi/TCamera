@@ -83,7 +83,12 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
                 assert(rgbMat.type() == CV_8UC4);
                 LOGD("%s, rgbaMat:width:%d, height:%d, type:%d", __FUNCTION__, rgbMat.cols, rgbMat.rows,
                      rgbMat.type());
-                thumbnailBitmaps[i].render(rgbMat.data, rgbMat.cols, rgbMat.rows);
+#ifdef TEST
+                std::string filePath = Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".png";
+                LOGD("%s, save rgba image to %s", __FUNCTION__, filePath.c_str());
+                Util::dumpBinary(filePath.c_str(), rgbMat.data, rgbMat.cols * rgbMat.rows * 1.5);
+#endif
+                thumbnailBitmaps[i].render(rgbMat);
                 break;
             default:
                 break;

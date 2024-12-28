@@ -3,18 +3,19 @@
 // Email: qfq61@qq.com
 //
 
+#include <opencv2/core/mat.hpp>
 #include "bitmap.h"
 
 #define TAG "NativeBitmap"
 
-Bitmap::Bitmap(JNIEnv *env, jobject bitmap): globalRef(nullptr) {
+Bitmap::Bitmap(JNIEnv *env, jobject bitmap) : globalRef(nullptr) {
     globalRef = env->NewGlobalRef(bitmap);
     if (globalRef == nullptr) {
-        LOGE("%s, faild to get global ref for bitmap", __FUNCTION__ );
+        LOGE("%s, faild to get global ref for bitmap", __FUNCTION__);
         return;
     }
     if (ANDROID_BITMAP_RESULT_SUCCESS != AndroidBitmap_getInfo(env, bitmap, &bitmapInfo)) {
-        LOGE("%s, get bitmap info failed", __FUNCTION__ );
+        LOGE("%s, get bitmap info failed", __FUNCTION__);
         return;
     }
 }
@@ -29,8 +30,8 @@ Bitmap::~Bitmap() {
     }
 }
 
-bool Bitmap::render(u_char * data, int width, int height)  {
-    LOGD("%s", __FUNCTION__ );
+bool Bitmap::render(cv::Mat &image) {
+    LOGD("%s", __FUNCTION__);
     JNIEnv *env;
     Util::get_env(&env);
     void *dstBuf;
@@ -43,9 +44,9 @@ bool Bitmap::render(u_char * data, int width, int height)  {
         AndroidBitmap_unlockPixels(env, globalRef);
         return false;
     }
-    for (int y = 0; y < height; ++y) {
-        auto line = (u_char *) dstBuf + y * bitmapInfo.stride;
-        memcpy(line, data + y, width * 4);
+    assert(bitmapInfo.width == image.cols && bitmapInfo.height == image.rows);
+    for (int y = 0; y < bitmapInfo.height; ++y) {
+        memcpy((u_char *) dstBuf + y * bitmapInfo.stride, image.data + y * image.step, bitmapInfo.width * 4);
     }
     AndroidBitmap_unlockPixels(env, globalRef);
 }
