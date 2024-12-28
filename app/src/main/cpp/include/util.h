@@ -6,12 +6,12 @@
 #ifndef TCAMERA_UTIL_H
 #define TCAMERA_UTIL_H
 
-#include <stddef.h>
+#include <cstddef>
 #include <string>
 #include <fcntl.h>
 #include <unistd.h>
 #include <android/log.h>
-#include <time.h>
+#include <ctime>
 #include <jni.h>
 #include <vector>
 
@@ -41,7 +41,36 @@ public:
 // 否则直接在 new std::thread 中 attach thread之后是无法 find class的
 struct fields_t {
     jclass image_processor;
-    jmethodID post_from_native;
+};
+
+typedef struct YuvBuffer {
+    // 默认 YUV420sp
+    YuvBuffer(unsigned char *y, unsigned char *uv, int width, int height) {
+        this->y = (unsigned char *) malloc(width * height);
+        memcpy(this->y, y, width * height);
+        this->uv = (unsigned char *) malloc(width * height / 2);
+        memcpy(this->uv, uv, width * height / 2);
+        // y_size = width * height;
+        // uv_size = width * height / 2;
+    }
+    YuvBuffer(int width, int height) {
+        this->y = (unsigned char *) malloc(width * height);
+        this->uv = (unsigned char *) malloc(width * height / 2);
+        this->height = height;
+        this->width = width;
+        // y_size = width * height;
+        // uv_size = width * height / 2;
+    }
+    ~YuvBuffer() {
+        free(y);
+        free(uv);
+    }
+    unsigned char *y;
+    unsigned char *uv;
+    int width;
+    int height;
+    // int y_size;
+    // int uv_size;
 };
 
 #endif //TCAMERA_UTIL_H

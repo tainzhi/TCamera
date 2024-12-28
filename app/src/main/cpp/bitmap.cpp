@@ -30,7 +30,9 @@ Bitmap::~Bitmap() {
 }
 
 bool Bitmap::render(u_char * data, int width, int height)  {
+    LOGD("%s", __FUNCTION__ );
     void *dstBuf;
+    assert(globalRef != nullptr);
     if (AndroidBitmap_lockPixels(env, globalRef, &dstBuf) < 0) {
         LOGE("%s, lock bitmap failed", __FUNCTION__);
         return false;

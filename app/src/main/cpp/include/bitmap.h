@@ -7,6 +7,7 @@
 #define TCAMERA_BITMAP_H
 
 #include <jni.h>
+#include <cassert>
 #include <android/bitmap.h>
 #include "util.h"
 

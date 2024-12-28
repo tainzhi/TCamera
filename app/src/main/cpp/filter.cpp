@@ -25,13 +25,13 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
             LOGE("%s, get thumbnail bitmap[%d] failed", __FUNCTION__, i);
             return false;
         }
-        this->thumbnailBitmaps.emplace_back(Bitmap(env, jthubmnailbitmap));
+        this->thumbnailBitmaps.emplace_back(env, jthubmnailbitmap);
         // reference [FilterBar.kt] for more information
         // if tag >= 10, the thumbnail needs a lut to generate
         // but tag < 10, the thumbnail not needs lut, so lutBitmaps[i] is nullptr
         jobject jlutbitmap = env->CallObjectMethod(lut_bitmaps, getMethod, i);
         if (jlutbitmap != nullptr) {
-            this->lutBitmaps.emplace_back(Bitmap(env, jlutbitmap));
+            this->lutBitmaps.emplace_back(env, jlutbitmap);
         }
         env->DeleteLocalRef(jthubmnailbitmap);
     }
@@ -39,64 +39,61 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
     return true;
 }
 
-bool FilterManager::processThumbnails(cv::Mat * yuvMat) {
+bool FilterManager::processThumbnails(YuvBuffer *yuvBuffer) {
     LOGD("%s", __FUNCTION__);
-    post(kMessage_ProcessThumbnails, static_cast<void*>(yuvMat));
+    post(kMessage_ProcessThumbnails, static_cast<void *>(yuvBuffer));
     return true;
 }
 
 void FilterManager::handle(int what, void *data) {
     switch (what) {
         case kMessage_ProcessThumbnails: {
-            process(reinterpret_cast<cv::Mat *>(data));
+            process(reinterpret_cast<YuvBuffer *>(data));
             break;
         }
     }
 }
 
-void FilterManager::process(cv::Mat *mat) {
+void FilterManager::process(YuvBuffer *yuvBuffer) {
     LOGD("%s", __FUNCTION__);
-    int centerX = mat->cols / 2;
-    int centerY = mat->rows / 2;
-    cv::Mat yChannel = (*mat)(
-            cv::Rect(centerX - thumbnail_width / 2, centerY - thumbnail_height / 2, thumbnail_width, thumbnail_height));
-    cv::Mat uChannel = (*(mat + mat->cols * mat->rows))(cv::Rect(centerX / 2 - thumbnail_width / 4,
-                                                                centerY / 2 - thumbnail_height / 4, thumbnail_width / 2,
-                                                                thumbnail_height / 2));
-    cv::Mat vChannel = (*(mat + mat->cols * mat->rows * 5 / 4))(cv::Rect(centerX / 2 - thumbnail_width / 4,
-                                                                    centerY / 2 - thumbnail_height / 4, thumbnail_width / 2,
-                                                                    thumbnail_height / 2));
     cv::Mat centerMat(thumbnail_height + thumbnail_height / 2, thumbnail_width, CV_8UC1);
-    yChannel.copyTo(centerMat(cv::Rect(0, 0, thumbnail_width, thumbnail_height)));
-    uChannel.copyTo(centerMat(cv::Rect(0, thumbnail_height, thumbnail_width/2, thumbnail_height/2)));
-    vChannel.copyTo(centerMat(cv::Rect(thumbnail_width/2, thumbnail_height, thumbnail_width/2, thumbnail_height/2)));
+    int centerX = yuvBuffer->width / 2;
+    int centerY = yuvBuffer->height / 2;
+    for (int y = centerY - thumbnail_height / 2; y < centerY + thumbnail_height / 2; y++) {
+        memcpy(centerMat.data + (y - centerY + thumbnail_height / 2) * thumbnail_width,
+               yuvBuffer->y + y * yuvBuffer->width + centerX - thumbnail_width / 2, thumbnail_width);
+    }
+    for (int y = centerY / 2 - thumbnail_height / 4; y < centerY / 2 + thumbnail_height / 4; y++) {
+        memcpy(centerMat.data + thumbnail_height * thumbnail_width +
+               (y - centerY / 2 + thumbnail_height / 4) * thumbnail_width,
+               yuvBuffer->uv + y * yuvBuffer->width + centerX - thumbnail_width / 2, thumbnail_width / 2 * 2);
+    }
 #ifdef TEST
-    std::string filePath = Util::cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
+    std::string filePath = Util::cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".420p.yuv";
+    LOGD("%s, thumbnail width:%d, height:%d", __FUNCTION__, thumbnail_width, thumbnail_height);
     LOGD("%s, save center image to %s", __FUNCTION__, filePath.c_str());
-    // 把生成的写到jpeg图片写到 filePath， quality 为 100
-    cv::imwrite(filePath, centerMat, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
+    Util::dumpBinary(filePath.c_str(), centerMat.data, thumbnail_width * thumbnail_height * 1.5);
 #endif
-    
     cv::Mat rgbMat;
     for (size_t i = 0; i < thumbnailBitmaps.size(); i++) {
-        switch(filterTags[i]) {
+        switch (filterTags[i]) {
             case 0:
                 // 虽然camera2采样的是YUV420sp，但是在传入到 JNI 层时，已经转成了 YUV420p
-                LOGD("%s, centerMat:width:%d, height:%d, %dx%d", __FUNCTION__, centerMat.cols, centerMat.rows, centerMat
-                .size[0], centerMat.size[1]);
-                cv::cvtColor(centerMat, rgbMat, cv::COLOR_YUV420p2RGBA);
+                LOGD("%s, centerMat:width:%d, height:%d, %dx%d", __FUNCTION__, centerMat.cols, centerMat.rows,
+                     centerMat.size[0], centerMat.size[1]);
+                cv::cvtColor(centerMat, rgbMat, cv::COLOR_YUV420sp2RGBA);
                 thumbnailBitmaps[i].render(rgbMat.data, thumbnail_width, thumbnail_height);
                 break;
             default:
                 break;
         }
     }
-    delete mat;
+    delete yuvBuffer;
 }
 
 bool FilterManager::clearThumbnails(JNIEnv *env) {
     LOGD("%s", __FUNCTION__);
-    for(auto &bitmap: thumbnailBitmaps) {
+    for (auto &bitmap: thumbnailBitmaps) {
         bitmap.destroy(env);
     }
     for (auto &bitmap: lutBitmaps) {
