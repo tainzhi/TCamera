@@ -7,6 +7,7 @@
 #define TCAMERA_CAPTURE_H
 
 #include <vector>
+#include <format>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/photo.hpp>
 #include <opencv2/imgcodecs.hpp>

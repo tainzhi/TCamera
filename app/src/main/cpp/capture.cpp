@@ -92,7 +92,6 @@ void CaptureManager::process(int jobId) {
                 break;
         }
         fusion.release();
-        
         auto hdr_t= cv::getTickCount();
         // int64 必须要转成 int，否则输出会丢失精度后变成负值
         LOGD("hdr processing cost %d s", static_cast<int>((hdr_t - start_t) /
@@ -103,7 +102,7 @@ void CaptureManager::process(int jobId) {
         // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
         // std::vector<uchar> buffer;
         // cv::imencode(".jpg", fusion, buffer, params);
-        std::string filePath = Util::cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
+        std::string filePath = std::format("{}/{}.jpg", Util::cachePath, Util::getCurrentTimestampMs());
         LOGD("save hdr image to %s", filePath.c_str());
         // 把生成的写到jpeg图片写到 filePath， quality 为 100
         cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});

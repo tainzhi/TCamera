@@ -178,11 +178,11 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         Kpi.end(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
     }
 
-    fun processThumbnails(image: Image) {
+    fun processThumbnails(image: Image, orientation: Int) {
         if (filterChooserShow) {
             Log.d(TAG, "processThumbnails: ")
             Kpi.start(Kpi.TYPE.PROCESS_FILTER_THUMBNAIL)
-            if (ImageProcessor.instance.processFilterThumbnails(image)) {
+            if (ImageProcessor.instance.processFilterThumbnails(image, orientation)) {
                 filterAdapter.updateFilterEffectBitmaps(types.map { it.thumbnailBitmap } as List<Bitmap?>)
             } else {
                 Log.e(TAG, "processThumbnails: failed to process thumbnails")

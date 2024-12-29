@@ -23,7 +23,7 @@ class FilterManager: public Looper {
 public:
     bool configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height,
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
-    bool processThumbnails(YuvBuffer *yuvBuffer);
+    bool processThumbnails(YuvBuffer *yuvBuffer, int orientation);
     bool clearThumbnails(JNIEnv *env);
     
     enum kMessage {
@@ -35,6 +35,7 @@ private:
     void process(YuvBuffer * yuvBuffer);
     int thumbnail_width;
     int thumbnail_height;
+    int orientation; // image orientation, 0, 90, 180, 270, 也就是thumbnail需要旋转的角度
     std::vector<std::string> filterNames;
     std::vector<int> filterTags;
     std::vector<Bitmap> thumbnailBitmaps;

@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
+#include <format>
 #include "opencv2/opencv.hpp"
 #include "opencv2/core/ocl.hpp"
 #include "opencv2/core.hpp"
@@ -137,9 +138,8 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_pl
     // // memcpy(yuvMat.data + width * height, vPlane, height * width / 2 - 1);
 
 #ifdef TEST
-    std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
-                                 std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
-                                 .size()) + ".yuv";
+    std::string dump_yuv_path = std::format("{}/collect_image_{}x{}_{}.420sp.yuv", Util::cachePath, width, height,
+                                            Util::getCurrentTimestampMs());
     LOGD("dump %d x %d hdr yuv to %s", width, height, dump_yuv_path.c_str());
     Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
 #endif
@@ -185,11 +185,14 @@ ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbna
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image) {
+ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation) {
     LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
+    jmethodID getFormatMethod = env->GetMethodID(imageClass, "getFormat", "()I");
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
+    jint format = env->CallIntMethod(image, getFormatMethod);
+    assert(format == 35); // 35 is ImageFormat.YUV_420_888
     // 调用 getPlanes 方法获取 Plane 数组
     jobjectArray planes = (jobjectArray) env->CallObjectMethod(image, getPlanesMethod);
     jint width = env->CallIntMethod(image, env->GetMethodID(imageClass, "getWidth", "()I"));
@@ -226,7 +229,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
     memcpy(yuvBuffer->uv, uBytes, height * width / 2 - 1);
     yuvBuffer->uv[height * width / 2 - 1] = 0;
     
-    engine->getFilterManager()->processThumbnails(yuvBuffer);
+    engine->getFilterManager()->processThumbnails(yuvBuffer, orientation);
     env->DeleteLocalRef(yBuffer);
     env->DeleteLocalRef(uBuffer);
     env->DeleteLocalRef(planeClass);
@@ -250,7 +253,8 @@ static JNINativeMethod methods[] = {{"init",                      "(Landroid/con
                                     {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) ImageProcessor_capture},
                                     {"abortCapture",              "(I)V",                                                                  (void *) ImageProcessor_abortCapture},
                                     {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
-                                    {"processFilterThumbnails",   "(Landroid/media/Image;)Z",                                              (void *) ImageProcessor_processFilterThumbnails},
+                                    {"processFilterThumbnails",   "(Landroid/media/Image;I)Z",
+                                     (void *) ImageProcessor_processFilterThumbnails},
                                     {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 
 
