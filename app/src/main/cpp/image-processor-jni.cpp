@@ -42,15 +42,15 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
 
     fields.image_processor = env->FindClass(kImageProcessorClassPathName);
     if (fields.image_processor == nullptr) {
-        LOGE("%s, Failed to find class %s", __FUNCTION__, kImageProcessorClassPathName);
+        LOGE("Failed to find class %s", kImageProcessorClassPathName);
         return;
     }
     fields.image_processor = static_cast<jclass>(env->NewGlobalRef(fields.image_processor));
     if (fields.image_processor == nullptr) {
-        LOGE("%s, Failed to make global reference to %s class.", __FUNCTION__ , kImageProcessorClassPathName);
+        LOGE("Failed to make global reference to %s class.", kImageProcessorClassPathName);
         return;
     } else {
-        LOGD("%s, class image_processor retrieved (clazz=%p)", __FUNCTION__ , fields.image_processor);
+        LOGD("class image_processor retrieved (clazz=%p)", fields.image_processor);
     }
 
     jclass contextClass = env->GetObjectClass(context);
@@ -123,7 +123,7 @@ extern "C" JNIEXPORT void JNICALL
 ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
                                                              jobject u_plane, jobject v_plane, jint width,
                                                              jint height) {
-    LOGD("%s begin", __FUNCTION__ );
+    LOGD("begin");
     jbyte* yPlane = (jbyte*)env->GetDirectBufferAddress(y_plane);
     jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
     // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
@@ -140,19 +140,19 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_pl
     std::string dump_yuv_path = jstring_to_string(env, cache_path)+ '/' +
                                  std::to_string(Util::getCurrentTimestampMs())  + std::to_string(imageMats
                                  .size()) + ".yuv";
-    LOGD("%s dump %d x %d hdr yuv to %s", __FUNCTION__, width, height, dump_yuv_path.c_str());
+    LOGD("dump %d x %d hdr yuv to %s", width, height, dump_yuv_path.c_str());
     Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
 #endif
     
     engine->collectImage(job_id, yuvMat);
-    LOGD("%s end", __FUNCTION__ );
+    LOGD("end");
 }
 
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type,
                                                         jstring time_stamp, jint orientation, jint frame_size, jobject
                                                         exposure_times) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     // java 传过来的exposure_time 是纳秒，需要转换为秒
     // 获取List类和相关方法ID
     jclass listClass = env->FindClass("java/util/List");
@@ -171,14 +171,14 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
 
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
-    LOGD("%s abort job-%d", __FUNCTION__, job_id);
+    LOGD("abort job-%d", job_id);
 };
 
 extern "C" JNIEXPORT jboolean JNICALL
 ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbnail_width, jint thumbnail_height,
                                          jobject filter_names, jobject filter_tags,jobject filter_thumbnail_bitmaps ,
                                          jobject lut_bitmaps) {
-    LOGD("%s", __FUNCTION__ );
+    LOGD();
     engine->getFilterManager()->configureThumbnails(env, thumbnail_width, thumbnail_height, filter_names,
                                                     filter_tags, filter_thumbnail_bitmaps, lut_bitmaps);
     return true;
@@ -186,7 +186,7 @@ ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbna
 
 extern "C" JNIEXPORT jboolean JNICALL
 ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
@@ -197,7 +197,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
     // 获取 Plane 数组的长度
     int planeCount = env->GetArrayLength(planes);
     if (planeCount != 3) {
-        LOGE("%s, planeCount:%d, not 3", __FUNCTION__, planeCount);
+        LOGE("planeCount:%d, not 3", planeCount);
         return false;
     }
     jclass planeClass = env->FindClass("android/media/Image$Plane");
@@ -239,7 +239,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image)
 
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
-    LOGD("%s", __FUNCTION__ );
+    LOGD();
     engine->getFilterManager()->clearThumbnails(env);
 }
 
@@ -259,18 +259,18 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     LOGD("JNI_onLoad");
     JNIEnv  *env = nullptr;
     if (vm->GetEnv((void **)&env, JNI_VERSION_1_6) != JNI_OK) {
-        LOGE("%s, failed to get env", __FUNCTION__);
+        LOGE("failed to get env");
         return JNI_ERR;
     }
     jclass clazz;
     clazz = env->FindClass(kImageProcessorClassPathName);
     if (clazz == nullptr) {
-        LOGE("%s, failed to find %s", __FUNCTION__ , kImageProcessorClassPathName);
+        LOGE("failed to find %s", kImageProcessorClassPathName);
         return JNI_ERR;
     }
     bool registerResult = env->RegisterNatives(clazz, methods, sizeof(methods)/sizeof(methods[0]));
     if (registerResult != JNI_OK) {
-        LOGE("%s, failed to register natives methods", __FUNCTION__);
+        LOGE("failed to register natives methods");
         return JNI_ERR;
     }
     Util::gCachedJavaVm = vm;

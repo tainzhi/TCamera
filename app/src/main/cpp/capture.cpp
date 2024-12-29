@@ -12,29 +12,29 @@ CaptureManager::~CaptureManager() {
     while (isRunning()) {
         quitCond.wait(lock);
     }
-    LOGD("%s, CaptureManager released", __FUNCTION__);
+    LOGD("CaptureManager released");
 }
 
 
 void
 CaptureManager::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
                            std::vector<float> exposureTimes) {
-    LOGD("%s, addCapture job:%d, jobs size:%zu", __FUNCTION__, jobId, jobs.size());
+    LOGD("addCapture job:%d, jobs size:%zu", jobId, jobs.size());
     auto job = std::make_shared<CaptureJob>(jobId, captureType, timeStamp, orientation, frameSize);
     job->exposureTimes = exposureTimes;
     jobs[jobId] = job;
 }
 
 void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
-    LOGD("%s, job-%d, jobs.size:%zu", __FUNCTION__, jobId, jobs.size());
+    LOGD("job-%d, jobs.size:%zu", jobId, jobs.size());
     if (jobs.size() == 0) {
-        LOGE("%s, no jobs", __FUNCTION__ );
+        LOGE("no jobs");
         return;
     }
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
         jobs[jobId]->frames.emplace_back(frame);
-        LOGD("%s, job-%d, frameSize:%d, already has:%zu", __FUNCTION__ , jobId, jobs[jobId]->frameSize,
+        LOGD("job-%d, frameSize:%d, already has:%zu", jobId, jobs[jobId]->frameSize,
              jobs[jobId]->frames.size());
         if (jobs[jobId]->frames.size() == jobs[jobId]->frameSize) {
             // 不能传入 &jobId，因为jobId是栈内申请的int变量，退栈后会被清空
@@ -45,7 +45,7 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
 
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
 void CaptureManager::process(int jobId) {
-    LOGD("%s, begin job-%d", __FUNCTION__ , jobId);
+    LOGD("begin job-%d", jobId);
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
         auto start_t = cv::getTickCount();
@@ -79,7 +79,7 @@ void CaptureManager::process(int jobId) {
         fusion = fusion * 255;
         
         cv::Mat rotatedImage;
-        LOGD("%s, orientation:%d", __FUNCTION__, jobs[jobId]->orientation);
+        LOGD("orientation:%d", jobs[jobId]->orientation);
         switch (jobs[jobId]->orientation) {
             case 90:
                 cv::rotate(fusion, rotatedImage, cv::ROTATE_90_CLOCKWISE);
@@ -95,7 +95,7 @@ void CaptureManager::process(int jobId) {
         
         auto hdr_t= cv::getTickCount();
         // int64 必须要转成 int，否则输出会丢失精度后变成负值
-        LOGD("%s, hdr processing cost %d s", __FUNCTION__, static_cast<int>((hdr_t - start_t) /
+        LOGD("hdr processing cost %d s", static_cast<int>((hdr_t - start_t) /
         cv::getTickFrequency()));
 
         // not needed: 在这里无需手动转成jpeg，直接 cv:imwrite(jpeg)即可
@@ -104,11 +104,11 @@ void CaptureManager::process(int jobId) {
         // std::vector<uchar> buffer;
         // cv::imencode(".jpg", fusion, buffer, params);
         std::string filePath = Util::cachePath + '/' +  std::to_string(Util::getCurrentTimestampMs()) + ".jpg";
-        LOGD("%s, save hdr image to %s", __FUNCTION__, filePath.c_str());
+        LOGD("save hdr image to %s", filePath.c_str());
         // 把生成的写到jpeg图片写到 filePath， quality 为 100
         cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
         Listener::onCaptured(jobId, filePath);
-        LOGD("%s, end job-%d", __FUNCTION__ , jobId);
+        LOGD("end job-%d", jobId);
     }
     // 处理完 job，从 jobs 中移除
     jobs.erase(it);

@@ -15,9 +15,11 @@
 #include <jni.h>
 #include <vector>
 
-#define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, TAG, __VA_ARGS__)
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGV( format, ... )  __android_log_print(ANDROID_LOG_VERBOSE, TAG, "%s: "#format, __FUNCTION__, ##__VA_ARGS__)
+#define LOGI( format, ... )  __android_log_print(ANDROID_LOG_INFO, TAG, "%s: "#format, __FUNCTION__, \
+##__VA_ARGS__)
+#define LOGD( format, ... )  __android_log_print(ANDROID_LOG_DEBUG, TAG, "%s: "#format, __FUNCTION__, ##__VA_ARGS__)
+#define LOGE( format, ... )  __android_log_print(ANDROID_LOG_ERROR, TAG, "%s: "#format, __FUNCTION__, ##__VA_ARGS__)
 
 class Util {
 public:

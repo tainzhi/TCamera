@@ -10,7 +10,7 @@
 
 bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height, jobject filter_names,
                                         jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     this->thumbnail_width = thumbnail_width;
     this->thumbnail_height = thumbnail_height;
     Util::jobject_to_stringVector(env, filter_names, this->filterNames);
@@ -22,7 +22,7 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
     for (jint i = 0; i < size; ++i) {
         jobject jthubmnailbitmap = env->CallObjectMethod(filter_thumbnail_bitmaps, getMethod, i);
         if (jthubmnailbitmap == nullptr) {
-            LOGE("%s, get thumbnail bitmap[%d] failed", __FUNCTION__, i);
+            LOGE("get thumbnail bitmap[%d] failed", i);
             return false;
         }
         this->thumbnailBitmaps.emplace_back(env, jthubmnailbitmap);
@@ -40,7 +40,7 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
 }
 
 bool FilterManager::processThumbnails(YuvBuffer *yuvBuffer) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     post(kMessage_ProcessThumbnails, static_cast<void *>(yuvBuffer));
     return true;
 }
@@ -55,7 +55,7 @@ void FilterManager::handle(int what, void *data) {
 }
 
 void FilterManager::process(YuvBuffer *yuvBuffer) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     assert(yuvBuffer->width >= thumbnail_width && yuvBuffer->height >= thumbnail_height);
     cv::Mat centerMat(thumbnail_height + thumbnail_height / 2, thumbnail_width, CV_8UC1);
     int centerX = yuvBuffer->width / 2;
@@ -71,8 +71,8 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
     }
 #ifdef TEST
     std::string filePath = Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".420p.yuv";
-    LOGD("%s, thumbnail width:%d, height:%d", __FUNCTION__, thumbnail_width, thumbnail_height);
-    LOGD("%s, save center image to %s", __FUNCTION__, filePath.c_str());
+    LOGD("thumbnail width:%d, height:%d", thumbnail_width, thumbnail_height);
+    LOGD("save center image to %s", filePath.c_str());
     Util::dumpBinary(filePath.c_str(), centerMat.data, thumbnail_width * thumbnail_height * 1.5);
 #endif
     cv::Mat rgbMat;
@@ -80,11 +80,11 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
         if (filterTags[i] == 0) {
             cv::cvtColor(centerMat, rgbMat, cv::COLOR_YUV420sp2RGBA);
             assert(rgbMat.type() == CV_8UC4);
-            LOGD("%s, rgbaMat:width:%d, height:%d, type:%d", __FUNCTION__, rgbMat.cols, rgbMat.rows,
+            LOGD("rgbaMat:width:%d, height:%d, type:%d", rgbMat.cols, rgbMat.rows,
                  rgbMat.type());
 #ifdef TEST
             std::string rgbFile(Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".png");
-            LOGD("%s, save rgba mat to %s", __FUNCTION__, rgbFile.c_str());
+            LOGD("save rgba mat to %s", rgbFile.c_str());
             Util::dumpBinary(rgbFile.c_str(), rgbMat.data, rgbMat.cols * rgbMat.rows * 1.5);
 #endif
             thumbnailBitmaps[i].render(rgbMat);
@@ -94,7 +94,7 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
 }
 
 bool FilterManager::clearThumbnails(JNIEnv *env) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     for (auto &bitmap: thumbnailBitmaps) {
         bitmap.destroy(env);
     }

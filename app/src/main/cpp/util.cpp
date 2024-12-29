@@ -77,14 +77,14 @@ bool Util::get_env(JNIEnv **env)
             JavaVMAttachArgs args = {JNI_VERSION_1_6, nullptr, nullptr};
             envResult = Util::gCachedJavaVm->AttachCurrentThread(env, (void *) &args);
             if (envResult != JNI_OK) {
-                LOGE("%s, failed to attache current thread to JVM", __FUNCTION__);
+                LOGE("failed to attache current thread to JVM");
                 return JNI_ERR;
             }
             // needsDetach = true;
         }
             break;
         default:
-            LOGE("%s, attach current thread failed, unknown reason", __FUNCTION__);
+            LOGE("attach current thread failed, unknown reason");
             return JNI_ERR;
     }
     return JNI_OK;
@@ -107,12 +107,12 @@ bool Util::dumpBinary(const char * path, void *data, size_t size)
         int32_t written = write(file_fd, data, size);
         if (written < size)
         {
-            LOGE("%s Error in write binary to %s", __FUNCTION__, path);
+            LOGE("Error in write binary to %s", path);
             success = false;
         }
         success = true;
     } else {
-        LOGE("%s Error in opening file %s error = %d", __FUNCTION__, path, errno);
+        LOGE("Error in opening file %s error = %d", path, errno);
         success = false;
     }
     close(file_fd);

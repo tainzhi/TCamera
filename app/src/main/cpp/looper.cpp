@@ -9,15 +9,15 @@ struct LooperMessage {
     bool quit;
 };
 
-bool Looper::DEBUG =true;
+bool Looper::DEBUG = false;
 Looper::Looper(): running(true) {
-    LOGD("%s created", __FUNCTION__);
+    LOGD("created");
     head = nullptr;
 }
 
 Looper::~Looper() {
     if (running) {
-        LOGV("%s, Looper deleted while still running. Some messages will not be processed", __FUNCTION__ );
+        LOGV("Looper deleted while still running. Some messages will not be processed");
         quit();
     }
 }
@@ -30,7 +30,7 @@ void Looper::run() {
 void Looper::post(int what, void *data, bool flush) {
     // 不能加lock，否则会导致无法 addMsg 到队列中
     if (DEBUG)
-        LOGD("%s, flush:%d", __FUNCTION__, flush);
+        LOGD("flush:%d", flush);
     LooperMessage *msg = new LooperMessage();
     msg->what = what;
     msg->obj = data;
@@ -41,7 +41,7 @@ void Looper::post(int what, void *data, bool flush) {
 
 void Looper::addMsg(LooperMessage *msg, bool flush) {
     if (DEBUG)
-        LOGV("%s, msg %d, data:%d", __FUNCTION__, msg->what, *reinterpret_cast<int *>(msg->obj));
+        LOGV("msg %d, data:%d", msg->what, *reinterpret_cast<int *>(msg->obj));
     std::unique_lock<std::mutex> lock(looperMutex);
     LooperMessage *h = head;
     if (flush) {
@@ -81,12 +81,12 @@ bool Looper::loopOnce() {
     
     if (msg->quit) {
         if (DEBUG)
-            LOGV("%s, quitting", __FUNCTION__);
+            LOGV("quitting");
         delete msg;
         return false;
     }
     if (DEBUG)
-        LOGV("%s, msg %d, data:%d", __FUNCTION__, msg->what, *reinterpret_cast<int *>(msg->obj));
+        LOGV("msg %d, data:%d", msg->what, *reinterpret_cast<int *>(msg->obj));
     handle(msg->what, msg->obj);
     delete msg;
     return true;
@@ -94,7 +94,7 @@ bool Looper::loopOnce() {
 
 void Looper::quit() {
     if (DEBUG)
-        LOGV("%s quit", __FUNCTION__ );
+        LOGD();
     auto *msg = new LooperMessage();
     msg->what = 0;
     msg->obj = nullptr;

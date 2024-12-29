@@ -11,11 +11,11 @@
 Bitmap::Bitmap(JNIEnv *env, jobject bitmap) : globalRef(nullptr) {
     globalRef = env->NewGlobalRef(bitmap);
     if (globalRef == nullptr) {
-        LOGE("%s, faild to get global ref for bitmap", __FUNCTION__);
+        LOGE("faild to get global ref for bitmap");
         return;
     }
     if (ANDROID_BITMAP_RESULT_SUCCESS != AndroidBitmap_getInfo(env, bitmap, &bitmapInfo)) {
-        LOGE("%s, get bitmap info failed", __FUNCTION__);
+        LOGE("get bitmap info failed");
         return;
     }
 }
@@ -26,21 +26,21 @@ Bitmap::Bitmap(Bitmap &&bitmap) noexcept: globalRef(bitmap.globalRef), bitmapInf
 
 Bitmap::~Bitmap() {
     if (globalRef != nullptr) {
-        LOGE("%s, bitmap was not destroyed", __FUNCTION__);
+        LOGE("bitmap was not destroyed");
     }
 }
 
 bool Bitmap::render(cv::Mat &image) {
-    LOGD("%s", __FUNCTION__);
+    LOGD();
     JNIEnv *env;
     Util::get_env(&env);
     void *dstBuf;
     if (AndroidBitmap_lockPixels(env, globalRef, &dstBuf) < 0) {
-        LOGE("%s, lock bitmap failed", __FUNCTION__);
+        LOGE("lock bitmap failed");
         return false;
     }
     if (bitmapInfo.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
-        LOGE("%s, only support RGBA_8888", __FUNCTION__);
+        LOGE("only support RGBA_8888");
         AndroidBitmap_unlockPixels(env, globalRef);
         return false;
     }
