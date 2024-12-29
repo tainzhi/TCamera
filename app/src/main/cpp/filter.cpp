@@ -70,10 +70,14 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
                yuvBuffer->uv + y * yuvBuffer->width + centerX - thumbnail_width / 2, thumbnail_width / 2 * 2);
     }
 #ifdef TEST
-    std::string filePath = Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".420p.yuv";
+    // std::string filePath = Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".420p.yuv";
+    // LOGD("thumbnail width:%d, height:%d", thumbnail_width, thumbnail_height);
+    // LOGD("save center image to %s", filePath.c_str());
+    // Util::dumpBinary(filePath.c_str(), centerMat.data, thumbnail_width * thumbnail_height * 1.5);
+    std::string filePath(Util::cachePath + "/center_image_" + std::to_string(Util::getCurrentTimestampMs()) + ".jpg");
     LOGD("thumbnail width:%d, height:%d", thumbnail_width, thumbnail_height);
     LOGD("save center image to %s", filePath.c_str());
-    Util::dumpBinary(filePath.c_str(), centerMat.data, thumbnail_width * thumbnail_height * 1.5);
+    cv::imwrite(filePath, centerMat, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
 #endif
     cv::Mat rgbMat;
     for (size_t i = 0; i < thumbnailBitmaps.size(); i++) {
@@ -83,9 +87,9 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
             LOGD("rgbaMat:width:%d, height:%d, type:%d", rgbMat.cols, rgbMat.rows,
                  rgbMat.type());
 #ifdef TEST
-            std::string rgbFile(Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".png");
+            std::string rgbFile(Util::cachePath + "/rgba_" + std::to_string(Util::getCurrentTimestampMs()) + ".png");
             LOGD("save rgba mat to %s", rgbFile.c_str());
-            Util::dumpBinary(rgbFile.c_str(), rgbMat.data, rgbMat.cols * rgbMat.rows * 1.5);
+            cv::imwrite(rgbFile, rgbMat);
 #endif
             thumbnailBitmaps[i].render(rgbMat);
         }

@@ -11,7 +11,7 @@
 Bitmap::Bitmap(JNIEnv *env, jobject bitmap) : globalRef(nullptr) {
     globalRef = env->NewGlobalRef(bitmap);
     if (globalRef == nullptr) {
-        LOGE("faild to get global ref for bitmap");
+        LOGE("failed to get global ref for bitmap");
         return;
     }
     if (ANDROID_BITMAP_RESULT_SUCCESS != AndroidBitmap_getInfo(env, bitmap, &bitmapInfo)) {
@@ -35,7 +35,7 @@ bool Bitmap::render(cv::Mat &image) {
     JNIEnv *env;
     Util::get_env(&env);
     void *dstBuf;
-    if (AndroidBitmap_lockPixels(env, globalRef, &dstBuf) < 0) {
+    if (ANDROID_BITMAP_RESULT_SUCCESS !=  AndroidBitmap_lockPixels(env, globalRef, &dstBuf)) {
         LOGE("lock bitmap failed");
         return false;
     }
