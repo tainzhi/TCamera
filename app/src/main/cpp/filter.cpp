@@ -66,9 +66,21 @@ void FilterManager::handle(int what, void *data) {
 void FilterManager::process(YuvBuffer *yuvBuffer) {
     LOGD();
     assert(yuvBuffer->width >= thumbnail_width && yuvBuffer->height >= thumbnail_height);
+#ifdef TEST
+    std::string yuvFilePath = std::format("{}/yuv_{}x{}_{}.420sp.yuv", Util::cachePath, yuvBuffer->width,
+                                                yuvBuffer->height, Util::getCurrentTimestampMs());
+    LOGD("save rotate yuv to %s", yuvFilePath.c_str());
+    Util::dumpBinary(yuvFilePath.c_str(), yuvBuffer->data, yuvBuffer->width * yuvBuffer->height * 3 / 2);
+#endif
     // 从yuvBuffer中截取中心区域的yuv数据
     YuvBuffer centerYuv(thumbnail_width, thumbnail_height);
     yuvBuffer->extractCenter(centerYuv);
+#ifdef TEST
+    std::string centerYuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnail_width,
+                                                thumbnail_height, Util::getCurrentTimestampMs());
+    LOGD("save center yuv to %s", centerYuvFilePath.c_str());
+    Util::dumpBinary(centerYuvFilePath.c_str(), centerYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
+#endif
     // 旋转
     YuvBuffer rotateYuv;
     centerYuv.rotate(rotateYuv, orientation);
@@ -79,29 +91,15 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
     Util::dumpBinary(rotateYuvFilePath.c_str(), rotateYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
 #endif
     
-    cv::Mat centerMat(thumbnail_height + thumbnail_height / 2, thumbnail_width, CV_8UC1);
-    memcpy(centerMat.data, rotateYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
-    
-#ifdef TEST
-    std::string filePath(Util::cachePath + "/center_image_" + std::to_string(Util::getCurrentTimestampMs()) + ".jpg");
-    LOGD("save center image to %s", filePath.c_str());
-    cv::imwrite(filePath, centerMat, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
-#endif
-    cv::Mat rgbMat;
+    // 生成rgba数据
+    uint8_t *rgba = new uint8_t[thumbnail_width * thumbnail_height * 4];
+    rotateYuv.convertToRGBA8888(rgba);
     for (size_t i = 0; i < thumbnailBitmaps.size(); i++) {
         if (filterTags[i] == 0) {
-            cv::cvtColor(centerMat, rgbMat, cv::COLOR_YUV420sp2RGBA);
-            assert(rgbMat.type() == CV_8UC4);
-            LOGD("rgbaMat:width:%d, height:%d, type:%d", rgbMat.cols, rgbMat.rows,
-                 rgbMat.type());
-#ifdef TEST
-            std::string rgbFile(Util::cachePath + "/rgba_" + std::to_string(Util::getCurrentTimestampMs()) + ".png");
-            LOGD("save rgba mat to %s", rgbFile.c_str());
-            cv::imwrite(rgbFile, rgbMat);
-#endif
-            thumbnailBitmaps[i].render(rgbMat);
+            thumbnailBitmaps[i].render(rgba, thumbnail_width * thumbnail_height * 4);
         }
     }
+    delete[] rgba;
     delete yuvBuffer;
 }
 

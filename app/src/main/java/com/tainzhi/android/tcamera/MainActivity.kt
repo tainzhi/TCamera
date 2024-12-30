@@ -741,6 +741,7 @@ class MainActivity : AppCompatActivity() {
                 previewYuvImageReader.setOnImageAvailableListener({ reader ->
                     reader.acquireLatestImage()?.let {
                         yuvImageCnt++
+                        // todo 是否需要降低处理频率，因为 processThumbnails 耗时超过预览帧率间隔，导致发送的msg堵塞在 NativeFilterManager looper
                         if (yuvImageCnt % 3 == 0) {
                             filterBar.processThumbnails(it, getMediaOrientation())
                             yuvImageCnt = 0

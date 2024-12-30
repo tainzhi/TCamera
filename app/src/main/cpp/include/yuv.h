@@ -13,6 +13,7 @@
 
 #define TAG NativeYuv
 
+// todo: 优化 硬件加速
 typedef struct YuvBuffer {
     
     uint8_t *data;
@@ -22,38 +23,38 @@ typedef struct YuvBuffer {
     // int y_size;
     // int uv_size;
     // 默认 YUV420sp, that is NV12
-    YuvBuffer(uint8_t *y, uint8_t *uv, int width, int height): height(height), width(width) {
+    YuvBuffer(uint8_t *y, uint8_t *uv, int width, int height) : width(width), height(height) {
         this->data = (uint8_t *) malloc(width * height * 3 / 2);
         memcpy(this->data, y, width * height);
         memcpy(this->data + width * height, uv, width * height / 2);
     }
     
-    YuvBuffer(uint8_t *yuv, int width, int height): height(height), width(width) {
+    YuvBuffer(uint8_t *yuv, int width, int height) : width(width), height(height) {
         this->data = (uint8_t *) malloc(width * height * 3 / 2);
         memcpy(this->data, yuv, width * height * 3 / 2);
     }
     
-    YuvBuffer(int width, int height): height(height), width(width) {
+    YuvBuffer(int width, int height) : width(width), height(height) {
         this->data = (uint8_t *) malloc(width * height * 3 / 2);
     }
     
-    YuvBuffer(): data(nullptr), height(0), width(0)  {
+    YuvBuffer() : data(nullptr), width(0), height(0) {
     }
     
-    YuvBuffer(YuvBuffer & yuv) = delete;
+    YuvBuffer(YuvBuffer &yuv) = delete;
     
     YuvBuffer(YuvBuffer &&yuv) {
         this->data = yuv.data;
-        this->height = yuv.height;
         this->width = yuv.width;
+        this->height = yuv.height;
         yuv.data = nullptr;
     }
     
     YuvBuffer &operator=(YuvBuffer &&yuv) {
         if (this != &yuv) {
             this->data = yuv.data;
-            this->height = yuv.height;
             this->width = yuv.width;
+            this->height = yuv.height;
             yuv.data = nullptr;
         }
         return *this;
@@ -64,33 +65,46 @@ typedef struct YuvBuffer {
             free(data);
     }
     
+    // void convertToRGBA8888(uint8_t *rgba) {
+    //     int yIndex = 0;
+    //     int uvIndex = width * height;
+    //     int rgbaIndex = 0;
+    //     for (int y = 0; y < height; y++) {
+    //         for (int x = 0; x < width; x++) {
+    //             int yValue = data[yIndex++];
+    //             int uValue = data[uvIndex + (y / 2) * width + (x / 2) * 2];
+    //             int vValue = data[uvIndex + (y / 2) * width + (x / 2) * 2 + 1];
+    //             int rValue = yValue + (1.370705 * (vValue - 128));
+    //             int gValue = yValue - (0.698001 * (vValue - 128)) - (0.337633 * (uValue - 128));
+    //             int bValue = yValue + (1.732446 * (uValue - 128));
+    //             rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, rValue));
+    //             rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, gValue));
+    //             rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, bValue));
+    //             rgba[rgbaIndex++] = 255; // Alpha channel is set to 255 (fully opaque)
+    //         }
+    //     }
+    // }
+    
     void convertToRGBA8888(uint8_t *rgba) {
-        int uvOffset = width * height;
-        for (int j = 0; j < height; ++j) {
-            for (int i = 0; i < width; ++i) {
-                int yIndex = j * width + i;
-                int uvIndex = uvOffset + (j / 2) * (width / 2) + (i / 2) * 2;
-                
-                uint8_t y = this->data[yIndex];
-                uint8_t u = this->data[uvIndex] - 128;
-                uint8_t v = this->data[uvIndex + 1] - 128;
-                
-                int r = (int) (y + 1.402 * v);
-                int g = (int) (y - 0.34414 * u - 0.71414 * v);
-                int b = (int) (y + 1.772 * u);
-                
-                r = std::max(0, std::min(255, r));
-                g = std::max(0, std::min(255, g));
-                b = std::max(0, std::min(255, b));
-                
-                int rgbaIndex = (j * width + i) * 4;
-                rgba[rgbaIndex + 0] = (uint8_t) r; // R
-                rgba[rgbaIndex + 1] = (uint8_t) g; // G
-                rgba[rgbaIndex + 2] = (uint8_t) b; // B
-                rgba[rgbaIndex + 3] = 255;        // A
+        int yIndex = 0;
+        int uvIndex = width * height;
+        int rgbaIndex = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int yValue = data[yIndex++];
+                int uValue = data[uvIndex + (y / 2) * width + (x / 2) * 2];
+                int vValue = data[uvIndex + (y / 2) * width + (x / 2) * 2 + 1];
+                int rValue = yValue + (1.402 * (vValue - 128));
+                int gValue = yValue - (0.344136 * (uValue - 128)) - (0.714136 * (vValue - 128));
+                int bValue = yValue + (1.772 * (uValue - 128));
+                rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, rValue));
+                rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, gValue));
+                rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, bValue));
+                rgba[rgbaIndex++] = 255; // Alpha channel is set to 255 (fully opaque)
             }
         }
     }
+    
     
     void extractCenter(YuvBuffer &dstYuv) {
         assert(width > dstYuv.width);
@@ -100,21 +114,28 @@ typedef struct YuvBuffer {
         int startX = (width - dstWidth) / 2;
         int startY = (height - dstHeight) / 2;
         for (int y = startY; y < startY + dstHeight; y++) {
-            memcpy(dstYuv.data + (y - startY) * dstWidth, data + y * width + startX,
-                   dstWidth);
+            memcpy(dstYuv.data + (y - startY) * dstWidth, data + y * width + startX, dstWidth);
         }
-        int uvOffset = width * height;
         int dstUvOffset = dstWidth * dstHeight;
+        int uvOffset = width * height;
+        // for (int y = startY / 2; y < startY / 2 + dstHeight / 2; y++) {
+        //     memcpy(dstYuv.data + dstUvOffset + (y - startY / 2) * dstWidth, data + uvOffset + y * width + startX,
+        //            dstWidth);
+        // }
         for (int y = startY / 2; y < startY / 2 + dstHeight / 2; y++) {
-            memcpy(dstYuv.data + dstUvOffset + (y - startY / 2) * dstWidth,
-                   data + uvOffset + y * width + startX, dstWidth);
+            for (int x = startX / 2; x < startX / 2 + dstWidth / 2; x++) {
+                dstYuv.data[dstUvOffset + (y - startY / 2) * dstWidth + (x - startX / 2) * 2] =
+                        data[uvOffset + y * width + x * 2];
+                dstYuv.data[dstUvOffset + (y - startY / 2) * dstWidth + (x - startX / 2) * 2 + 1] =
+                        data[uvOffset + y * width + x * 2 + 1];
+            }
         }
     }
     
     void rotate(YuvBuffer &dstYuv, int rotation) {
         int pos = 0;
         int k = 0;
-        switch(rotation) {
+        switch (rotation) {
             case 0:
                 dstYuv = std::move(*this);
                 break;
@@ -175,7 +196,7 @@ typedef struct YuvBuffer {
             default:
                 // LOGE("rotation %d not supported, only support 0/90/180/270", rotation);
                 break;
-                
+            
         }
     }
 };

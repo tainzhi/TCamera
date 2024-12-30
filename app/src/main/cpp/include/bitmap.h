@@ -19,7 +19,7 @@ public:
     Bitmap& operator=(const Bitmap &bitmap) = delete;
     ~Bitmap();
     void destroy(JNIEnv *env);
-    bool render(cv::Mat & image);
+    bool render(const uint8_t *data, int size);
 private:
     jobject globalRef;
     AndroidBitmapInfo bitmapInfo;
