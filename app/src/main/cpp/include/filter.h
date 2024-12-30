@@ -15,21 +15,18 @@
 #include "bitmap.h"
 #include "util.h"
 #include "looper.h"
+#include "yuv.h"
 
 
 
 
 class FilterManager: public Looper {
 public:
+    ~FilterManager();
     bool configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height,
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
     bool processThumbnails(YuvBuffer *yuvBuffer, int orientation);
     bool clearThumbnails(JNIEnv *env);
-    
-    enum kMessage {
-        kMessage_ProcessThumbnails = 1,
-        kMessage_Clear = 2,
-    };
 private:
     void handle(int what, void *data) override;
     void process(YuvBuffer * yuvBuffer);
@@ -40,6 +37,11 @@ private:
     std::vector<int> filterTags;
     std::vector<Bitmap> thumbnailBitmaps;
     std::vector<Bitmap> lutBitmaps;
+    
+    enum kMessage {
+        kMessage_ProcessThumbnails = 1,
+        kMessage_Clear = 2,
+    };
 };
 
 
