@@ -69,13 +69,20 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
     // 从yuvBuffer中截取中心区域的yuv数据
     YuvBuffer centerYuv(thumbnail_width, thumbnail_height);
     yuvBuffer->extractCenter(centerYuv);
-    cv::Mat centerMat(thumbnail_height + thumbnail_height / 2, thumbnail_width, CV_8UC1);
-    memcpy(centerMat.data, centerYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
+    // 旋转
+    YuvBuffer rotateYuv;
+    centerYuv.rotate(rotateYuv, orientation);
 #ifdef TEST
-    std::string yuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnail_width, thumbnail_height, Util::getCurrentTimestampMs());
-    LOGD("save center yuv to %s", yuvFilePath.c_str());
-    Util::dumpBinary(yuvFilePath.c_str(), centerYuv.data, thumbnail_width * thumbnail_height * 1.5);
+    std::string rotateYuvFilePath = std::format("{}/rotate_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnail_width,
+                                           thumbnail_height, Util::getCurrentTimestampMs());
+    LOGD("save rotate yuv to %s", rotateYuvFilePath.c_str());
+    Util::dumpBinary(rotateYuvFilePath.c_str(), rotateYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
+#endif
     
+    cv::Mat centerMat(thumbnail_height + thumbnail_height / 2, thumbnail_width, CV_8UC1);
+    memcpy(centerMat.data, rotateYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
+    
+#ifdef TEST
     std::string filePath(Util::cachePath + "/center_image_" + std::to_string(Util::getCurrentTimestampMs()) + ".jpg");
     LOGD("save center image to %s", filePath.c_str());
     cv::imwrite(filePath, centerMat, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
