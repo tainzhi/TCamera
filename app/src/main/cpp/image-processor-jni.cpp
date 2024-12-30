@@ -222,14 +222,22 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image,
     // jint vPixelStride = env->CallIntMethod(vPlane, env->GetMethodID(planeClass, "getPixelStride", "()I"));
     // jint vRowStride = env->CallIntMethod(vPlane, env->GetMethodID(planeClass, "getRowStride", "()I"));
     
-    // 必须要在堆上申请内存，否则在传递到另一个线程时会被释放导致内存错误
-    YuvBuffer * yuvBuffer = new YuvBuffer(width, height);
-    memcpy(yuvBuffer->y, yBytes, height * width);
-    // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
-    memcpy(yuvBuffer->uv, uBytes, height * width / 2 - 1);
-    yuvBuffer->uv[height * width / 2 - 1] = 0;
+    // // 必须要在堆上申请内存，否则在传递到另一个线程时会被释放导致内存错误
+    // YuvBuffer * yuvBuffer = new YuvBuffer(width, height);
+    // memcpy(yuvBuffer->y, yBytes, height * width);
+    // // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
+    // memcpy(yuvBuffer->uv, uBytes, height * width / 2 - 1);
+    // yuvBuffer->uv[height * width / 2 - 1] = 0;
     
-    engine->getFilterManager()->processThumbnails(yuvBuffer, orientation);
+    LOGD("%dx%d", width, height);
+    cv::Mat *yuvMat = new cv::Mat(height + height/2, width, CV_8UC1);
+    memcpy(yuvMat->data, yBytes, height * width);
+    // 在这里使用的是 plane[0] + plane[1]
+    // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
+    memcpy(yuvMat->data + width * height, uBytes, height * width / 2 - 1);
+    yuvMat->data[height * width / 2 - 1] = 0;
+    
+    engine->getFilterManager()->processThumbnails(yuvMat, orientation);
     env->DeleteLocalRef(yBuffer);
     env->DeleteLocalRef(uBuffer);
     env->DeleteLocalRef(planeClass);

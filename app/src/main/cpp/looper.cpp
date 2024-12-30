@@ -9,7 +9,7 @@ struct LooperMessage {
     bool quit;
 };
 
-bool Looper::DEBUG = false;
+bool Looper::DEBUG = true;
 Looper::Looper(): running(true) {
     LOGD("created");
     head = nullptr;

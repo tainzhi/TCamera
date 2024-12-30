@@ -47,8 +47,6 @@ private:
     void process(int jobId);
     
     std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};
-    std::mutex mutex;
-    std::condition_variable quitCond;
     
     
     enum kMessage {

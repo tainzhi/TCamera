@@ -737,9 +737,14 @@ class MainActivity : AppCompatActivity() {
                     }
                 }, imageReaderHandler)
                 previewYuvImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.YUV_420_888, 1)
+                var yuvImageCnt = 0
                 previewYuvImageReader.setOnImageAvailableListener({ reader ->
                     reader.acquireLatestImage()?.let {
-                        filterBar.processThumbnails(it, getMediaOrientation())
+                        yuvImageCnt++
+                        if (yuvImageCnt % 3 == 0) {
+                            filterBar.processThumbnails(it, getMediaOrientation())
+                            yuvImageCnt = 0
+                        }
                         it.close()
                     }
                 }, imageReaderHandler)

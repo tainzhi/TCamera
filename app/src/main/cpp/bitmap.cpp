@@ -45,13 +45,18 @@ bool Bitmap::render(cv::Mat &image) {
         return false;
     }
     assert(bitmapInfo.width == image.cols && bitmapInfo.height == image.rows);
+    // assert(bitmapInfo.stride == image.step);
+    assert(bitmapInfo.width * bitmapInfo.height * 4 == image.total() * image.channels());
+    // std::memcpy((u_char *) dstBuf, image.data, bitmapInfo.width * bitmapInfo.height * 4);
     for (int y = 0; y < bitmapInfo.height; ++y) {
         memcpy((u_char *) dstBuf + y * bitmapInfo.stride, image.data + y * image.step, bitmapInfo.width * 4);
     }
     AndroidBitmap_unlockPixels(env, globalRef);
+    return true;
 }
 
 void Bitmap::destroy(JNIEnv *env) {
+    LOGD();
     if (globalRef != nullptr) {
         env->DeleteGlobalRef(globalRef);
         globalRef = nullptr;

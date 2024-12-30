@@ -53,6 +53,9 @@ private:
     std::mutex looperMutex;
     std::condition_variable msgQueueChangedCond;
     bool running;
+protected:
+    std::mutex mutex;
+    std::condition_variable quitCond;
 };
 
 #endif //TCAMERA_LOOPER_H
