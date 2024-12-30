@@ -66,16 +66,16 @@ void FilterManager::handle(int what, void *data) {
 void FilterManager::process(YuvBuffer *yuvBuffer) {
     LOGD();
     assert(yuvBuffer->width >= thumbnail_width && yuvBuffer->height >= thumbnail_height);
+    // 从yuvBuffer中截取中心区域的yuv数据
     YuvBuffer centerYuv(thumbnail_width, thumbnail_height);
     yuvBuffer->extractCenter(centerYuv);
     cv::Mat centerMat(thumbnail_height + thumbnail_height / 2, thumbnail_width, CV_8UC1);
-    memcpy(centerMat.data, centerYuv.yBuffer, thumbnail_width * thumbnail_height);
-    memcpy(centerMat.data + thumbnail_height * thumbnail_width, centerYuv.uvBuffer, thumbnail_width * thumbnail_height / 2);
+    memcpy(centerMat.data, centerYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
 #ifdef TEST
-    // std::string filePath = Util::cachePath + '/' + std::to_string(Util::getCurrentTimestampMs()) + ".420p.yuv";
-    // LOGD("thumbnail width:%d, height:%d", thumbnail_width, thumbnail_height);
-    // LOGD("save center image to %s", filePath.c_str());
-    // Util::dumpBinary(filePath.c_str(), centerMat.data, thumbnail_width * thumbnail_height * 1.5);
+    std::string yuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnail_width, thumbnail_height, Util::getCurrentTimestampMs());
+    LOGD("save center yuv to %s", yuvFilePath.c_str());
+    Util::dumpBinary(yuvFilePath.c_str(), centerYuv.data, thumbnail_width * thumbnail_height * 1.5);
+    
     std::string filePath(Util::cachePath + "/center_image_" + std::to_string(Util::getCurrentTimestampMs()) + ".jpg");
     LOGD("save center image to %s", filePath.c_str());
     cv::imwrite(filePath, centerMat, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});

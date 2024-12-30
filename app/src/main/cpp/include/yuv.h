@@ -12,8 +12,7 @@
 
 typedef struct YuvBuffer {
     
-    uint8_t *yBuffer;
-    uint8_t *uvBuffer;
+    uint8_t *data;
     int width;
     int height;
     
@@ -21,17 +20,15 @@ typedef struct YuvBuffer {
     // int uv_size;
     // 默认 YUV420sp, that is NV12
     YuvBuffer(uint8_t *y, uint8_t *uv, int width, int height) {
-        this->yBuffer = (uint8_t *) malloc(width * height);
-        memcpy(this->yBuffer, y, width * height);
-        this->uvBuffer = (uint8_t *) malloc(width * height / 2);
-        memcpy(this->uvBuffer, uv, width * height / 2);
+        this->data = (uint8_t *) malloc(width * height * 3 / 2);
+        memcpy(this->data, y, width * height);
+        memcpy(this->data + width * height, uv, width * height / 2);
         // y_size = width * height;
         // uv_size = width * height / 2;
     }
     
     YuvBuffer(int width, int height) {
-        this->yBuffer = (uint8_t *) malloc(width * height);
-        this->uvBuffer = (uint8_t *) malloc(width * height / 2);
+        this->data = (uint8_t *) malloc(width * height * 3 / 2);
         this->height = height;
         this->width = width;
         // y_size = width * height;
@@ -39,19 +36,19 @@ typedef struct YuvBuffer {
     }
     
     ~YuvBuffer() {
-        free(yBuffer);
-        free(uvBuffer);
+        free(data);
     }
     
     void convertToRGBA8888(uint8_t *rgba) {
+        int uvOffset = width * height;
         for (int j = 0; j < height; ++j) {
             for (int i = 0; i < width; ++i) {
                 int yIndex = j * width + i;
-                int uvIndex = (j / 2) * (width / 2) + (i / 2) * 2;
+                int uvIndex = uvOffset + (j / 2) * (width / 2) + (i / 2) * 2;
                 
-                uint8_t y = this->yBuffer[yIndex];
-                uint8_t u = this->uvBuffer[uvIndex] - 128;
-                uint8_t v = this->uvBuffer[uvIndex + 1] - 128;
+                uint8_t y = this->data[yIndex];
+                uint8_t u = this->data[uvIndex] - 128;
+                uint8_t v = this->data[uvIndex + 1] - 128;
                 
                 int r = (int) (y + 1.402 * v);
                 int g = (int) (y - 0.34414 * u - 0.71414 * v);
@@ -75,18 +72,17 @@ typedef struct YuvBuffer {
         assert(height > dstYuv.height);
         int dstWidth = dstYuv.width;
         int dstHeight = dstYuv.height;
-        
-        int startX = width / 2 - dstWidth / 2;
-        int startY = height / 2 - dstHeight / 2;
-        for (int y = 0; y < dstHeight; y++) {
-            memcpy(dstYuv.yBuffer + y * dstWidth,
-                   yBuffer + (y + startY) * width + startX, dstWidth);
+        int startX = (width - dstWidth) / 2;
+        int startY = (height - dstHeight) / 2;
+        for (int y = startY; y < startY + dstHeight; y++) {
+            memcpy(dstYuv.data + (y - startY) * dstWidth, data + y * width + startX,
+                   dstWidth);
         }
-        // -height/4 + dstHeight/4
-        for (int y = startY / 2; y < startY /2 + dstHeight / 2; y++) {
-            memcpy(dstYuv.uvBuffer +
-                   (y - startY / 2) * dstWidth,
-                   uvBuffer + y * width + startX / 2, dstWidth);
+        int uvOffset = width * height;
+        int dstUvOffset = dstWidth * dstHeight;
+        for (int y = startY / 2; y < startY / 2 + dstHeight / 2; y++) {
+            memcpy(dstYuv.data + dstUvOffset + (y - startY / 2) * dstWidth,
+                   data + uvOffset + y * width + startX, dstWidth);
         }
     }
 };
