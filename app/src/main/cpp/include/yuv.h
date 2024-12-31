@@ -124,10 +124,11 @@ typedef struct YuvBuffer {
         // }
         for (int y = startY / 2; y < startY / 2 + dstHeight / 2; y++) {
             for (int x = startX / 2; x < startX / 2 + dstWidth / 2; x++) {
-                dstYuv.data[dstUvOffset + (y - startY / 2) * dstWidth + (x - startX / 2) * 2] =
-                        data[uvOffset + y * width + x * 2];
-                dstYuv.data[dstUvOffset + (y - startY / 2) * dstWidth + (x - startX / 2) * 2 + 1] =
-                        data[uvOffset + y * width + x * 2 + 1];
+                dstYuv.data[dstUvOffset + (y - startY / 2) * dstWidth + (x - startX / 2) * 2] = data[uvOffset +
+                                                                                                     y * width + x * 2];
+                dstYuv.data[dstUvOffset + (y - startY / 2) * dstWidth + (x - startX / 2) * 2 + 1] = data[uvOffset +
+                                                                                                         y * width +
+                                                                                                         x * 2 + 1];
             }
         }
     }
@@ -199,6 +200,133 @@ typedef struct YuvBuffer {
             
         }
     }
+} YuvBuffer;
+
+
+typedef struct vec4 {
+    double x, y, z, w;
 };
+
+namespace Color {
+    // /**
+    //  * reference: https://gist.github.com/emanuel-sanabria-developer/5793377
+    //  * @param rgba 4个字节，32位的像素rgba的地址
+    //  * @param hsl 单像素的hsl(a)的地址
+    //  */
+    // static void rgba2hsl(uint8_t *rgba, float *hsl) {
+    //     float r = static_cast<float>(rgba[0]) / 255.0f;
+    //     float g = static_cast<float>(rgba[1]) / 255.0f;
+    //     float b = static_cast<float>(rgba[2]) / 255.0f;
+    //     float a = static_cast<float>(rgba[3]) / 255.0f;
+    //     float max = MAX(MAX(r, g), b);
+    //     float min = MIN(MIN(r, g), b);
+    //     float h, s, l;
+    //
+    //     h = s = l = (max + min) / 2;
+    //
+    //     if (max == min) {
+    //         h = s = 0; // achromatic
+    //     } else {
+    //         float d = max - min;
+    //         s = (l > 0.5) ? d / (2 - max - min) : d / (max + min);
+    //
+    //         if (max == r) {
+    //             h = (g - b) / d + (g < b ? 6 : 0);
+    //         } else if (max == g) {
+    //             h = (b - r) / d + 2;
+    //         } else if (max == b) {
+    //             h = (r - g) / d + 4;
+    //         }
+    //
+    //         h /= 6;
+    //     }
+    //     hsl[0] = h;
+    //     hsl[1] = s;
+    //     hsl[2] = l;
+    //     hsl[3] = a;
+    // }
+    //
+    // static float hue2rgb(float p, float q, float t) {
+    //     if (t < 0)
+    //         t += 1;
+    //     if (t > 1)
+    //         t -= 1;
+    //     if (t < 1./6)
+    //         return p + (q - p) * 6 * t;
+    //     if (t < 1./2)
+    //         return q;
+    //     if (t < 2./3)
+    //         return p + (q - p) * (2./3 - t) * 6;
+    //
+    //     return p;
+    // }
+    //
+    // static void hsl2rgba(float *hsl, uint8_t *rgba) {
+    //     float r, g, b, a;
+    //     float h = hsl[0];
+    //     float s = hsl[1];
+    //     float l = hsl[2];
+    //     a = hsl[3];
+    //     if(0 == s) {
+    //         r = g = b = l; // achromatic
+    //     }
+    //     else {
+    //         float q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    //         float p = 2 * l - q;
+    //         r = hue2rgb(p, q, h + 1./3) * 255;
+    //         g = hue2rgb(p, q, h) * 255;
+    //         b = hue2rgb(p, q, h - 1./3) * 255;
+    //     }
+    //     rgba[0] = static_cast<uint8_t>(r * 255);
+    //     rgba[1] = static_cast<uint8_t>(g * 255);
+    //     rgba[2] = static_cast<uint8_t>(b * 255);
+    //     rgba[3] = static_cast<uint8_t>(a * 255);
+    // }
+    
+    static void rgba2hsl(uint8_t *rgba, float *hsl) {
+        float r = rgba[0] / 255.0f;
+        float g = rgba[1] / 255.0f;
+        float b = rgba[2] / 255.0f;
+        float a = rgba[3] / 255.0f;
+        vec4 k{0, -1.0/3, 2.0/3, -1.0};
+        vec4 p = b < g ?  vec4(g, b, k.x, k.y) : vec4(b, g, k.w, k.z) ;
+        vec4 q = p.x < r ? vec4(r, p.y, p.z, p.x) : vec4(p.x, p.y, p.w , r);
+        float d = q.x - std::min(q.w, q.y);
+        float e = 1.0e-10;
+        float h = std::abs(q.z +  (q.w - q.y) / (6.0 * d  +e));
+        float s = d / (q.x + e);
+        float l = q.x;
+        hsl[0] = h;
+        hsl[1] = s;
+        hsl[2] = l;
+        hsl[3] = a;
+    }
+
+    static void hsl2rgba(float *hsl, uint8_t *rgba) {
+        float h = hsl[0];
+        float s = hsl[1];
+        float l = hsl[2];
+        float a = hsl[3];
+
+        vec4 k{1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0};
+        vec4 p{
+                std::abs((h + k.x - std::floor(h + k.x)) * 6.0 - k.w),
+                std::abs((h + k.y - std::floor(h + k.y)) * 6.0 - k.w),
+                std::abs((h + k.z - std::floor(h + k.z)) * 6.0 - k.w),
+                0
+        };
+        vec4 q{
+                std::clamp(p.x - k.x, 0.0, 1.0),
+                std::clamp(p.y - k.x, 0.0, 1.0),
+                std::clamp(p.z - k.x, 0.0, 1.0),
+                0
+
+        };
+        rgba[0] = l * ((1 - s) * k.x + s * q.x) * 255;
+        rgba[1] = l * ((1 - s) * k.x + s * q.y) * 255;
+        rgba[2] = l * ((1 - s) * k.x + s * q.z) * 255;
+        rgba[3] = a * 255;
+    }
+}
 
 #endif //TCAMERA_YUV_H

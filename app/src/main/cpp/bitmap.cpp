@@ -30,10 +30,8 @@ Bitmap::~Bitmap() {
     }
 }
 
-bool Bitmap::render(const uint8_t * rgba, int size) {
+bool Bitmap::render(JNIEnv *env, const uint8_t * rgba, int size) {
     LOGD();
-    JNIEnv *env;
-    Util::get_env(&env);
     void *dstBuf;
     if (ANDROID_BITMAP_RESULT_SUCCESS !=  AndroidBitmap_lockPixels(env, globalRef, &dstBuf)) {
         LOGE("lock bitmap failed");

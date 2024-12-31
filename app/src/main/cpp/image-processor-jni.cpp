@@ -100,7 +100,12 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
         LOGV("opencv:opencl is available");
     }
     // cv::setUseOptimized(true); enable SIMD optimized
-    LOGV("cv use optimized: %d", cv::useOptimized());
+    LOGV("opencv use optimized: %d", cv::useOptimized());
+    LOGD("opencv build info: %s", cv::getBuildInformation().c_str());
+    LOGD("opencv cpu features:%s", cv::getCPUFeaturesLine().c_str());
+    LOGD("opencv ipp:%d, version:%s, status:%d", cv::ipp::useIPP(), cv::ipp::getIppVersion().c_str(),
+         cv::ipp::getIppStatus());
+    LOGD("opencv %d threads, %d cpus to accelerate", cv::getNumThreads(), cv::getNumberOfCPUs());
     
     engine = new Engine();
     engine->init();
