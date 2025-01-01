@@ -327,6 +327,35 @@ namespace Color {
         rgba[2] = l * ((1 - s) * k.x + s * q.z) * 255;
         rgba[3] = a * 255;
     }
+    
+    static void argb2yuv(uint8_t * argb, int width, int height, uint8_t *yuv) {
+        int yIndex = 0;
+        int uvIndex = width * height;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int argbIndex = (y * width + x) * 4;
+                uint8_t a = argb[argbIndex];
+                uint8_t r = argb[argbIndex + 1];
+                uint8_t g = argb[argbIndex + 2];
+                uint8_t b = argb[argbIndex + 3];
+                
+                // Calculate Y
+                int yValue = static_cast<int>(0.299 * r + 0.587 * g + 0.114 * b);
+                yValue = std::max(0, std::min(255, yValue));
+                yuv[yIndex++] = static_cast<uint8_t>(yValue);
+                
+                // Calculate U and V for every 2x2 block
+                if (x % 2 == 0 && y % 2 == 0) {
+                    int uValue = static_cast<int>(-0.168736 * r - 0.331264 * g + 0.5 * b + 128);
+                    int vValue = static_cast<int>(0.5 * r - 0.418688 * g - 0.081312 * b + 128);
+                    uValue = std::max(0, std::min(255, uValue));
+                    vValue = std::max(0, std::min(255, vValue));
+                    yuv[uvIndex++] = static_cast<uint8_t>(uValue);
+                    yuv[uvIndex++] = static_cast<uint8_t>(vValue);
+                }
+            }
+        }
+    }
 }
 
 #endif //TCAMERA_YUV_H

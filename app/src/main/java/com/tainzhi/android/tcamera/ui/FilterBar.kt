@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.media.Image
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.Log.i
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
@@ -151,23 +152,21 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         Log.d(TAG, "configureFilterThumbnails: ")
         Kpi.start(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
         val thumbnailSize = getThumbnailSize()
-        types.forEach { t ->
-            t.thumbnailBitmap = Bitmap.createBitmap(thumbnailSize, thumbnailSize, Bitmap.Config.ARGB_8888)
-        }
         val bitmapOptions = BitmapFactory.Options().apply {
             inScaled = false
         }
-        for (i in 0 until types.size) {
-            if (i < 10) {
+        types.forEach { t ->
+            t.thumbnailBitmap = Bitmap.createBitmap(thumbnailSize, thumbnailSize, Bitmap.Config.ARGB_8888)
+            if (t.tag < 10) {
                 lutBitmaps.add(null)
             } else {
                 val bitmap = BitmapFactory.decodeResource(
                     App.getInstance().resources,
-                    types[i].resId,
+                    t.resId,
                     bitmapOptions
                 )
                 if (bitmap == null) {
-                    Log.e(TAG, "load bitmap from lut ${types[i].name} failed: bitmap is null")
+                    Log.e(TAG, "load bitmap from lut ${t.name} failed: bitmap is null")
                 }
                 lutBitmaps.add(bitmap)
             }

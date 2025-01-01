@@ -8,10 +8,6 @@
 
 #include <jni.h>
 #include <vector>
-#include <opencv2/core/mat.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/core/mat.hpp>
-#include <opencv2/imgcodecs.hpp>
 #include "bitmap.h"
 #include "util.h"
 #include "looper.h"
@@ -30,13 +26,14 @@ public:
 private:
     void handle(int what, void *data) override;
     void process(YuvBuffer * yuvBuffer);
-    int thumbnail_width;
-    int thumbnail_height;
+    int thumbnailWidth;
+    int thumbnailHeight;
     int orientation; // image orientation, 0, 90, 180, 270, 也就是thumbnail需要旋转的角度
     std::vector<std::string> filterNames;
     std::vector<int> filterTags;
     std::vector<Bitmap> thumbnailBitmaps;
-    std::vector<Bitmap> lutBitmaps;
+    std::vector<uint8_t*> lutTables;
+    int lutWidth, lutHeight;
     
     enum kMessage {
         kMessage_ProcessThumbnails = 1,

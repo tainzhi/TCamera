@@ -18,9 +18,9 @@ FilterManager::~FilterManager() {
 
 bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height, jobject filter_names,
                                         jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps) {
-    LOGD();
-    this->thumbnail_width = thumbnail_width;
-    this->thumbnail_height = thumbnail_height;
+    LOGD("begin");
+    this->thumbnailWidth = thumbnail_width;
+    this->thumbnailHeight = thumbnail_height;
     Util::jobject_to_stringVector(env, filter_names, this->filterNames);
     Util::jobject_to_intVector(env, filter_tags, this->filterTags);
     jclass thumbnailBitmapsClass = env->GetObjectClass(filter_thumbnail_bitmaps);
@@ -39,11 +39,17 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
         // but tag < 10, the thumbnail not needs lut, so lutBitmaps[i] is nullptr
         jobject jlutbitmap = env->CallObjectMethod(lut_bitmaps, getMethod, i);
         if (jlutbitmap != nullptr) {
-            this->lutBitmaps.emplace_back(env, jlutbitmap);
+            uint8_t *lutData;
+            Bitmap::getBitmapData(env, jlutbitmap, lutData, lutWidth, lutHeight);
+            this->lutTables.emplace_back(lutData);
+        } else {
+            this->lutTables.emplace_back(nullptr);
         }
         env->DeleteLocalRef(jthubmnailbitmap);
+        env->DeleteLocalRef(jlutbitmap);
     }
     env->DeleteLocalRef(thumbnailBitmapsClass);
+    LOGD("end");
     return true;
 }
 
@@ -65,7 +71,7 @@ void FilterManager::handle(int what, void *data) {
 
 void FilterManager::process(YuvBuffer *yuvBuffer) {
     LOGD();
-    assert(yuvBuffer->width >= thumbnail_width && yuvBuffer->height >= thumbnail_height);
+    assert(yuvBuffer->width >= thumbnailWidth && yuvBuffer->height >= thumbnailHeight);
 #ifdef TEST
     std::string yuvFilePath = std::format("{}/yuv_{}x{}_{}.420sp.yuv", Util::cachePath, yuvBuffer->width,
                                                 yuvBuffer->height, Util::getCurrentTimestampMs());
@@ -73,51 +79,51 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
     Util::dumpBinary(yuvFilePath.c_str(), yuvBuffer->data, yuvBuffer->width * yuvBuffer->height * 3 / 2);
 #endif
     // 从yuvBuffer中截取中心区域的yuv数据
-    YuvBuffer centerYuv(thumbnail_width, thumbnail_height);
+    YuvBuffer centerYuv(thumbnailWidth, thumbnailHeight);
     yuvBuffer->extractCenter(centerYuv);
 #ifdef TEST
-    std::string centerYuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnail_width,
-                                                thumbnail_height, Util::getCurrentTimestampMs());
+    std::string centerYuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
+                                                thumbnailHeight, Util::getCurrentTimestampMs());
     LOGD("save center yuv to %s", centerYuvFilePath.c_str());
-    Util::dumpBinary(centerYuvFilePath.c_str(), centerYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
+    Util::dumpBinary(centerYuvFilePath.c_str(), centerYuv.data, thumbnailWidth * thumbnailHeight * 3 / 2);
 #endif
     // 旋转
     YuvBuffer rotateYuv;
     centerYuv.rotate(rotateYuv, orientation);
 #ifdef TEST
-    std::string rotateYuvFilePath = std::format("{}/rotate_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnail_width,
-                                           thumbnail_height, Util::getCurrentTimestampMs());
+    std::string rotateYuvFilePath = std::format("{}/rotate_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
+                                                thumbnailHeight, Util::getCurrentTimestampMs());
     LOGD("save rotate yuv to %s", rotateYuvFilePath.c_str());
-    Util::dumpBinary(rotateYuvFilePath.c_str(), rotateYuv.data, thumbnail_width * thumbnail_height * 3 / 2);
+    Util::dumpBinary(rotateYuvFilePath.c_str(), rotateYuv.data, thumbnailWidth * thumbnailHeight * 3 / 2);
 #endif
     
     // 生成rgba数据
-    uint8_t *rgba = new uint8_t[thumbnail_width * thumbnail_height * 4];
+    uint8_t *rgba = new uint8_t[thumbnailWidth * thumbnailHeight * 4];
     rotateYuv.convertToRGBA8888(rgba);
-    uint8_t *rendered_rgba = new uint8_t[thumbnail_width * thumbnail_height * 4];
-    float * hsl = new float[thumbnail_width * thumbnail_height * 4];
+    uint8_t *rendered_rgba = new uint8_t[thumbnailWidth * thumbnailHeight * 4];
+    float * hsl = new float[thumbnailWidth * thumbnailHeight * 4];
     
     JNIEnv *env;
     Util::get_env(&env);
     
     for (size_t i = 0; i < thumbnailBitmaps.size(); i++) {
         if (filterTags[i] == 0) {
-            thumbnailBitmaps[i].render(env, rgba, thumbnail_width * thumbnail_height * 4);
+            thumbnailBitmaps[i].render(env, rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] == 1) {
             // grey
-            for (size_t j = 0; j < thumbnail_width * thumbnail_height * 4; j += 4) {
+            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
                 uint8_t wm = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
                 rendered_rgba[j] = wm;
                 rendered_rgba[j + 1] = wm;
                 rendered_rgba[j + 2] = wm;
                 rendered_rgba[j + 3] = rgba[j + 3];
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnail_width * thumbnail_height * 4);
+            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] == 2) {
             // black and white
             uint8_t threshold = 0.5 * 255;
             uint8_t mean;
-            for (size_t j = 0; j < thumbnail_width * thumbnail_height * 4; j += 4) {
+            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
                 mean = (rgba[j] + rgba[j + 1] + rgba[j + 2]) / 3.0;
                 if (mean > threshold) {
                     rendered_rgba[j] = 255;
@@ -131,27 +137,27 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
                     rendered_rgba[j + 3] = rgba[j + 3];
                 }
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnail_width * thumbnail_height * 4);
+            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] == 3) {
             // reverse
-            for (size_t j = 0; j < thumbnail_width * thumbnail_height * 4; j += 4) {
+            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
                 rendered_rgba[j] = 255 - rgba[j];
                 rendered_rgba[j + 1] = 255 - rgba[j + 1];
                 rendered_rgba[j + 2] = 255 - rgba[j + 2];
                 rendered_rgba[j + 3] = rgba[j + 3];
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnail_width * thumbnail_height * 4);
+            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] == 4) {
             // light
-            for (size_t j = 0; j < thumbnail_width * thumbnail_height * 4; j += 4) {
+            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
                 Color::rgba2hsl(rgba + j, hsl + j);
                 // hsl[j + 2] += 0.15;
                 Color::hsl2rgba(hsl + j, rendered_rgba + j);
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnail_width * thumbnail_height * 4);
+            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] == 5) {
             // posterization
-            for (size_t j = 0; j < thumbnail_width * thumbnail_height * 4; j+=4 ) {
+            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j+=4 ) {
                 float grey = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
                 Color::rgba2hsl(rgba + j, hsl + j);
                 if (grey < 0.3 * 255) {
@@ -167,10 +173,14 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
                 }
                 Color::hsl2rgba(hsl + j, rendered_rgba + j);
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnail_width * thumbnail_height * 4);
+            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] >=10) {
-            // lut
-            uint8_t *lut = new uint8_t[thumbnail_width * thumbnail_height * 4];
+            uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
+            Color::argb2yuv(this->lutTables[i], lutWidth, lutHeight , yuvlut);
+            std::string lutFilePath = std::format("{}/lut_{}_{}x{}.420sp.yuv", Util::cachePath, filterTags[i],
+                                                  lutWidth,
+                                                  lutHeight);
+            Util::dumpBinary(lutFilePath.c_str(), yuvlut, lutWidth * lutHeight * 3 / 2);
         } else {
             LOGE("unsupported filter tag: %d", filterTags[i]);
         }
@@ -186,8 +196,10 @@ bool FilterManager::clearThumbnails(JNIEnv *env) {
     for (auto &bitmap: thumbnailBitmaps) {
         bitmap.destroy(env);
     }
-    for (auto &bitmap: lutBitmaps) {
-        bitmap.destroy(env);
+    for (auto &lut: lutTables) {
+        if (lut != nullptr) {
+            delete[] lut;
+        }
     }
     return true;
 }
