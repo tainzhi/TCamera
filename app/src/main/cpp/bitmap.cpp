@@ -56,7 +56,7 @@ void Bitmap::destroy(JNIEnv *env) {
     }
 }
 
-bool Bitmap::getBitmapData(JNIEnv *env, jobject bitmap, uint8_t *&data, int &width, int &height) {
+bool Bitmap::getBitmapData(JNIEnv *env, jobject bitmap, uint8_t **data, int &width, int &height) {
     AndroidBitmapInfo bitmapInfo;
     if (ANDROID_BITMAP_RESULT_SUCCESS != AndroidBitmap_getInfo(env, bitmap, &bitmapInfo)) {
         LOGE("get bitmap info failed");
@@ -69,12 +69,12 @@ bool Bitmap::getBitmapData(JNIEnv *env, jobject bitmap, uint8_t *&data, int &wid
     void *buf;
     width = bitmapInfo.width;
     height = bitmapInfo.height;
-    data = (uint8_t *) malloc(width * height * 4);
+    *data = (uint8_t *) malloc(width * height * 4);
     if (ANDROID_BITMAP_RESULT_SUCCESS != AndroidBitmap_lockPixels(env, bitmap, &buf)) {
         LOGE("lock bitmap failed!");
         return false;
     }
-    memcpy(data, buf, width * height * 4);
+    memcpy(*data, buf, width * height * 4);
     AndroidBitmap_unlockPixels(env, bitmap);
     return true;
 }

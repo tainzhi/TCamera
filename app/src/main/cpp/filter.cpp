@@ -6,7 +6,7 @@
 #include "filter.h"
 
 #define TAG "NativeFilterManager"
-#define TEST
+// #define TEST
 
 FilterManager::~FilterManager() {
     std::unique_lock<std::mutex> lock(mutex);
@@ -40,7 +40,7 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
         jobject jlutbitmap = env->CallObjectMethod(lut_bitmaps, getMethod, i);
         if (jlutbitmap != nullptr) {
             uint8_t *lutData;
-            Bitmap::getBitmapData(env, jlutbitmap, lutData, lutWidth, lutHeight);
+            Bitmap::getBitmapData(env, jlutbitmap, &lutData, lutWidth, lutHeight);
             this->lutTables.emplace_back(lutData);
         } else {
             this->lutTables.emplace_back(nullptr);
@@ -175,12 +175,37 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
             }
             thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] >=10) {
+#define TEST
+#ifdef TEST
             uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
-            Color::argb2yuv(this->lutTables[i], lutWidth, lutHeight , yuvlut);
+            Color::rgba2yuv(this->lutTables[i], lutWidth, lutHeight , yuvlut);
             std::string lutFilePath = std::format("{}/lut_{}_{}x{}.420sp.yuv", Util::cachePath, filterTags[i],
                                                   lutWidth,
                                                   lutHeight);
             Util::dumpBinary(lutFilePath.c_str(), yuvlut, lutWidth * lutHeight * 3 / 2);
+            delete[] yuvlut;
+#endif
+            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
+                auto r = rgba[j];
+                auto g = rgba[j + 1];
+                auto b = rgba[j + 2];
+                // 提前计算重复使用的值
+                int b_div_4 = b / 4;
+                int g_div_4 = g / 4;
+                int r_div_4 = r / 4;
+                int b_div_4_mod_8 = b_div_4 % 8;
+                // LOGD("blue[%d][%d], r:%d, g:%d, 255/4/8=%d", b_div_4 % 8, b_div_4 / 8, r /4, g/4, 255/4/8);
+
+                // 简化 lutPixel 的索引计算
+                size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
+                auto lutPixel = lutTables[i] + lutIndex;
+                //abgr
+                rendered_rgba[j] = lutPixel[j];
+                rendered_rgba[j + 1] = lutPixel[j + 1];
+                rendered_rgba[j + 2] = lutPixel[j + 2];
+                rendered_rgba[j + 3] = rgba[j];
+            }
+            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else {
             LOGE("unsupported filter tag: %d", filterTags[i]);
         }

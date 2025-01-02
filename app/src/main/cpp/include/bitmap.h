@@ -21,7 +21,7 @@ public:
     void destroy(JNIEnv *env);
     bool render(JNIEnv *env, const uint8_t *data, int size);
     
-    static bool getBitmapData(JNIEnv *env, jobject bitmap, uint8_t * &data, int &width, int &height);
+    static bool getBitmapData(JNIEnv *env, jobject bitmap, uint8_t ** data, int &width, int &height);
 private:
     jobject globalRef;
     AndroidBitmapInfo bitmapInfo;

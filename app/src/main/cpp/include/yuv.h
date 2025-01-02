@@ -328,16 +328,16 @@ namespace Color {
         rgba[3] = a * 255;
     }
     
-    static void argb2yuv(uint8_t * argb, int width, int height, uint8_t *yuv) {
+    static void rgba2yuv(uint8_t * rgba, int width, int height, uint8_t *yuv) {
         int yIndex = 0;
         int uvIndex = width * height;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                int argbIndex = (y * width + x) * 4;
-                uint8_t a = argb[argbIndex];
-                uint8_t r = argb[argbIndex + 1];
-                uint8_t g = argb[argbIndex + 2];
-                uint8_t b = argb[argbIndex + 3];
+                int rgbaIndex = (y * width + x) * 4;
+                uint8_t r = rgba[rgbaIndex];
+                uint8_t g = rgba[rgbaIndex + 1];
+                uint8_t b = rgba[rgbaIndex + 2];
+                uint8_t a = rgba[rgbaIndex + 3];
                 
                 // Calculate Y
                 int yValue = static_cast<int>(0.299 * r + 0.587 * g + 0.114 * b);
