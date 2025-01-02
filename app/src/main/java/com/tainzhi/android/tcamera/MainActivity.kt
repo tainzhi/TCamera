@@ -338,7 +338,6 @@ class MainActivity : AppCompatActivity() {
             closeSurfaces()
             closePreviewSession()
             isNeedRecreateCaptureSession = true
-            cameraPreviewView.changePreviewAspectRatio()
         }, {
             Log.d(TAG, "onHdrStateChange: ")
             closeSurfaces()

@@ -159,15 +159,6 @@ class CameraPreviewRender : GLSurfaceView.Renderer, SurfaceTexture.OnFrameAvaila
         previewTexture.changeFilterType(type)
     }
 
-    fun changePreviewAspectRatio() {
-        // todo: implement
-        // blurPreviewTexture.visibility = true
-        // blurPreviewTexture.toggleBindFrameBuffer(true)
-        // previewTexture.onDraw()
-        // blurPreviewTexture.toggleBindFrameBuffer(false)
-        // blurPreviewTexture.onDraw()
-    }
-
     fun copyFrame() {
         Log.d(TAG, "copyFrame: ")
     }

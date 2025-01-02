@@ -54,10 +54,6 @@ class CameraPreviewView : GLSurfaceView {
         }
     }
 
-    fun changePreviewAspectRatio() {
-        cameraPreviewRender.changePreviewAspectRatio()
-    }
-
     fun copyFrame() {
         queueEvent {
             cameraPreviewRender.copyFrame()
