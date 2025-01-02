@@ -53,23 +53,28 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
     return true;
 }
 
-bool FilterManager::processThumbnails(YuvBuffer *yuvBuffer, int orientation) {
+/*
+ * // image orientation, 0, 90, 180, 270, 也就是thumbnail需要旋转的角度
+ */
+bool FilterManager::processThumbnails(YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int updateRangeEnd) {
     LOGD();
-    this->orientation = orientation;
-    post(kMessage_ProcessThumbnails, static_cast<void *>(yuvBuffer));
+    auto msg = new ThumbnailMsg(yuvBuffer, orientation, updateRangeStart, updateRangeEnd);
+    post(kMessage_ProcessThumbnails, static_cast<void *>(msg));
     return true;
 }
 
 void FilterManager::handle(int what, void *data) {
     switch (what) {
         case kMessage_ProcessThumbnails: {
-            process(reinterpret_cast<YuvBuffer *>(data));
+            process(data);
             break;
         }
     }
 }
 
-void FilterManager::process(YuvBuffer *yuvBuffer) {
+void FilterManager::process(void *msg) {
+    auto thumbnailMsg = static_cast<ThumbnailMsg *>(msg);
+    auto yuvBuffer = static_cast<YuvBuffer *>(thumbnailMsg->data);
     LOGD();
     assert(yuvBuffer->width >= thumbnailWidth && yuvBuffer->height >= thumbnailHeight);
 #ifdef TEST
@@ -89,7 +94,7 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
 #endif
     // 旋转
     YuvBuffer rotateYuv;
-    centerYuv.rotate(rotateYuv, orientation);
+    centerYuv.rotate(rotateYuv, thumbnailMsg->orientation);
 #ifdef TEST
     std::string rotateYuvFilePath = std::format("{}/rotate_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
                                                 thumbnailHeight, Util::getCurrentTimestampMs());
@@ -102,11 +107,13 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
     rotateYuv.convertToRGBA8888(rgba);
     uint8_t *rendered_rgba = new uint8_t[thumbnailWidth * thumbnailHeight * 4];
     float * hsl = new float[thumbnailWidth * thumbnailHeight * 4];
-    
+
+    // 新的thread，必须要要获取env
     JNIEnv *env;
     Util::get_env(&env);
     
-    for (size_t i = 0; i < thumbnailBitmaps.size(); i++) {
+    LOGD("update filter thumbnail bitmaps in [%d, %d]", thumbnailMsg->updateRangeStart, thumbnailMsg->updateRangeEnd);
+    for (size_t i = thumbnailMsg->updateRangeStart; i <= thumbnailMsg->updateRangeEnd; i++) {
         if (filterTags[i] == 0) {
             thumbnailBitmaps[i].render(env, rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] == 1) {
@@ -208,7 +215,7 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
     delete[] rgba;
     delete[] rendered_rgba;
     delete[] hsl;
-    delete yuvBuffer;
+    delete msg;
 }
 
 bool FilterManager::clearThumbnails(JNIEnv *env) {

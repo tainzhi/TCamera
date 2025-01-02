@@ -21,14 +21,13 @@ public:
     ~FilterManager();
     bool configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height,
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
-    bool processThumbnails(YuvBuffer *yuvBuffer, int orientation);
+    bool processThumbnails(YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int updateRangeEnd);
     bool clearThumbnails(JNIEnv *env);
 private:
     void handle(int what, void *data) override;
-    void process(YuvBuffer * yuvBuffer);
+    void process(void *msg);
     int thumbnailWidth;
     int thumbnailHeight;
-    int orientation; // image orientation, 0, 90, 180, 270, 也就是thumbnail需要旋转的角度
     std::vector<std::string> filterNames;
     std::vector<int> filterTags;
     std::vector<Bitmap> thumbnailBitmaps;
@@ -38,6 +37,13 @@ private:
     enum kMessage {
         kMessage_ProcessThumbnails = 1,
         kMessage_Clear = 2,
+    };
+    
+    struct ThumbnailMsg {
+        void *data;
+        int orientation;
+        int updateRangeStart;
+        int updateRangeEnd;
     };
 };
 

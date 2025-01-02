@@ -192,7 +192,8 @@ ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbna
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation) {
+ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation, jint
+updateRangeStart, jint updateRangeEnd) {
     LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
@@ -236,7 +237,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image,
     // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
     memcpy(yuvBuffer->data + width * height, uBytes, height * width / 2 - 1);
     
-    engine->getFilterManager()->processThumbnails(yuvBuffer, orientation);
+    engine->getFilterManager()->processThumbnails(yuvBuffer, orientation, updateRangeStart, updateRangeEnd);
     env->DeleteLocalRef(yBuffer);
     env->DeleteLocalRef(uBuffer);
     env->DeleteLocalRef(planeClass);
@@ -260,7 +261,7 @@ static JNINativeMethod methods[] = {{"init",                      "(Landroid/con
                                     {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) ImageProcessor_capture},
                                     {"abortCapture",              "(I)V",                                                                  (void *) ImageProcessor_abortCapture},
                                     {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
-                                    {"processFilterThumbnails",   "(Landroid/media/Image;I)Z",
+                                    {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",
                                      (void *) ImageProcessor_processFilterThumbnails},
                                     {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 

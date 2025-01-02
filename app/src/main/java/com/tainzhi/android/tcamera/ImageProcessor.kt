@@ -102,7 +102,7 @@ class ImageProcessor private constructor(val context: Context) {
         thumbnailWidth: Int, thumbnailHeight: Int, filterNames: List<String>, filterTags: List<Int>, filterThumbnailBitmaps: List<Bitmap?>, lutBitmaps: List<Bitmap?>
     ): Boolean
 
-    external fun processFilterThumbnails(image: Image, orientation: Int): Boolean
+    external fun processFilterThumbnails(image: Image, orientation: Int, updateRangeStart: Int, updateRangeEnd: Int): Boolean
 
     external fun clearFilterThumbnails()
 

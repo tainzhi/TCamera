@@ -8,7 +8,6 @@ import android.graphics.Rect
 import android.media.Image
 import android.util.DisplayMetrics
 import android.util.Log
-import android.util.Log.i
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
@@ -29,6 +28,8 @@ import com.tainzhi.android.tcamera.R
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.NON_INIT_SELECTED
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.TAG
 import com.tainzhi.android.tcamera.util.Kpi
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class FilterBar(val context: Context, val binding: ActivityMainBinding, private val onFilterTypeSelected: (type: FilterType) -> Unit) {
@@ -37,6 +38,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     private var recyclerView: RecyclerView? = null
     private lateinit var filterAdapter: FilterAdapter
     private val types =  mutableListOf<FilterType>()
+    private var shouldUpdateAllThumbnails = false
     init {
         types.add(FilterType("Original", 0, 0))
         types.add(FilterType("Grey", 1, 0))
@@ -72,6 +74,20 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
                 snapHelper.findSnapView(recyclerView.layoutManager)?.let {
                     val position = recyclerView.getChildAdapterPosition(it)
                     updateTriggerStatus(position)
+                }
+            }
+        }
+
+        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            when (newState) {
+                RecyclerView.SCROLL_STATE_IDLE -> {
+                    shouldUpdateAllThumbnails = false
+                }
+                RecyclerView.SCROLL_STATE_DRAGGING -> {
+                    shouldUpdateAllThumbnails = true
+                }
+                RecyclerView.SCROLL_STATE_SETTLING -> {
+                    shouldUpdateAllThumbnails = true
                 }
             }
         }
@@ -181,7 +197,14 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         if (filterChooserShow) {
             Log.d(TAG, "processThumbnails: ")
             Kpi.start(Kpi.TYPE.PROCESS_FILTER_THUMBNAIL)
-            if (ImageProcessor.instance.processFilterThumbnails(image, orientation)) {
+            // 只更新部分的缩略图，降低资源占用而且减少计算量提升速度
+            var updateRangeStart = 0
+            var updateRangeEnd = types.size - 1
+            if (!shouldUpdateAllThumbnails) {
+                updateRangeStart = max(selectedTypePosition - RECYCLERVIEW_CACHE_SIZE / 2, 0)
+                updateRangeEnd = min(selectedTypePosition + RECYCLERVIEW_CACHE_SIZE / 2, types.size - 1)
+            }
+            if (ImageProcessor.instance.processFilterThumbnails(image, orientation, updateRangeStart, updateRangeEnd)) {
                 filterAdapter.updateFilterEffectBitmaps(types.map { it.thumbnailBitmap } as List<Bitmap?>)
             } else {
                 Log.e(TAG, "processThumbnails: failed to process thumbnails")
@@ -243,6 +266,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     companion object {
         val TAG = FilterBar::class.java.simpleName
         const val NON_INIT_SELECTED = 0
+        const val RECYCLERVIEW_CACHE_SIZE = 8
     }
 }
 
@@ -308,5 +332,5 @@ class FilterAdapter(val types: MutableList<FilterItem>) : BaseQuickAdapter<Filte
 }
 
 
-// color filter is in [0, 9), lut filter is in [10, )
+// color filter tag is in [0, 9), lut filter is in [10, )
 data class FilterType(val name: String, val tag: Int, val resId: Int, var thumbnailBitmap: Bitmap? = null)
