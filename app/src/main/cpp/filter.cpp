@@ -175,9 +175,9 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
             }
             thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else if (filterTags[i] >=10) {
-#define TEST
 #ifdef TEST
             uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
+            // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储
             Color::rgba2yuv(this->lutTables[i], lutWidth, lutHeight , yuvlut);
             std::string lutFilePath = std::format("{}/lut_{}_{}x{}.420sp.yuv", Util::cachePath, filterTags[i],
                                                   lutWidth,
@@ -189,21 +189,16 @@ void FilterManager::process(YuvBuffer *yuvBuffer) {
                 auto r = rgba[j];
                 auto g = rgba[j + 1];
                 auto b = rgba[j + 2];
-                // 提前计算重复使用的值
                 int b_div_4 = b / 4;
                 int g_div_4 = g / 4;
                 int r_div_4 = r / 4;
                 int b_div_4_mod_8 = b_div_4 % 8;
-                // LOGD("blue[%d][%d], r:%d, g:%d, 255/4/8=%d", b_div_4 % 8, b_div_4 / 8, r /4, g/4, 255/4/8);
-
-                // 简化 lutPixel 的索引计算
                 size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
                 auto lutPixel = lutTables[i] + lutIndex;
-                //abgr
-                rendered_rgba[j] = lutPixel[j];
-                rendered_rgba[j + 1] = lutPixel[j + 1];
-                rendered_rgba[j + 2] = lutPixel[j + 2];
-                rendered_rgba[j + 3] = rgba[j];
+                rendered_rgba[j] = lutPixel[0]; // r
+                rendered_rgba[j + 1] = lutPixel[1]; //g
+                rendered_rgba[j + 2] = lutPixel[2]; //b
+                rendered_rgba[j + 3] = rgba[j]; //a
             }
             thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
         } else {

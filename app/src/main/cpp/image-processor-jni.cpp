@@ -9,6 +9,7 @@
 #include "yuv.h"
 
 #define TAG "NativeImageProcessorJNI"
+// #define TEST
 
 #define BUILD_CLASS_GLOBAL_REF(FILEDNAME, CLASSNAME) \
     do {                                             \
