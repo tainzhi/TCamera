@@ -6,7 +6,7 @@
 #include "opencv2/core.hpp"
 #include "util.h"
 #include "engine.h"
-#include "yuv.h"
+#include "color.h"
 
 #define TAG "NativeImageProcessorJNI"
 // #define TEST
@@ -232,7 +232,7 @@ updateRangeStart, jint updateRangeEnd) {
     
     // 必须要在堆上申请内存，否则在传递到另一个线程时会被释放导致内存错误
     // todo: use SharedPtr or 对于过量的process thumbnail请求处理，进行适当的丢弃
-    YuvBuffer * yuvBuffer = new YuvBuffer(width, height);
+    Color::YuvBuffer * yuvBuffer = new Color::YuvBuffer(width, height);
     memcpy(yuvBuffer->data, yBytes, height * width);
     // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
     memcpy(yuvBuffer->data + width * height, uBytes, height * width / 2 - 1);

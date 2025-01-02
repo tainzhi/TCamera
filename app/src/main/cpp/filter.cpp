@@ -56,7 +56,8 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
 /*
  * // image orientation, 0, 90, 180, 270, 也就是thumbnail需要旋转的角度
  */
-bool FilterManager::processThumbnails(YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int updateRangeEnd) {
+bool FilterManager::processThumbnails(Color::YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int
+updateRangeEnd) {
     LOGD();
     auto msg = new ThumbnailMsg(yuvBuffer, orientation, updateRangeStart, updateRangeEnd);
     post(kMessage_ProcessThumbnails, static_cast<void *>(msg));
@@ -74,7 +75,7 @@ void FilterManager::handle(int what, void *data) {
 
 void FilterManager::process(void *msg) {
     auto thumbnailMsg = static_cast<ThumbnailMsg *>(msg);
-    auto yuvBuffer = static_cast<YuvBuffer *>(thumbnailMsg->data);
+    auto yuvBuffer = static_cast<Color::YuvBuffer *>(thumbnailMsg->data);
     LOGD();
     assert(yuvBuffer->width >= thumbnailWidth && yuvBuffer->height >= thumbnailHeight);
 #ifdef TEST
@@ -84,7 +85,7 @@ void FilterManager::process(void *msg) {
     Util::dumpBinary(yuvFilePath.c_str(), yuvBuffer->data, yuvBuffer->width * yuvBuffer->height * 3 / 2);
 #endif
     // 从yuvBuffer中截取中心区域的yuv数据
-    YuvBuffer centerYuv(thumbnailWidth, thumbnailHeight);
+    Color::YuvBuffer centerYuv(thumbnailWidth, thumbnailHeight);
     yuvBuffer->extractCenter(centerYuv);
 #ifdef TEST
     std::string centerYuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
@@ -93,7 +94,7 @@ void FilterManager::process(void *msg) {
     Util::dumpBinary(centerYuvFilePath.c_str(), centerYuv.data, thumbnailWidth * thumbnailHeight * 3 / 2);
 #endif
     // 旋转
-    YuvBuffer rotateYuv;
+    Color::YuvBuffer rotateYuv;
     centerYuv.rotate(rotateYuv, thumbnailMsg->orientation);
 #ifdef TEST
     std::string rotateYuvFilePath = std::format("{}/rotate_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
@@ -215,7 +216,7 @@ void FilterManager::process(void *msg) {
     delete[] rgba;
     delete[] rendered_rgba;
     delete[] hsl;
-    delete msg;
+    delete thumbnailMsg;
 }
 
 bool FilterManager::clearThumbnails(JNIEnv *env) {

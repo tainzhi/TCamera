@@ -11,7 +11,7 @@
 #include "bitmap.h"
 #include "util.h"
 #include "looper.h"
-#include "yuv.h"
+#include "color.h"
 
 
 
@@ -21,7 +21,7 @@ public:
     ~FilterManager();
     bool configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height,
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
-    bool processThumbnails(YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int updateRangeEnd);
+    bool processThumbnails(Color::YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int updateRangeEnd);
     bool clearThumbnails(JNIEnv *env);
 private:
     void handle(int what, void *data) override;
