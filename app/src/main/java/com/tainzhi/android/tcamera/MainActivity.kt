@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivSwitchCamera: ImageView
     private lateinit var controlBar: ControlBar
     private lateinit var filterBar: FilterBar
+    private var filterType = FilterType("Original", 0, 0)
     private lateinit var videoIndicator: VideoIndicator
 
     private val unGrantedPermissionList: MutableList<String> = ArrayList()
@@ -348,6 +349,7 @@ class MainActivity : AppCompatActivity() {
         filterBar = FilterBar(this, _binding) { it: FilterType ->
             Log.d(TAG, "onFilterTypeSelected: ${it.name}")
             cameraPreviewView.changeFilterType(it)
+            filterType = it
         }
 
         cameraPreviewView = _binding.previewView
@@ -732,7 +734,7 @@ class MainActivity : AppCompatActivity() {
                 jpegImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpeg: image available ")
                     reader.acquireLatestImage()?.let {
-                        captureJobManager.processJpegImage(it)
+                        captureJobManager.processJpegImage(it, filterType.tag)
                     }
                 }, imageReaderHandler)
                 previewYuvImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.YUV_420_888, 1)

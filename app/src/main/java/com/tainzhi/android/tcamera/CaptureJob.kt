@@ -1,9 +1,9 @@
 package com.tainzhi.android.tcamera
 
-import android.R.attr.orientation
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.ImageFormat
 import android.media.Image
 import android.media.ThumbnailUtils
 import android.net.Uri
@@ -75,10 +75,17 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         jobMap.remove(jobId)
     }
 
-    fun processJpegImage(image: Image) {
-        jobMap[currentJobId]!!.jpegImage = image
+    fun processJpegImage(image: Image, filterTypeTag: Int) {
         handler.post(Runnable {
-            saveJpeg(jobMap[currentJobId]!!)
+            assert(image.format == ImageFormat.JPEG)
+            if (filterTypeTag == 0) {
+                jobMap[currentJobId]!!.jpegImage = image
+                Log.i(TAG, "processJpegImage: not apply filter")
+                saveJpeg(jobMap[currentJobId]!!)
+            } else {
+                Log.i(TAG, "processJpegImage: to apply filter:${filterTypeTag}")
+                ImageProcessor.instance.applyFilterEffectToJpeg(image, filterTypeTag)
+            }
         })
     }
 
@@ -223,7 +230,6 @@ class CaptureJob {
     val id = SettingsManager.instance.getJobId() + 1
     val uri by lazy { getMediaUri() }
     lateinit var jpegImage: Image
-    var yuvImageList = mutableListOf<Image>()
     private lateinit var exposureTimes: List<Long>
     private var yuvImageSize = 0
 
@@ -289,12 +295,13 @@ class CaptureJob {
             fileName = "${filePrefix}${SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(captureTime)}${fileExtension}"
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
         }
-        when(captureType) {
+        mediaUri = when(captureType) {
             CaptureType.JPEG, CaptureType.HDR -> {
-                mediaUri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             }
+
             CaptureType.VIDEO -> {
-                mediaUri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
+                context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
             }
 
             CaptureType.UNKNOWN -> TODO()

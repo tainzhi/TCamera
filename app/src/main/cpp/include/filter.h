@@ -8,6 +8,7 @@
 
 #include <jni.h>
 #include <vector>
+#include <opencv2/core/mat.hpp>
 #include "bitmap.h"
 #include "util.h"
 #include "looper.h"
@@ -22,6 +23,7 @@ public:
     bool configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height,
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
     bool processThumbnails(Color::YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int updateRangeEnd);
+    bool applyFilterEffectToJpeg(cv::Mat jpegMat, int filterTag);
     bool clearThumbnails(JNIEnv *env);
 private:
     void handle(int what, void *data) override;
@@ -37,6 +39,7 @@ private:
     enum kMessage {
         kMessage_ProcessThumbnails = 1,
         kMessage_Clear = 2,
+        kMessage_ApplyFilterEffectToJpeg = 3,
     };
     
     struct ThumbnailMsg {

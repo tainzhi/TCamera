@@ -248,6 +248,51 @@ updateRangeStart, jint updateRangeEnd) {
     return true;
 }
 
+
+extern "C" JNIEXPORT jboolean JNICALL
+ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jobject jpegImage, jint filterTag) {
+    // get jpeg from jpegImage, and set to cv::Mat
+    LOGD();
+    
+    // 获取 Image 类的类对象
+    jclass imageClass = env->GetObjectClass(jpegImage);
+    jmethodID getFormatMethod = env->GetMethodID(imageClass, "getFormat", "()I");
+    jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
+    jint format = env->CallIntMethod(jpegImage, getFormatMethod);
+    LOGD("jpeg format:%d", format);
+    assert(format == 256); // 256 is ImageFormat.JPEG
+    // 调用 getPlanes 方法获取 Plane 数组
+    jobjectArray planes = (jobjectArray) env->CallObjectMethod(jpegImage, getPlanesMethod);
+    // 获取 Plane 数组的长度
+    int planeCount = env->GetArrayLength(planes);
+    if (planeCount != 1) {
+        LOGE("planeCount:%d, not 1", planeCount);
+        return false;
+    }
+    jclass planeClass = env->FindClass("android/media/Image$Plane");
+    jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
+    jobject plane = env->GetObjectArrayElement(planes, 0);
+    jobject buffer = env->CallObjectMethod(plane, getBufferMethod);
+    jbyte* bytes = (jbyte*)env->GetDirectBufferAddress(buffer);
+    jint byteSize = env->GetDirectBufferCapacity(buffer);
+    cv::Mat jpegMat = cv::imdecode(cv::_InputArray(bytes, byteSize), cv::IMREAD_COLOR);
+    if (jpegMat.empty()) {
+        LOGD("failed to decode from jpeg image to cv::mat");
+        return false;
+    } else {
+#ifdef TEST
+        jint width = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getWidth", "()I"));
+        jint height = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getHeight", "()I"));
+        std::string jpegFilePath = std::format("{}/converted_{}x{}_{}.jpeg", Util::cachePath, width, height,
+                    Util::getCurrentTimestampMs());
+        LOGD("dump cv::mat from jpeg image to %s", jpegFilePath.c_str());
+        cv::imwrite(jpegFilePath, jpegMat);
+#endif
+        engine->getFilterManager()->applyFilterEffectToJpeg(jpegMat, filterTag);
+    }
+    return true;
+}
+
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
     LOGD();
@@ -263,6 +308,8 @@ static JNINativeMethod methods[] = {{"init",                      "(Landroid/con
                                     {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
                                     {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",
                                      (void *) ImageProcessor_processFilterThumbnails},
+                                    {"applyFilterEffectToJpeg",   "(Landroid/media/Image;I)Z",
+                                            (void *) ImageProcessor_applyFilterEffectToJpeg},
                                     {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 
 

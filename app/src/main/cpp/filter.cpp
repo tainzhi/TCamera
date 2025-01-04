@@ -64,6 +64,10 @@ updateRangeEnd) {
     return true;
 }
 
+bool FilterManager::applyFilterEffectToJpeg(cv::Mat jpegMat, int filterTag) {
+    return true;
+}
+
 void FilterManager::handle(int what, void *data) {
     switch (what) {
         case kMessage_ProcessThumbnails: {

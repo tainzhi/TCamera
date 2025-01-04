@@ -104,6 +104,8 @@ class ImageProcessor private constructor(val context: Context) {
 
     external fun processFilterThumbnails(image: Image, orientation: Int, updateRangeStart: Int, updateRangeEnd: Int): Boolean
 
+    external fun applyFilterEffectToJpeg(jpegImage: Image, filterTypeTag: Int): Boolean
+
     external fun clearFilterThumbnails()
 
 
