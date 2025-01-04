@@ -108,6 +108,5 @@ class ImageProcessor private constructor(val context: Context) {
 
     external fun clearFilterThumbnails()
 
-
     external fun deinit()
 }

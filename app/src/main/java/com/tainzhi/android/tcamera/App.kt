@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.app.Application.ActivityLifecycleCallbacks
 import android.os.Bundle
+import android.util.Log
 import com.tainzhi.android.tcamera.gl.ShaderCache
 import com.tainzhi.android.tcamera.util.SettingsManager
 
@@ -15,11 +16,6 @@ class App: Application(), ActivityLifecycleCallbacks {
         registerActivityLifecycleCallbacks(this)
         ShaderCache.load()
         ImageProcessor.instance.create()
-    }
-
-    override fun onTerminate() {
-        ImageProcessor.instance.destroy()
-        super.onTerminate()
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
@@ -36,6 +32,7 @@ class App: Application(), ActivityLifecycleCallbacks {
     }
 
     override fun onActivityStopped(activity: Activity) {
+        Log.d(TAG, "onActivityStopped: ")
         if (activity is MainActivity) {
             ShaderCache.save()
         }
@@ -45,9 +42,12 @@ class App: Application(), ActivityLifecycleCallbacks {
     }
 
     override fun onActivityDestroyed(activity: Activity) {
+        Log.d(TAG, "onActivityDestroyed: ");
+        ImageProcessor.instance.destroy()
     }
 
     companion object {
+        private val TAG = App::class.java.simpleName
         @Volatile private lateinit var INSTANCE: App
         fun getInstance() = INSTANCE
 
