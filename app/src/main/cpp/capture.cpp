@@ -43,6 +43,10 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
     }
 }
 
+void CaptureManager::recvProcess(void *data) {
+    process(*reinterpret_cast<int *>(data));
+}
+
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
 void CaptureManager::process(int jobId) {
     LOGD("begin job-%d", jobId);
@@ -116,8 +120,7 @@ void CaptureManager::process(int jobId) {
 void CaptureManager::handle(int what, void *data) {
     switch (what) {
         case kMessage_Process: {
-            int jobId = *reinterpret_cast<int *>(data);
-            process(jobId);
+            recvProcess(data);
             break;
         }
     }

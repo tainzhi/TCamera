@@ -45,6 +45,7 @@ public:
 private:
     void handle(int what, void *data);
     void process(int jobId);
+    void recvProcess(void *data);
     
     std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};
     
