@@ -41,9 +41,7 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
         if (jlutbitmap != nullptr) {
             uint8_t *lutData;
             Bitmap::getBitmapData(env, jlutbitmap, &lutData, lutWidth, lutHeight);
-            this->lutTables.emplace_back(lutData);
-        } else {
-            this->lutTables.emplace_back(nullptr);
+            this->lutTables[filterTags[i]] = lutData;
         }
         env->DeleteLocalRef(jthubmnailbitmap);
         env->DeleteLocalRef(jlutbitmap);
@@ -124,8 +122,7 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
     // 生成rgba数据
     uint8_t *rgba = new uint8_t[thumbnailWidth * thumbnailHeight * 4];
     rotateYuv.convertToRGBA8888(rgba);
-    uint8_t *rendered_rgba = new uint8_t[thumbnailWidth * thumbnailHeight * 4];
-    float * hsl = new float[thumbnailWidth * thumbnailHeight * 4];
+    uint8_t *renderedRgba = new uint8_t[thumbnailWidth * thumbnailHeight * 4];
 
     // 新的thread，必须要要获取env
     JNIEnv *env;
@@ -135,74 +132,87 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
     for (size_t i = thumbnailMsg->updateRangeStart; i <= thumbnailMsg->updateRangeEnd; i++) {
         if (filterTags[i] == 0) {
             thumbnailBitmaps[i].render(env, rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else if (filterTags[i] == 1) {
-            // grey
-            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
-                uint8_t wm = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
-                rendered_rgba[j] = wm;
-                rendered_rgba[j + 1] = wm;
-                rendered_rgba[j + 2] = wm;
-                rendered_rgba[j + 3] = rgba[j + 3];
+        } else {
+            renderFilterEffect(filterTags[i], rgba, thumbnailWidth, thumbnailHeight, renderedRgba);
+            thumbnailBitmaps[i].render(env, renderedRgba, thumbnailWidth * thumbnailHeight * 4);
+        }
+    }
+    delete[] rgba;
+    delete[] renderedRgba;
+    delete thumbnailMsg;
+    return true;
+}
+
+void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba) {
+    if (filterTag == 0) {
+        LOGE("not need to apply filter effect with tag=%d", filterTag);
+    } else if (filterTag == 1) {
+        // grey
+        for (size_t j = 0; j < width * height * 4; j += 4) {
+            uint8_t wm = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
+            renderedRgba[j] = wm;
+            renderedRgba[j + 1] = wm;
+            renderedRgba[j + 2] = wm;
+            renderedRgba[j + 3] = rgba[j + 3];
+        }
+    } else if (filterTag == 2) {
+        // black and white
+        uint8_t threshold = 0.5 * 255;
+        uint8_t mean;
+        for (size_t j = 0; j < width * height * 4; j += 4) {
+            mean = (rgba[j] + rgba[j + 1] + rgba[j + 2]) / 3.0;
+            if (mean > threshold) {
+                renderedRgba[j] = 255;
+                renderedRgba[j + 1] = 255;
+                renderedRgba[j + 2] = 255;
+                renderedRgba[j + 3] = rgba[j + 3];
+            } else {
+                renderedRgba[j] = 0;
+                renderedRgba[j + 1] = 0;
+                renderedRgba[j + 2] = 0;
+                renderedRgba[j + 3] = rgba[j + 3];
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else if (filterTags[i] == 2) {
-            // black and white
-            uint8_t threshold = 0.5 * 255;
-            uint8_t mean;
-            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
-                mean = (rgba[j] + rgba[j + 1] + rgba[j + 2]) / 3.0;
-                if (mean > threshold) {
-                    rendered_rgba[j] = 255;
-                    rendered_rgba[j + 1] = 255;
-                    rendered_rgba[j + 2] = 255;
-                    rendered_rgba[j + 3] = rgba[j + 3];
-                } else {
-                    rendered_rgba[j] = 0;
-                    rendered_rgba[j + 1] = 0;
-                    rendered_rgba[j + 2] = 0;
-                    rendered_rgba[j + 3] = rgba[j + 3];
+        }
+    } else if (filterTag == 3) {
+        // reverse
+        for (size_t j = 0; j < width * height * 4; j += 4) {
+            renderedRgba[j] = 255 - rgba[j];
+            renderedRgba[j + 1] = 255 - rgba[j + 1];
+            renderedRgba[j + 2] = 255 - rgba[j + 2];
+            renderedRgba[j + 3] = rgba[j + 3];
+        }
+    } else if (filterTag == 4) {
+        // light
+        float *hsl = new float[width * height * 4];
+        for (size_t j = 0; j < width * height * 4; j += 4) {
+            Color::rgba2hsl(rgba + j, hsl + j);
+            hsl[j + 2] += 0.15;
+            Color::hsl2rgba(hsl + j, renderedRgba + j);
+        }
+        delete[] hsl;
+    } else if (filterTag == 5) {
+        // posterization
+        float *hsl = new float[width * height * 4];
+        for (size_t j = 0; j < width * height * 4; j+=4 ) {
+            float grey = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
+            Color::rgba2hsl(rgba + j, hsl + j);
+            if (grey < 0.3 * 255) {
+                if (hsl[j] < 0.68 || hsl[j] > 0.66) {
+                    hsl[j] = 0.67;
                 }
-            }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else if (filterTags[i] == 3) {
-            // reverse
-            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
-                rendered_rgba[j] = 255 - rgba[j];
-                rendered_rgba[j + 1] = 255 - rgba[j + 1];
-                rendered_rgba[j + 2] = 255 - rgba[j + 2];
-                rendered_rgba[j + 3] = rgba[j + 3];
-            }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else if (filterTags[i] == 4) {
-            // light
-            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
-                Color::rgba2hsl(rgba + j, hsl + j);
-                // hsl[j + 2] += 0.15;
-                Color::hsl2rgba(hsl + j, rendered_rgba + j);
-            }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else if (filterTags[i] == 5) {
-            // posterization
-            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j+=4 ) {
-                float grey = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
-                Color::rgba2hsl(rgba + j, hsl + j);
-                if (grey < 0.3 * 255) {
-                    if (hsl[j] < 0.68 || hsl[j] > 0.66) {
-                        hsl[j] = 0.67;
-                    }
-                    hsl[j + 1] += 0.3;
-                } else if (grey > 0.7 * 255) {
-                    if (hsl[j] < 0.18 || hsl[j] > 0.16) {
-                        hsl[j] = 0.17;
-                    }
-                    hsl[j + 1] -= 0.3;
+                hsl[j + 1] += 0.3;
+            } else if (grey > 0.7 * 255) {
+                if (hsl[j] < 0.18 || hsl[j] > 0.16) {
+                    hsl[j] = 0.17;
                 }
-                Color::hsl2rgba(hsl + j, rendered_rgba + j);
+                hsl[j + 1] -= 0.3;
             }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else if (filterTags[i] >=10) {
+            Color::hsl2rgba(hsl + j, reinterpret_cast<uint8_t *>(renderedRgba + j));
+        }
+        delete[] hsl;
+    } else if (filterTag >=10) {
 #ifdef TEST
-            uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
+        uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
             // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储
             Color::rgba2yuv(this->lutTables[i], lutWidth, lutHeight , yuvlut);
             std::string lutFilePath = std::format("{}/lut_{}_{}x{}.420sp.yuv", Util::cachePath, filterTags[i],
@@ -211,31 +221,25 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
             Util::dumpBinary(lutFilePath.c_str(), yuvlut, lutWidth * lutHeight * 3 / 2);
             delete[] yuvlut;
 #endif
-            for (size_t j = 0; j < thumbnailWidth * thumbnailHeight * 4; j += 4) {
-                auto r = rgba[j];
-                auto g = rgba[j + 1];
-                auto b = rgba[j + 2];
-                int b_div_4 = b / 4;
-                int g_div_4 = g / 4;
-                int r_div_4 = r / 4;
-                int b_div_4_mod_8 = b_div_4 % 8;
-                size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
-                auto lutPixel = lutTables[i] + lutIndex;
-                rendered_rgba[j] = lutPixel[0]; // r
-                rendered_rgba[j + 1] = lutPixel[1]; //g
-                rendered_rgba[j + 2] = lutPixel[2]; //b
-                rendered_rgba[j + 3] = rgba[j]; //a
-            }
-            thumbnailBitmaps[i].render(env, rendered_rgba, thumbnailWidth * thumbnailHeight * 4);
-        } else {
-            LOGE("unsupported filter tag: %d", filterTags[i]);
+        for (size_t j = 0; j < width * height * 4; j += 4) {
+            auto r = rgba[j];
+            auto g = rgba[j + 1];
+            auto b = rgba[j + 2];
+            int b_div_4 = b / 4;
+            int g_div_4 = g / 4;
+            int r_div_4 = r / 4;
+            int b_div_4_mod_8 = b_div_4 % 8;
+            size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
+            auto lutPixel = lutTables[filterTag] + lutIndex;
+            renderedRgba[j] = lutPixel[0]; // r
+            renderedRgba[j + 1] = lutPixel[1]; //g
+            renderedRgba[j + 2] = lutPixel[2]; //b
+            renderedRgba[j + 3] = rgba[j]; //a
         }
+    } else {
+        LOGE("unsupported filter tag: %d", filterTag);
     }
-    delete[] rgba;
-    delete[] rendered_rgba;
-    delete[] hsl;
-    delete thumbnailMsg;
-    return true;
+    
 }
 
 bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffectMsg *msg) {
@@ -296,9 +300,7 @@ bool FilterManager::recvClearThumbnails() {
         bitmap.destroy(env);
     }
     for (auto &lut: lutTables) {
-        if (lut != nullptr) {
-            delete[] lut;
-        }
+        delete[] lut.second;
     }
     lutTables.clear();
     return true;

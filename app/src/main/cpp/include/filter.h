@@ -50,13 +50,14 @@ private:
     bool recvProcessThumbnails(ThumbnailMsg *msg);
     bool recvApplyFilterEffectToJpeg(ApplyFilterEffectMsg *msg);
     bool recvClearThumbnails();
+    void renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba);
     void handle(int what, void *data) override;
     int thumbnailWidth;
     int thumbnailHeight;
     std::vector<std::string> filterNames;
     std::vector<int> filterTags;
     std::vector<Bitmap> thumbnailBitmaps;
-    std::vector<uint8_t*> lutTables;
+    std::unordered_map<int, uint8_t*> lutTables;
     int lutWidth, lutHeight;
 };
 
