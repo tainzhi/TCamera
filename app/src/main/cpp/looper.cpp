@@ -40,8 +40,6 @@ void Looper::post(int what, void *data, bool flush) {
 }
 
 void Looper::addMsg(LooperMessage *msg, bool flush) {
-    if (DEBUG)
-        LOGV("msg %d, data:%d", msg->what, *reinterpret_cast<int *>(msg->obj));
     std::unique_lock<std::mutex> lock(looperMutex);
     LooperMessage *h = head;
     if (flush) {
@@ -85,8 +83,6 @@ bool Looper::loopOnce() {
         delete msg;
         return false;
     }
-    if (DEBUG)
-        LOGV("msg %d, data:%d", msg->what, *reinterpret_cast<int *>(msg->obj));
     handle(msg->what, msg->obj);
     delete msg;
     return true;
