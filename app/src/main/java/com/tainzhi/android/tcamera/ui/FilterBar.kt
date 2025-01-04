@@ -237,6 +237,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
             }
         }
         lutBitmaps.clear()
+        // todo: 退出后，清空所有的process msg，停止所有的process thumbnail 任务
         ImageProcessor.instance.clearFilterThumbnails()
     }
 
