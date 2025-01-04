@@ -56,30 +56,44 @@ bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint 
 /*
  * // image orientation, 0, 90, 180, 270, 也就是thumbnail需要旋转的角度
  */
-bool FilterManager::processThumbnails(Color::YuvBuffer *yuvBuffer, int orientation, int updateRangeStart, int
+void FilterManager::sendProcessThumbnails(std::shared_ptr<Color::YuvBuffer> yuvBuffer, int orientation, int
+updateRangeStart, int
 updateRangeEnd) {
     LOGD();
-    auto msg = new ThumbnailMsg(yuvBuffer, orientation, updateRangeStart, updateRangeEnd);
-    post(kMessage_ProcessThumbnails, static_cast<void *>(msg));
-    return true;
+    auto msg = new ThumbnailMsg{yuvBuffer, orientation, updateRangeStart, updateRangeEnd};
+    post(kMessage_ProcessThumbnails, msg);
 }
 
-bool FilterManager::applyFilterEffectToJpeg(cv::Mat jpegMat, int filterTag) {
-    return true;
+void FilterManager::sendApplyFilterEffectToJpeg(uint8_t *jpegBytes, int jpegByteSize, int filterTag) {
+    LOGD();
+    auto msg = new ApplyFilterEffectMsg(jpegBytes, jpegByteSize, filterTag);
+    post(kMessage_ApplyFilterEffectToJpeg, msg);
+    
+}
+void FilterManager::sendClearThumbnails() {
+    LOGD();
+    post(kMessage_ClearThumbnails, nullptr);
 }
 
 void FilterManager::handle(int what, void *data) {
     switch (what) {
         case kMessage_ProcessThumbnails: {
-            process(data);
+            recvProcessThumbnails(static_cast<ThumbnailMsg *>(data));
+            break;
+        }
+        case kMessage_ApplyFilterEffectToJpeg: {
+            recvApplyFilterEffectToJpeg(static_cast<ApplyFilterEffectMsg *>(data));
+            break;
+        }
+        case kMessage_ClearThumbnails: {
+            recvClearThumbnails();
             break;
         }
     }
 }
 
-void FilterManager::process(void *msg) {
-    auto thumbnailMsg = static_cast<ThumbnailMsg *>(msg);
-    auto yuvBuffer = static_cast<Color::YuvBuffer *>(thumbnailMsg->data);
+bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnailMsg) {
+    auto yuvBuffer = thumbnailMsg->yuvBuffer;
     LOGD();
     assert(yuvBuffer->width >= thumbnailWidth && yuvBuffer->height >= thumbnailHeight);
 #ifdef TEST
@@ -221,10 +235,35 @@ void FilterManager::process(void *msg) {
     delete[] rendered_rgba;
     delete[] hsl;
     delete thumbnailMsg;
+    return true;
 }
 
-bool FilterManager::clearThumbnails(JNIEnv *env) {
+bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffectMsg *msg) {
+    auto jpegBytes = static_cast<uint8_t *>(msg->data);;
+    size_t jpegByteSize = msg->dataSize;
+    int filterTag = msg->filterTag;
+    cv::Mat jpegMat = cv::imdecode(cv::_InputArray(jpegBytes, jpegByteSize), cv::IMREAD_COLOR);
+    if (jpegMat.empty()) {
+        LOGD("failed to decode from jpeg image to cv::mat");
+        return false;
+    }
+#ifdef TEST
+    jint width = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getWidth", "()I"));
+    jint height = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getHeight", "()I"));
+    std::string jpegFilePath = std::format("{}/converted_{}x{}_{}.jpeg", Util::cachePath, width, height,
+                Util::getCurrentTimestampMs());
+    LOGD("dump cv::mat from jpeg image to %s", jpegFilePath.c_str());
+    cv::imwrite(jpegFilePath, jpegMat);
+    cv::Mat yuvMa;
+#endif
+}
+
+bool FilterManager::recvClearThumbnails() {
     LOGD();
+    // 新的thread，必须要要获取env
+    JNIEnv *env;
+    Util::get_env(&env);
+    
     for (auto &bitmap: thumbnailBitmaps) {
         bitmap.destroy(env);
     }

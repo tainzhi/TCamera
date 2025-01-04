@@ -232,12 +232,12 @@ updateRangeStart, jint updateRangeEnd) {
     
     // 必须要在堆上申请内存，否则在传递到另一个线程时会被释放导致内存错误
     // todo: use SharedPtr or 对于过量的process thumbnail请求处理，进行适当的丢弃
-    Color::YuvBuffer * yuvBuffer = new Color::YuvBuffer(width, height);
+    auto yuvBuffer = std::make_shared<Color::YuvBuffer>(width, height);
     memcpy(yuvBuffer->data, yBytes, height * width);
     // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
     memcpy(yuvBuffer->data + width * height, uBytes, height * width / 2 - 1);
     
-    engine->getFilterManager()->processThumbnails(yuvBuffer, orientation, updateRangeStart, updateRangeEnd);
+    engine->getFilterManager()->sendProcessThumbnails(yuvBuffer, orientation, updateRangeStart, updateRangeEnd);
     env->DeleteLocalRef(yBuffer);
     env->DeleteLocalRef(uBuffer);
     env->DeleteLocalRef(planeClass);
@@ -251,15 +251,12 @@ updateRangeStart, jint updateRangeEnd) {
 
 extern "C" JNIEXPORT jboolean JNICALL
 ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jobject jpegImage, jint filterTag) {
-    // get jpeg from jpegImage, and set to cv::Mat
     LOGD();
-    
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(jpegImage);
     jmethodID getFormatMethod = env->GetMethodID(imageClass, "getFormat", "()I");
     jmethodID getPlanesMethod = env->GetMethodID(imageClass, "getPlanes", "()[Landroid/media/Image$Plane;");
     jint format = env->CallIntMethod(jpegImage, getFormatMethod);
-    LOGD("jpeg format:%d", format);
     assert(format == 256); // 256 is ImageFormat.JPEG
     // 调用 getPlanes 方法获取 Plane 数组
     jobjectArray planes = (jobjectArray) env->CallObjectMethod(jpegImage, getPlanesMethod);
@@ -273,30 +270,23 @@ ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jobject jpegIm
     jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
     jobject plane = env->GetObjectArrayElement(planes, 0);
     jobject buffer = env->CallObjectMethod(plane, getBufferMethod);
-    jbyte* bytes = (jbyte*)env->GetDirectBufferAddress(buffer);
+    jbyte* imageBytes = (jbyte*)env->GetDirectBufferAddress(buffer);
     jint byteSize = env->GetDirectBufferCapacity(buffer);
-    cv::Mat jpegMat = cv::imdecode(cv::_InputArray(bytes, byteSize), cv::IMREAD_COLOR);
-    if (jpegMat.empty()) {
-        LOGD("failed to decode from jpeg image to cv::mat");
-        return false;
-    } else {
-#ifdef TEST
-        jint width = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getWidth", "()I"));
-        jint height = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getHeight", "()I"));
-        std::string jpegFilePath = std::format("{}/converted_{}x{}_{}.jpeg", Util::cachePath, width, height,
-                    Util::getCurrentTimestampMs());
-        LOGD("dump cv::mat from jpeg image to %s", jpegFilePath.c_str());
-        cv::imwrite(jpegFilePath, jpegMat);
-#endif
-        engine->getFilterManager()->applyFilterEffectToJpeg(jpegMat, filterTag);
-    }
+    uint8_t *bytes = new uint8_t[byteSize];
+    memcpy(bytes, imageBytes, byteSize);
+    engine->getFilterManager()->sendApplyFilterEffectToJpeg(bytes, byteSize, filterTag);
+    env->DeleteLocalRef(buffer);
+    env->DeleteLocalRef(planeClass);
+    env->DeleteLocalRef(plane);
+    env->DeleteLocalRef(planes);
+    env->DeleteLocalRef(imageClass);
     return true;
 }
 
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
     LOGD();
-    engine->getFilterManager()->clearThumbnails(env);
+    engine->getFilterManager()->sendClearThumbnails();
 }
 
 
