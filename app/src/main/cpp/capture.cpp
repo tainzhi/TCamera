@@ -43,12 +43,9 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
     }
 }
 
-void CaptureManager::recvProcess(void *data) {
-    process(*reinterpret_cast<int *>(data));
-}
-
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
-void CaptureManager::process(int jobId) {
+void CaptureManager::recvProcess(void *data) {
+    auto jobId = *reinterpret_cast<int *>(data);
     LOGD("begin job-%d", jobId);
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
