@@ -7,7 +7,12 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project("tcamera")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -DEBUG")
+# -Wall 标准警告
+# -Werror 将警告视为错误，提高代码质量
+# 若是有返回值的function忘记返回值，则报错，停止编译
+# 因为我再开发中有很多次忘记写返回值bool，导致莫名地报错，等尝试完各种方法才发现，导致浪费了很多时间
+# -Wno-unused-function 禁用该警告
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wmissing-method-return-type -Wno-unused-function")
 set(CMAKE_BUILD_TYPE Debug)
 
 message(DEBUG "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}/..")
