@@ -31,6 +31,7 @@ void Engine::addCapture(int jobId, CaptureType captureType, std::string timeStam
 
 
 void Engine::deinit() {
+    getFilterManager()->quit();
 }
 
 Engine::~Engine(){

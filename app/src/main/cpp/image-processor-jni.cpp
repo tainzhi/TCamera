@@ -121,6 +121,7 @@ ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
         env->DeleteGlobalRef(fields.image_processor);
         LOGD("destroy global ref %s", "field.image_processor");
     }
+    engine->deinit();
     delete engine;
 }
 

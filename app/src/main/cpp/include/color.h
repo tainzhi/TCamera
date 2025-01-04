@@ -11,8 +11,6 @@
 #include <algorithm>
 #include "util.h"
 
-#define TAG NativeColor
-
 namespace Color {
     
     // todo: 优化 硬件加速
@@ -198,7 +196,6 @@ namespace Color {
                     }
                     break;
                 default:
-                    // LOGE("rotation %d not supported, only support 0/90/180/270", rotation);
                     break;
                 
             }

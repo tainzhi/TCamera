@@ -241,12 +241,14 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
 bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffectMsg *msg) {
     auto jpegBytes = static_cast<uint8_t *>(msg->data);;
     size_t jpegByteSize = msg->dataSize;
-    int filterTag = msg->filterTag;
+    // int filterTag = msg->filterTag;
     cv::Mat jpegMat = cv::imdecode(cv::_InputArray(jpegBytes, jpegByteSize), cv::IMREAD_COLOR);
     if (jpegMat.empty()) {
         LOGD("failed to decode from jpeg image to cv::mat");
         return false;
     }
+    int width = jpegMat.cols;
+    int height = jpegMat.rows;
 #ifdef TEST
     jint width = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getWidth", "()I"));
     jint height = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getHeight", "()I"));
@@ -256,6 +258,33 @@ bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffect
     cv::imwrite(jpegFilePath, jpegMat);
     cv::Mat yuvMa;
 #endif
+    cv::Mat yuvMat;
+    // todo: use libjpeg to convert jpeg to yuv420sp, 替换掉opencv的cvtColor
+    cv::cvtColor(jpegMat, yuvMat, cv::COLOR_BGR2YUV_I420);
+    // after cvtColor, yuvMat is I420, yuvMat.cols == width, yuvMat.rows == height * 3 / 2
+    // I420 yyyy...uu..vv.. y,u,v分别存储，存储为所有的y, 所有的u，所有的v
+    // YV12 yyyy...vv..uu.. y,u,v分别存储
+    auto yuvBuffer = Color::YuvBuffer(width, height);
+    // copy y
+    memcpy(yuvBuffer.data, yuvMat.data, yuvBuffer.width * yuvBuffer.height);
+    int uIndex = width * height;
+    for (int i = width * height; i < width * height * 5 / 4; i++) {
+        yuvBuffer.data[uIndex] = yuvMat.data[i];
+        uIndex += 2;
+    }
+    int vIndex = width * height + 1;
+    for (int i = width * height * 5 / 4; i < width * height * 3 / 2; i++) {
+        yuvBuffer.data[vIndex] = yuvMat.data[i];
+        vIndex += 2;
+    }
+#ifdef TEST
+    std::string yuvFilePath = std::format("{}/jpeg_yuv_{}x{}_{}.420sp.yuv", Util::cachePath, width, height,
+                                          Util::getCurrentTimestampMs());
+    LOGD("dump jpeg yuv to %s", yuvFilePath.c_str());
+    Util::dumpBinary(yuvFilePath.c_str(), yuvBuffer.data, yuvBuffer.width * yuvBuffer.height * 3 / 2);
+#endif
+    delete msg;
+    return true;
 }
 
 bool FilterManager::recvClearThumbnails() {
@@ -263,7 +292,6 @@ bool FilterManager::recvClearThumbnails() {
     // 新的thread，必须要要获取env
     JNIEnv *env;
     Util::get_env(&env);
-    
     for (auto &bitmap: thumbnailBitmaps) {
         bitmap.destroy(env);
     }
@@ -272,5 +300,12 @@ bool FilterManager::recvClearThumbnails() {
             delete[] lut;
         }
     }
+    lutTables.clear();
+    return true;
+}
+
+bool FilterManager::quit() {
+    LOGD();
+    Looper::quit();
     return true;
 }

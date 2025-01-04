@@ -10,6 +10,7 @@
 #include <vector>
 #include <opencv2/core/mat.hpp>
 #include "opencv2/imgcodecs.hpp"
+#include <opencv2/imgproc.hpp>
 #include "bitmap.h"
 #include "util.h"
 #include "looper.h"
@@ -25,6 +26,7 @@ public:
     updateRangeEnd);
     void sendApplyFilterEffectToJpeg(uint8_t * jpegBytes, int jpegByteSize, int filterTag);
     void sendClearThumbnails();
+    bool quit();
 private:
     enum kMessage {
         kMessage_ProcessThumbnails = 1,
