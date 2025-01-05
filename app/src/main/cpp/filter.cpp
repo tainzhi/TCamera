@@ -287,6 +287,10 @@ bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffect
     LOGD("dump jpeg yuv to %s", yuvFilePath.c_str());
     Util::dumpBinary(yuvFilePath.c_str(), yuvBuffer.data, yuvBuffer.width * yuvBuffer.height * 3 / 2);
 #endif
+    auto rgba = new uint8_t[width * height * 4];
+    yuvBuffer.convertToRGBA8888(rgba);
+    auto renderedRgba = new uint8_t[width * height * 4];
+    renderFilterEffect(msg->filterTag, rgba, width, height, renderedRgba);
     delete msg;
     return true;
 }
