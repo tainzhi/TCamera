@@ -25,7 +25,7 @@ CaptureManager::addCapture(int jobId, CaptureType captureType, std::string timeS
     jobs[jobId] = job;
 }
 
-void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
+void CaptureManager::collectFrame(int jobId, int filterTag, cv::Mat frame) {
     LOGD("job-%d, jobs.size:%zu", jobId, jobs.size());
     if (jobs.size() == 0) {
         LOGE("no jobs");
@@ -37,15 +37,16 @@ void CaptureManager::collectFrame(int jobId, cv::Mat frame) {
         LOGD("job-%d, frameSize:%d, already has:%zu", jobId, jobs[jobId]->frameSize,
              jobs[jobId]->frames.size());
         if (jobs[jobId]->frames.size() == jobs[jobId]->frameSize) {
-            // 不能传入 &jobId，因为jobId是栈内申请的int变量，退栈后会被清空
-            post(kMessage_Process, &(it->second->id));
+            auto pCaptureMsg = new CaptureMsg(jobId, filterTag);
+            post(kMessage_Process, pCaptureMsg);
         }
     }
 }
 
 // reference: https://docs.opencv.org/4.x/d3/db7/tutorial_hdr_imaging.html
 void CaptureManager::recvProcess(void *data) {
-    auto jobId = *reinterpret_cast<int *>(data);
+    auto pCaptureMsg = reinterpret_cast<CaptureMsg *>(data);
+    auto jobId = pCaptureMsg->jobId;
     LOGD("begin job-%d", jobId);
     auto it = jobs.find(jobId);
     if (it != jobs.end()) {
@@ -93,22 +94,27 @@ void CaptureManager::recvProcess(void *data) {
                 break;
         }
         fusion.release();
-        auto hdr_t= cv::getTickCount();
-        // int64 必须要转成 int，否则输出会丢失精度后变成负值
-        LOGD("hdr processing cost %d s", static_cast<int>((hdr_t - start_t) /
-        cv::getTickFrequency()));
-
-        // not needed: 在这里无需手动转成jpeg，直接 cv:imwrite(jpeg)即可
-        // // default set jpeg quality to 95
-        // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
-        // std::vector<uchar> buffer;
-        // cv::imencode(".jpg", fusion, buffer, params);
-        std::string filePath = std::format("{}/{}.jpg", Util::cachePath, Util::getCurrentTimestampMs());
-        LOGD("save hdr image to %s", filePath.c_str());
-        // 把生成的写到jpeg图片写到 filePath， quality 为 100
-        cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
-        Listener::onProcessed(jobId, Listener_type::Listener_type_HDR_CAPTURED, filePath);
-        LOGD("end job-%d", jobId);
+        
+        rotatedImage.convertTo(rotatedImage, CV_8UC4);
+        if (pCaptureMsg->filterTag == 0) {
+            auto hdr_t= cv::getTickCount();
+            // int64 必须要转成 int，否则输出会丢失精度后变成负值
+            LOGD("hdr processing cost %d s", static_cast<int>((hdr_t - start_t) /
+                                                              cv::getTickFrequency()));
+            // not needed: 在这里无需手动转成jpeg，直接 cv:imwrite(jpeg)即可
+            // // default set jpeg quality to 95
+            // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
+            // std::vector<uchar> buffer;
+            // cv::imencode(".jpg", fusion, buffer, params);
+            std::string filePath = std::format("{}/{}.jpg", Util::cachePath, Util::getCurrentTimestampMs());
+            LOGD("save hdr image to %s", filePath.c_str());
+            // 把生成的写到jpeg图片写到 filePath， quality 为 100
+            cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
+            Listener::onProcessed(jobId, Listener_type::Listener_type_HDR_CAPTURED, filePath);
+            LOGD("end job-%d", jobId);
+        } else {
+        
+        }
     }
     // 处理完 job，从 jobs 中移除
     jobs.erase(it);

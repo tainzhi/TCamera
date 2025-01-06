@@ -34,7 +34,7 @@
         }                                   \
     } while(0)
 
-static const char * kImageProcessorClassPathName = "com/tainzhi/android/tcamera/ImageProcessor";
+static const char *kImageProcessorClassPathName = "com/tainzhi/android/tcamera/ImageProcessor";
 Engine *engine = nullptr;
 
 fields_t fields;
@@ -42,7 +42,7 @@ fields_t fields;
 extern "C" JNIEXPORT void JNICALL
 ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
-
+    
     fields.image_processor = env->FindClass(kImageProcessorClassPathName);
     if (fields.image_processor == nullptr) {
         LOGE("Failed to find class %s", kImageProcessorClassPathName);
@@ -55,7 +55,7 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     } else {
         LOGD("class image_processor retrieved (clazz=%p)", fields.image_processor);
     }
-
+    
     jclass contextClass = env->GetObjectClass(context);
     if (contextClass == NULL) {
         LOGD("Failed to get context class");
@@ -64,38 +64,37 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     jmethodID getCacheDirMethod = env->GetMethodID(contextClass, "getCacheDir", "()Ljava/io/File;");
     if (getCacheDirMethod == NULL) {
         LOGD("Failed to get getCacheDir method ID");
-        return ;
+        return;
     }
     jobject fileObject = env->CallObjectMethod(context, getCacheDirMethod);
     if (fileObject == NULL) {
         LOGD("Failed to call getCacheDir method");
-        return ;
+        return;
     }
     jclass fileClass = env->GetObjectClass(fileObject);
     if (fileClass == NULL) {
         LOGD("Failed to get File class");
-        return ;
+        return;
     }
     jmethodID getAbsolutePathMethod = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
     if (getAbsolutePathMethod == NULL) {
         LOGD("Failed to get getAbsolutePath method ID");
-        return ;
+        return;
     }
     jstring pathString = (jstring) env->CallObjectMethod(fileObject, getAbsolutePathMethod);
     if (pathString == NULL) {
         LOGD("Failed to call getAbsolutePath method");
-        return ;
+        return;
     } else {
         LOGD("cache dir path: %s", Util::jstring_to_string(env, pathString).c_str());
     }
     env->DeleteLocalRef(contextClass);
     env->DeleteLocalRef(fileObject);
     env->DeleteLocalRef(fileClass);
-
+    
     // https://github.com/opencv/opencv/wiki/OpenCL-optimizations
     cv::ocl::Context ctx = cv::ocl::Context::getDefault();
-    if (!ctx.ptr())
-    {
+    if (!ctx.ptr()) {
         LOGV("opencv:opencl is not available");
     } else {
         LOGV("opencv:opencl is available");
@@ -113,8 +112,7 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     Util::cachePath = Util::jstring_to_string(env, pathString);
 }
 
-extern "C"
-JNIEXPORT void JNICALL
+extern "C" JNIEXPORT void JNICALL
 ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
     LOGV("deinit");
     if (fields.image_processor != nullptr) {
@@ -129,14 +127,13 @@ ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
  * @exposure_time in nanoseconds
  */
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_plane,
-                                                             jobject u_plane, jobject v_plane, jint width,
-                                                             jint height) {
+ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jint filter_tag, jobject y_plane, jobject u_plane,
+                            jobject v_plane, jint width, jint height) {
     LOGD("begin");
-    jbyte* yPlane = (jbyte*)env->GetDirectBufferAddress(y_plane);
-    jbyte* uPlane = (jbyte*)env->GetDirectBufferAddress(u_plane);
+    jbyte *yPlane = (jbyte *) env->GetDirectBufferAddress(y_plane);
+    jbyte *uPlane = (jbyte *) env->GetDirectBufferAddress(u_plane);
     // jbyte* vPlane = (jbyte*)env->GetDirectBufferAddress(v_plane);
-    cv::Mat yuvMat(height + height/2, width, CV_8UC1);
+    cv::Mat yuvMat(height + height / 2, width, CV_8UC1);
     memcpy(yuvMat.data, yPlane, height * width);
     // 在这里使用的是 plane[0] + plane[1]
     // camera2 YUV420_888 的 plane[1] 存储 UVUV...UVU, 最后一个V无效，丢弃了，故需要减1
@@ -152,14 +149,13 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jobject y_pl
     Util::dumpBinary(dump_yuv_path.c_str(),reinterpret_cast<uchar *>(yuvMat.data), height * width * 1.5);
 #endif
     
-    engine->collectImage(job_id, yuvMat);
+    engine->getCaptureManager()->collectFrame(job_id, filter_tag, yuvMat);
     LOGD("end");
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type,
-                                                        jstring time_stamp, jint orientation, jint frame_size, jobject
-                                                        exposure_times) {
+ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type, jstring time_stamp, jint orientation,
+                       jint frame_size, jobject exposure_times) {
     LOGD();
     // java 传过来的exposure_time 是纳秒，需要转换为秒
     // 获取List类和相关方法ID
@@ -172,9 +168,9 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
         exposureTimes.push_back(exposureTime / 1000000000.0);
     }
     env->DeleteLocalRef(listClass);
-    engine->addCapture(job_id, static_cast<CaptureType>(capture_type), Util::jstring_to_string(env, time_stamp),
-                       orientation,
-                       frame_size, exposureTimes);
+    engine->getCaptureManager()->addCapture(job_id, static_cast<CaptureType>(capture_type),
+                                            Util::jstring_to_string(env, time_stamp), orientation, frame_size,
+                                            exposureTimes);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -184,17 +180,17 @@ ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
 
 extern "C" JNIEXPORT jboolean JNICALL
 ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbnail_width, jint thumbnail_height,
-                                         jobject filter_names, jobject filter_tags,jobject filter_thumbnail_bitmaps ,
+                                         jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps,
                                          jobject lut_bitmaps) {
     LOGD();
-    engine->getFilterManager()->configureThumbnails(env, thumbnail_width, thumbnail_height, filter_names,
-                                                    filter_tags, filter_thumbnail_bitmaps, lut_bitmaps);
+    engine->getFilterManager()->configureThumbnails(env, thumbnail_width, thumbnail_height, filter_names, filter_tags,
+                                                    filter_thumbnail_bitmaps, lut_bitmaps);
     return true;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation, jint
-updateRangeStart, jint updateRangeEnd) {
+ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation,
+                                       jint updateRangeStart, jint updateRangeEnd) {
     LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(image);
@@ -218,11 +214,11 @@ updateRangeStart, jint updateRangeEnd) {
     // jmethodID getRowStrideMethod = env->GetMethodID(planeClass, "getRowStride", "()I");
     jobject yPlane = env->GetObjectArrayElement(planes, 0);
     jobject yBuffer = env->CallObjectMethod(yPlane, getBufferMethod);
-    jbyte* yBytes = (jbyte*)env->GetDirectBufferAddress(yBuffer);
+    jbyte *yBytes = (jbyte *) env->GetDirectBufferAddress(yBuffer);
     
     jobject uPlane = env->GetObjectArrayElement(planes, 1);
     jobject uBuffer = env->CallObjectMethod(uPlane, getBufferMethod);
-    jbyte* uBytes = (jbyte*)env->GetDirectBufferAddress(uBuffer);
+    jbyte *uBytes = (jbyte *) env->GetDirectBufferAddress(uBuffer);
     // jint uPixelStride = env->CallIntMethod(uPlane, env->GetMethodID(planeClass, "getPixelStride", "()I"));
     // jint uRowStride = env->CallIntMethod(uPlane, env->GetMethodID(planeClass, "getRowStride", "()I"));
     //
@@ -251,7 +247,7 @@ updateRangeStart, jint updateRangeEnd) {
 
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, jobject jpegImage, jint filterTag) {
+ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, jint filterTag, jobject jpegImage) {
     LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(jpegImage);
@@ -271,11 +267,11 @@ ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, jo
     jmethodID getBufferMethod = env->GetMethodID(planeClass, "getBuffer", "()Ljava/nio/ByteBuffer;");
     jobject plane = env->GetObjectArrayElement(planes, 0);
     jobject buffer = env->CallObjectMethod(plane, getBufferMethod);
-    jbyte* imageBytes = (jbyte*)env->GetDirectBufferAddress(buffer);
+    jbyte *imageBytes = (jbyte *) env->GetDirectBufferAddress(buffer);
     jint byteSize = env->GetDirectBufferCapacity(buffer);
     uint8_t *bytes = new uint8_t[byteSize];
     memcpy(bytes, imageBytes, byteSize);
-    engine->getFilterManager()->sendApplyFilterEffectToJpeg(jobId, bytes, byteSize, filterTag);
+    engine->getFilterManager()->sendApplyFilterEffectToJpeg(jobId, filterTag, bytes, byteSize);
     env->DeleteLocalRef(buffer);
     env->DeleteLocalRef(planeClass);
     env->DeleteLocalRef(plane);
@@ -293,22 +289,20 @@ ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
 
 static JNINativeMethod methods[] = {{"init",                      "(Landroid/content/Context;)V",                                          (void *) ImageProcessor_init},
                                     {"deinit",                    "()V",                                                                   (void *) ImageProcessor_deinit},
-                                    {"collectImage",              "(ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;II)V", (void *) ImageProcessor_collectImage},
+                                    {"collectImage",              "(IILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;"
+                                                                  "Ljava/nio/ByteBuffer;II)V",                                             (void *) ImageProcessor_collectImage},
                                     {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) ImageProcessor_capture},
                                     {"abortCapture",              "(I)V",                                                                  (void *) ImageProcessor_abortCapture},
                                     {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
-                                    {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",
-                                     (void *) ImageProcessor_processFilterThumbnails},
-                                    {"applyFilterEffectToJpeg",   "(ILandroid/media/Image;I)Z",
-                                            (void *) ImageProcessor_applyFilterEffectToJpeg},
+                                    {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",                                           (void *) ImageProcessor_processFilterThumbnails},
+                                    {"applyFilterEffectToJpeg",   "(IILandroid/media/Image;)Z",                                            (void *) ImageProcessor_applyFilterEffectToJpeg},
                                     {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 
 
-
-extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
+extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     LOGD("JNI_onLoad");
-    JNIEnv  *env = nullptr;
-    if (vm->GetEnv((void **)&env, JNI_VERSION_1_6) != JNI_OK) {
+    JNIEnv *env = nullptr;
+    if (vm->GetEnv((void **) &env, JNI_VERSION_1_6) != JNI_OK) {
         LOGE("failed to get env");
         return JNI_ERR;
     }
@@ -318,7 +312,7 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
         LOGE("failed to find %s", kImageProcessorClassPathName);
         return JNI_ERR;
     }
-    bool registerResult = env->RegisterNatives(clazz, methods, sizeof(methods)/sizeof(methods[0]));
+    bool registerResult = env->RegisterNatives(clazz, methods, sizeof(methods) / sizeof(methods[0]));
     if (registerResult != JNI_OK) {
         LOGE("failed to register natives methods");
         return JNI_ERR;

@@ -41,13 +41,12 @@ public:
     ~CaptureManager();
     void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
                     std::vector<float> exposureTimes);
-    void collectFrame(int jobId, cv::Mat frame);
+    void collectFrame(int jobId, int filterTag, cv::Mat frame);
 private:
     void handle(int what, void *data);
     void recvProcess(void *data);
     
     std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};
-    
     
     enum kMessage {
         kMessage_Capture = 1,
@@ -56,6 +55,11 @@ private:
         kMessage_UpdateCaptureBackupFilePath = 4,
         kMessage_PostComplete = 5,
         kMessage_PostError = 6
+    };
+    
+    struct CaptureMsg {
+        int jobId;
+        int filterTag;
     };
 
 };

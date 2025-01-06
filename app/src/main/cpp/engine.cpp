@@ -19,17 +19,6 @@ std::shared_ptr<FilterManager> Engine::getFilterManager() {
     return getThread(filterHolder);
 }
 
-void Engine::collectImage(int jobId, cv::Mat &image) {
-    getCaptureManager()->collectFrame(jobId, image);
-}
-
-void Engine::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
-                        std::vector<float> exposureTimes) {
-    getCaptureManager()->addCapture(jobId, captureType, std::move(timeStamp), orientation, frameSize, std::move
-    (exposureTimes));
-}
-
-
 void Engine::deinit() {
     getFilterManager()->quit();
 }

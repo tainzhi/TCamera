@@ -704,7 +704,7 @@ class MainActivity : AppCompatActivity() {
                         if (App.DEBUG) {
                             Log.d(TAG, "hdr: yuv image is available")
                         }
-                        captureJobManager.processYuvImage(reader.acquireLatestImage())
+                        captureJobManager.processYuvImage(filterType.tag, reader.acquireLatestImage())
                     }, imageReaderHandler)
                 } else if (isEnableZsl && !isHdr) {
                     yuvImageReader = ImageReader.newInstance(
@@ -734,7 +734,7 @@ class MainActivity : AppCompatActivity() {
                 jpegImageReader.setOnImageAvailableListener({ reader ->
                     Log.d(TAG, "jpeg: image available ")
                     reader.acquireLatestImage()?.let {
-                        captureJobManager.processJpegImage(it, filterType.tag)
+                        captureJobManager.processJpegImage(filterType.tag, it)
                     }
                 }, imageReaderHandler)
                 previewYuvImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.YUV_420_888, 1)

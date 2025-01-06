@@ -15,10 +15,6 @@
 class Engine {
 public:
     void init();
-    void collectImage(int jobId, cv::Mat &image);
-    void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
-                    std::vector<float>
-            exposureTimes);
     void deinit();
     ~Engine();
     std::shared_ptr<CaptureManager> getCaptureManager();

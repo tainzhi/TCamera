@@ -21,7 +21,7 @@ class ImageProcessor private constructor(val context: Context) {
     }
 
     // exposureTime in nanoseconds
-    fun collectImage(jobId: Int, image: Image) {
+    fun collectImage(jobId: Int, filterTag: Int, image: Image) {
         assert(image.format == ImageFormat.YUV_420_888) { "imageFormat:${image.format}" }
         assert(image.planes[1].pixelStride == 2) { "imageFormat is not YUV420sp" }
         if (App.DEBUG) {
@@ -44,6 +44,7 @@ class ImageProcessor private constructor(val context: Context) {
         }
         collectImage(
             jobId,
+            filterTag,
             image.planes[0].buffer,
             image.planes[1].buffer,
             image.planes[2].buffer,
@@ -91,6 +92,7 @@ class ImageProcessor private constructor(val context: Context) {
 
     external fun collectImage(
         jobId: Int,
+        filerTag: Int,
         yPlane: ByteBuffer,
         uPlane: ByteBuffer,
         vPlane: ByteBuffer,
@@ -104,7 +106,7 @@ class ImageProcessor private constructor(val context: Context) {
 
     external fun processFilterThumbnails(image: Image, orientation: Int, updateRangeStart: Int, updateRangeEnd: Int): Boolean
 
-    external fun applyFilterEffectToJpeg(jobId: Int, jpegImage: Image, filterTypeTag: Int): Boolean
+    external fun applyFilterEffectToJpeg(jobId: Int, filterTypeTag: Int, jpegImage: Image): Boolean
 
     external fun clearFilterThumbnails()
 

@@ -62,9 +62,9 @@ updateRangeEnd) {
     post(kMessage_ProcessThumbnails, msg);
 }
 
-void FilterManager::sendApplyFilterEffectToJpeg(int jobId, uint8_t *jpegBytes, int jpegByteSize, int filterTag) {
+void FilterManager::sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_t *jpegBytes, int jpegByteSize) {
     LOGD();
-    auto msg = new ApplyFilterEffectMsg(jobId, jpegBytes, jpegByteSize, filterTag);
+    auto msg = new ApplyFilterEffectMsg(jobId, filterTag, jpegBytes, jpegByteSize);
     post(kMessage_ApplyFilterEffectToJpeg, msg);
     
 }
