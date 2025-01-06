@@ -10,14 +10,15 @@
 
 extern fields_t fields;
 
-void Listener::onCaptured(int jobId, std::string cacheImagePath) {
+void Listener::onProcessed(int jobId, Listener_type type, std::string cacheImagePath) {
     JNIEnv *env = nullptr;
     Util::get_env(&env);
     if (env == nullptr) {
         LOGE(" failed to get JNIEnv");
         return;
     }
-    jmethodID postFromNativeMethod = env->GetStaticMethodID(fields.image_processor, "postFromNative", "(ILjava/lang/String;)V");
+    jmethodID postFromNativeMethod = env->GetStaticMethodID(fields.image_processor, "postFromNative", ""
+                                                                                                      "(IILjava/lang/String;)V");
     if (postFromNativeMethod == nullptr) {
         LOGE(" failed to get ImageProcessor.postFromNative");
         return;
@@ -27,7 +28,7 @@ void Listener::onCaptured(int jobId, std::string cacheImagePath) {
         LOGE("failed to create jstring for %s", cacheImagePath.c_str());
         return;
     }
-    env->CallStaticVoidMethod(fields.image_processor, postFromNativeMethod, jobId, imagePath);
+    env->CallStaticVoidMethod(fields.image_processor, postFromNativeMethod, jobId, static_cast<int>(type), imagePath);
     if (env->ExceptionCheck()) {
         Util::handleEnvException(env);
         LOGE("exception occurred while calling postFromNative");

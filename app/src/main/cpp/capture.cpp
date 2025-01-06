@@ -107,7 +107,7 @@ void CaptureManager::recvProcess(void *data) {
         LOGD("save hdr image to %s", filePath.c_str());
         // 把生成的写到jpeg图片写到 filePath， quality 为 100
         cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
-        Listener::onCaptured(jobId, filePath);
+        Listener::onProcessed(jobId, Listener_type::Listener_type_HDR_CAPTURED, filePath);
         LOGD("end job-%d", jobId);
     }
     // 处理完 job，从 jobs 中移除

@@ -251,7 +251,7 @@ updateRangeStart, jint updateRangeEnd) {
 
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jobject jpegImage, jint filterTag) {
+ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, jobject jpegImage, jint filterTag) {
     LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(jpegImage);
@@ -275,7 +275,7 @@ ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jobject jpegIm
     jint byteSize = env->GetDirectBufferCapacity(buffer);
     uint8_t *bytes = new uint8_t[byteSize];
     memcpy(bytes, imageBytes, byteSize);
-    engine->getFilterManager()->sendApplyFilterEffectToJpeg(bytes, byteSize, filterTag);
+    engine->getFilterManager()->sendApplyFilterEffectToJpeg(jobId, bytes, byteSize, filterTag);
     env->DeleteLocalRef(buffer);
     env->DeleteLocalRef(planeClass);
     env->DeleteLocalRef(plane);
@@ -299,7 +299,7 @@ static JNINativeMethod methods[] = {{"init",                      "(Landroid/con
                                     {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
                                     {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",
                                      (void *) ImageProcessor_processFilterThumbnails},
-                                    {"applyFilterEffectToJpeg",   "(Landroid/media/Image;I)Z",
+                                    {"applyFilterEffectToJpeg",   "(ILandroid/media/Image;I)Z",
                                             (void *) ImageProcessor_applyFilterEffectToJpeg},
                                     {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
 

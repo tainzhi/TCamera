@@ -84,7 +84,8 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
                 saveJpeg(jobMap[currentJobId]!!)
             } else {
                 Log.i(TAG, "processJpegImage: to apply filter:${filterTypeTag}")
-                ImageProcessor.instance.applyFilterEffectToJpeg(image, filterTypeTag)
+                jobMap[currentJobId]!!.jpegImage = null
+                ImageProcessor.instance.applyFilterEffectToJpeg(currentJobId, image, filterTypeTag)
             }
         })
     }
@@ -101,28 +102,34 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
         })
     }
 
-    fun onNativeProcessed(jobId: Int, resultImagePath: String) {
+    fun onNativeProcessed(jobId: Int, type: Int, processedImagePath: String) {
         if (App.DEBUG) {
-            Log.d(TAG, "onNativeProcessed: job-${jobId}")
+            Log.d(TAG, "onNativeProcessed: job-${jobId}, type:$type")
         }
-        handler.post( {
-            replaceJpegImage(jobId, resultImagePath)
+        // hdr capture
+        if (type == 0) {
+            handler.post {
+                replaceJpegImage(jobId, processedImagePath)
             }
-        )
+        } else if (type == 1) {
+            val job = jobMap[jobId] ?: return
+            job.cachedJpegPath = processedImagePath
+            saveJpeg(job)
+        }
     }
 
     /**
      * HDR: 多帧拍经过 native 处理生成的图片要替换到普通拍照的 JPEG
      */
-    private fun replaceJpegImage(jobId: Int, resultImagePath: String) {
-        Log.d(TAG, "replaceJpegImage: jobMaphasJob:${jobMap.containsKey(jobId)}, AppDebug:${App.DEBUG}")
+    private fun replaceJpegImage(jobId: Int, processImagePath: String) {
+        Log.d(TAG, "replaceJpegImage: jobMap has Job:${jobMap.containsKey(jobId)}, AppDebug:${App.DEBUG}")
         val job = jobMap[jobId] ?: return
         if (App.DEBUG) {
             Log.d(TAG, "replaceJpegImage: job-${job.id} ${job.captureType}")
         }
         Kpi.start(Kpi.TYPE.PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE)
         try {
-            val processedImageFile = File(resultImagePath)
+            val processedImageFile = File(processImagePath)
             val processedImageBytes = FileInputStream(processedImageFile).use {
                 it.readBytes()
             }
@@ -189,11 +196,19 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
     private fun saveJpeg(job: CaptureJob) {
         Log.d(TAG, "saveJpeg: job-${job.id} ${job.captureType}")
         Kpi.start(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
-        val image: Image = job.jpegImage!!
         val resolver = context.contentResolver
-        val buffer = image.planes[0].buffer
-        val bytes = ByteArray(image.planes[0].buffer.remaining())
-        buffer.get(bytes)
+        val bytes = if(job.jpegImage != null) {
+            val image: Image = job.jpegImage!!
+            val buffer = image.planes[0].buffer
+            val bytes = ByteArray(image.planes[0].buffer.remaining())
+            buffer.get(bytes)
+            bytes
+        } else {
+            val processedImageFile = File(job.cachedJpegPath)
+            FileInputStream(processedImageFile).use {
+                it.readBytes()
+            }
+        }
 
         try {
             job.uri?.let { uri ->
@@ -212,7 +227,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
             throw IOException(e)
         } finally {
             // 必须关掉, 否则不能连续拍照
-            image.close()
+            job.jpegImage?.close()
         }
         Kpi.end(Kpi.TYPE.SHOT_TO_SAVE_IMAGE)
     }
@@ -229,7 +244,8 @@ class CaptureJob {
     val captureType: CaptureType
     val id = SettingsManager.instance.getJobId() + 1
     val uri by lazy { getMediaUri() }
-    lateinit var jpegImage: Image
+    var jpegImage: Image? = null
+    var cachedJpegPath: String? = null
     private lateinit var exposureTimes: List<Long>
     private var yuvImageSize = 0
 

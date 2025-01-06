@@ -62,9 +62,9 @@ updateRangeEnd) {
     post(kMessage_ProcessThumbnails, msg);
 }
 
-void FilterManager::sendApplyFilterEffectToJpeg(uint8_t *jpegBytes, int jpegByteSize, int filterTag) {
+void FilterManager::sendApplyFilterEffectToJpeg(int jobId, uint8_t *jpegBytes, int jpegByteSize, int filterTag) {
     LOGD();
-    auto msg = new ApplyFilterEffectMsg(jpegBytes, jpegByteSize, filterTag);
+    auto msg = new ApplyFilterEffectMsg(jobId, jpegBytes, jpegByteSize, filterTag);
     post(kMessage_ApplyFilterEffectToJpeg, msg);
     
 }
@@ -291,6 +291,12 @@ bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffect
     yuvBuffer.convertToRGBA8888(rgba);
     auto renderedRgba = new uint8_t[width * height * 4];
     renderFilterEffect(msg->filterTag, rgba, width, height, renderedRgba);
+    auto renderedJpegMat = cv::Mat(height, width, CV_8UC4, renderedRgba);
+    std::string renderedJpegFilePath = std::format("{}/rendered_{}x{}_{}.jpeg", Util::cachePath, width, height,
+                                                   Util::getCurrentTimestampMs());
+    LOGD("dump rendered jpeg to %s", renderedJpegFilePath.c_str());
+    cv::imwrite(renderedJpegFilePath, renderedJpegMat);
+    Listener::onProcessed(msg->jobId, Listener_type::Listener_type_FILTER_EFFECT_APPLIED_TO_JPEG, renderedJpegFilePath);
     delete msg;
     return true;
 }

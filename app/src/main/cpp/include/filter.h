@@ -15,6 +15,7 @@
 #include "util.h"
 #include "looper.h"
 #include "color.h"
+#include "listener.h"
 
 
 class FilterManager: public Looper {
@@ -24,7 +25,7 @@ public:
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
     void sendProcessThumbnails(std::shared_ptr<Color::YuvBuffer> yuvBuffer, int orientation, int updateRangeStart, int
     updateRangeEnd);
-    void sendApplyFilterEffectToJpeg(uint8_t * jpegBytes, int jpegByteSize, int filterTag);
+    void sendApplyFilterEffectToJpeg(int jobId, uint8_t * jpegBytes, int jpegByteSize, int filterTag);
     void sendClearThumbnails();
     bool quit();
 private:
@@ -42,6 +43,7 @@ private:
     };
     
     struct ApplyFilterEffectMsg {
+        int jobId;
         void *data;
         size_t dataSize;
         int filterTag;

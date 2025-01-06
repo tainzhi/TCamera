@@ -68,9 +68,9 @@ class ImageProcessor private constructor(val context: Context) {
 
 
         @JvmStatic
-        fun postFromNative(jobId: Int, resultImagePath: String) {
-            Log.d(TAG, "postFromNative: job-${jobId}, cacheImagePath:${resultImagePath}")
-            captureJobManager.onNativeProcessed(jobId, resultImagePath)
+        fun postFromNative(jobId: Int, type: Int,  resultImagePath: String) {
+            Log.d(TAG, "postFromNative: job-${jobId}, type: $type, cacheImagePath:${resultImagePath}")
+            captureJobManager.onNativeProcessed(jobId, type, resultImagePath)
         }
 
         lateinit var captureJobManager: CaptureJobManager
@@ -104,7 +104,7 @@ class ImageProcessor private constructor(val context: Context) {
 
     external fun processFilterThumbnails(image: Image, orientation: Int, updateRangeStart: Int, updateRangeEnd: Int): Boolean
 
-    external fun applyFilterEffectToJpeg(jpegImage: Image, filterTypeTag: Int): Boolean
+    external fun applyFilterEffectToJpeg(jobId: Int, jpegImage: Image, filterTypeTag: Int): Boolean
 
     external fun clearFilterThumbnails()
 

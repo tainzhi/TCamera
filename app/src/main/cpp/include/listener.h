@@ -9,9 +9,15 @@
 #include "util.h"
 #include "jni.h"
 
+enum Listener_type {
+    Listener_type_HDR_CAPTURED = 0,
+    Listener_type_FILTER_EFFECT_APPLIED_TO_JPEG = 1,
+};
+
+
 class Listener {
 public:
-    static void onCaptured(int jobId, std::string cacheImagePath);
+    static void onProcessed(int jobId, Listener_type type, std::string cacheImagePath);
 };
 
 
