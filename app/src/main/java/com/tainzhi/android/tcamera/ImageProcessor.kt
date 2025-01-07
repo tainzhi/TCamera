@@ -54,7 +54,6 @@ class ImageProcessor private constructor(val context: Context) {
         if (App.DEBUG) {
             Log.d(TAG, "collectImage: close image")
         }
-        image.close()
     }
 
     fun destroy() {

@@ -86,6 +86,7 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
                 Log.i(TAG, "processJpegImage: to apply filter:${filterTypeTag}")
                 jobMap[currentJobId]!!.jpegImage = null
                 ImageProcessor.instance.applyFilterEffectToJpeg(currentJobId, filterTypeTag, image)
+                image.close()
             }
         })
     }
@@ -93,8 +94,10 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
     fun processYuvImage(filterTag: Int, image: Image?) {
         handler.post({
             if (image != null) {
-                Log.d(TAG, "processYuvImage: ")
+                Log.d(TAG, "begin processYuvImage: ")
                 ImageProcessor.instance.collectImage(currentJobId, filterTag, image)
+                image.close()
+                Log.d(TAG, "end processYuvImage: image close")
             } else {
                 Log.d(TAG, "processYuvImage but image is null, so abort capture job-${currentJobId}")
                 ImageProcessor.instance.abortCapture(currentJobId)

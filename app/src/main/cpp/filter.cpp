@@ -72,7 +72,7 @@ void FilterManager::sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_
     
 }
 
-void FilterManager::sendApplyFilterEffectToYuv(int jobId, int filterTag, uint8_t *yuv, int width, int height) {
+void FilterManager::sendApplyFilterEffectToHdr(int jobId, int filterTag, Color::YuvBuffer *yuv) {
     // todo: implementation
     engine->getCaptureManager();
 }

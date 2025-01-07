@@ -27,7 +27,7 @@ public:
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
     void sendProcessThumbnails(std::shared_ptr<Color::YuvBuffer> yuvBuffer, int orientation, int updateRangeStart, int
     updateRangeEnd);
-    void sendApplyFilterEffectToYuv(int jobId, int filterTag, uint8_t * yuv, int width, int height);
+    void sendApplyFilterEffectToHdr(int jobId, int filterTag, Color::YuvBuffer * yuv);
     void sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_t * jpegBytes, int jpegByteSize);
     void sendClearThumbnails();
     bool quit();

@@ -5,6 +5,7 @@
 
 #include "capture.h"
 #include "engine.h"
+#include "filter.h"
 
 #define TAG "NativeCaptureManager"
 
@@ -78,27 +79,28 @@ void CaptureManager::recvProcess(void *data) {
             cv::cvtColor(jobs[jobId]->frames[i], rgbMats[i], cv::COLOR_YUV420sp2RGB);
         }
         jobs[jobId]->frames.clear();
+        // opencv hdr -> fusion 32bit浮点数 CV_32F
         merge_mertens->process(rgbMats, fusion);
         rgbMats.clear();
         // 必须把[0,1]转到[0,255], 才能保存成jpeg
-        fusion = fusion * 255;
+        cv::Mat fusionU;
+        fusion.convertTo(fusionU, CV_8U, 255.0);
         
         cv::Mat rotatedImage;
         LOGD("orientation:%d", jobs[jobId]->orientation);
         switch (jobs[jobId]->orientation) {
             case 90:
-                cv::rotate(fusion, rotatedImage, cv::ROTATE_90_CLOCKWISE);
+                cv::rotate(fusionU, rotatedImage, cv::ROTATE_90_CLOCKWISE);
                 break;
             case 180:
-                cv::rotate(fusion, rotatedImage, cv::ROTATE_180);
+                cv::rotate(fusionU, rotatedImage, cv::ROTATE_180);
                 break;
             case 270:
-                cv::rotate(fusion, rotatedImage, cv::ROTATE_90_COUNTERCLOCKWISE);
+                cv::rotate(fusionU, rotatedImage, cv::ROTATE_90_COUNTERCLOCKWISE);
                 break;
         }
-        fusion.release();
+        fusionU.release();
         
-        rotatedImage.convertTo(rotatedImage, CV_8UC4);
         if (pCaptureMsg->filterTag == 0) {
             auto hdr_t= cv::getTickCount();
             // int64 必须要转成 int，否则输出会丢失精度后变成负值
@@ -109,14 +111,43 @@ void CaptureManager::recvProcess(void *data) {
             // std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 95};
             // std::vector<uchar> buffer;
             // cv::imencode(".jpg", fusion, buffer, params);
-            std::string filePath = std::format("{}/{}.jpg", Util::cachePath, Util::getCurrentTimestampMs());
+            std::string filePath = std::format("{}/hdr_jpeg_{}.jpg", Util::cachePath, Util::getCurrentTimestampMs());
             LOGD("save hdr image to %s", filePath.c_str());
             // 把生成的写到jpeg图片写到 filePath， quality 为 100
             cv::imwrite(filePath, rotatedImage, std::vector<int>{cv::IMWRITE_JPEG_QUALITY, 100});
             Listener::onProcessed(jobId, Listener_type::Listener_type_HDR_CAPTURED, filePath);
             LOGD("end job-%d", jobId);
         } else {
-            engine->getFilterManager();
+            LOGD("rotated mat depth:%d, channels:%d", rotatedImage.depth(), rotatedImage.channels());
+            cv::Mat yuvMat;
+            // todo: use libjpeg to convert jpeg to yuv420sp, 替换掉opencv的cvtColor
+            cv::cvtColor(rotatedImage, yuvMat, cv::COLOR_RGB2YUV_I420);
+            // after cvtColor, yuvMat is I420, yuvMat.cols == width, yuvMat.rows == height * 3 / 2
+            // I420 yyyy...uu..vv.. y,u,v分别存储，存储为所有的y, 所有的u，所有的v
+            // YV12 yyyy...vv..uu.. y,u,v分别存储
+            auto width = rotatedImage.cols;
+            auto height = rotatedImage.rows;
+            auto pYuvBuffer = new Color::YuvBuffer(width, height);
+            // copy y
+            memcpy(pYuvBuffer->data, yuvMat.data, pYuvBuffer->width * pYuvBuffer->height);
+            int uIndex = width * height;
+            for (int i = width * height; i < width * height * 5 / 4; i++) {
+                pYuvBuffer->data[uIndex] = yuvMat.data[i];
+                uIndex += 2;
+            }
+            int vIndex = width * height + 1;
+            for (int i = width * height * 5 / 4; i < width * height * 3 / 2; i++) {
+                pYuvBuffer->data[vIndex] = yuvMat.data[i];
+                vIndex += 2;
+            }
+#define TEST
+#ifdef TEST
+            std::string yuvFilePath = std::format("{}/rotated_yuv_{}x{}_{}.420sp.yuv", Util::cachePath, width, height,
+                                          Util::getCurrentTimestampMs());
+            LOGD("dump jpeg yuv to %s", yuvFilePath.c_str());
+            Util::dumpBinary(yuvFilePath.c_str(), pYuvBuffer->data, pYuvBuffer->width * pYuvBuffer->height * 3 / 2);
+#endif
+            engine->getFilterManager()->sendApplyFilterEffectToHdr(jobId, pCaptureMsg->filterTag, pYuvBuffer);
         }
     }
     // 处理完 job，从 jobs 中移除
