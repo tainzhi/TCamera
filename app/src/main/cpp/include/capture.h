@@ -15,6 +15,8 @@
 #include "util.h"
 #include "listener.h"
 
+class Engine;
+
 enum CaptureType {
     UNKNOWN,
     JPEG,
@@ -38,11 +40,13 @@ struct CaptureJob {
 
 class CaptureManager: public Looper {
 public:
+    CaptureManager(Engine *engine);
     ~CaptureManager();
     void addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,
                     std::vector<float> exposureTimes);
     void collectFrame(int jobId, int filterTag, cv::Mat frame);
 private:
+    Engine *engine;
     void handle(int what, void *data);
     void recvProcess(void *data);
     

@@ -6,6 +6,8 @@
 #include "opencv2/core.hpp"
 #include "util.h"
 #include "engine.h"
+#include "capture.h"
+#include "filter.h"
 #include "color.h"
 
 #define TAG "NativeImageProcessorJNI"

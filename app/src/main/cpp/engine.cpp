@@ -4,6 +4,8 @@
 //
 
 #include "engine.h"
+#include "capture.h"
+#include "filter.h"
 
 #define TAG "NativeEngine"
 
@@ -12,11 +14,11 @@ void Engine::init(){
 }
 
 std::shared_ptr<CaptureManager> Engine::getCaptureManager() {
-    return getThread(captureManagerHolder);
+    return getThread(captureManagerHolder, this);
 }
 
 std::shared_ptr<FilterManager> Engine::getFilterManager() {
-    return getThread(filterHolder);
+    return getThread(filterHolder, this);
 }
 
 void Engine::deinit() {

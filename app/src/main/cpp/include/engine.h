@@ -6,11 +6,12 @@
 #ifndef TCAMERA_ENGINE_H
 #define TCAMERA_ENGINE_H
 
-#include "util.h"
-#include "capture.h"
-#include "thread.h"
-#include "filter.h"
 #include <jni.h>
+#include "util.h"
+#include "thread.h"
+
+class FilterManager;
+class CaptureManager;
 
 class Engine {
 public:

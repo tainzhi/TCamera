@@ -4,8 +4,11 @@
 //
 
 #include "capture.h"
+#include "engine.h"
 
 #define TAG "NativeCaptureManager"
+
+CaptureManager::CaptureManager(Engine *engine) : engine(engine){}
 
 CaptureManager::~CaptureManager() {
     std::unique_lock<std::mutex> lock(mutex);
@@ -113,7 +116,7 @@ void CaptureManager::recvProcess(void *data) {
             Listener::onProcessed(jobId, Listener_type::Listener_type_HDR_CAPTURED, filePath);
             LOGD("end job-%d", jobId);
         } else {
-        
+            engine->getFilterManager();
         }
     }
     // 处理完 job，从 jobs 中移除

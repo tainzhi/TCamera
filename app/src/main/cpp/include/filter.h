@@ -17,14 +17,17 @@
 #include "color.h"
 #include "listener.h"
 
+class Engine;
 
 class FilterManager: public Looper {
 public:
+    FilterManager(Engine *engine);
     ~FilterManager();
     bool configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height,
             jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps);
     void sendProcessThumbnails(std::shared_ptr<Color::YuvBuffer> yuvBuffer, int orientation, int updateRangeStart, int
     updateRangeEnd);
+    void sendApplyFilterEffectToYuv(int jobId, int filterTag, uint8_t * yuv, int width, int height);
     void sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_t * jpegBytes, int jpegByteSize);
     void sendClearThumbnails();
     bool quit();
@@ -61,6 +64,7 @@ private:
     std::vector<Bitmap> thumbnailBitmaps;
     std::unordered_map<int, uint8_t*> lutTables;
     int lutWidth, lutHeight;
+    Engine *engine;
 };
 
 

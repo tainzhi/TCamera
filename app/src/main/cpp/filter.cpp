@@ -4,9 +4,12 @@
 //
 
 #include "filter.h"
+#include "engine.h"
 
 #define TAG "NativeFilterManager"
 // #define TEST
+
+FilterManager::FilterManager(Engine *engine): engine(engine) {}
 
 FilterManager::~FilterManager() {
     std::unique_lock<std::mutex> lock(mutex);
@@ -67,6 +70,11 @@ void FilterManager::sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_
     auto msg = new ApplyFilterEffectMsg(jobId, filterTag, jpegBytes, jpegByteSize);
     post(kMessage_ApplyFilterEffectToJpeg, msg);
     
+}
+
+void FilterManager::sendApplyFilterEffectToYuv(int jobId, int filterTag, uint8_t *yuv, int width, int height) {
+    // todo: implementation
+    engine->getCaptureManager();
 }
 void FilterManager::sendClearThumbnails() {
     LOGD();
