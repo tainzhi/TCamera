@@ -12,6 +12,7 @@
 enum Listener_type {
     Listener_type_HDR_CAPTURED = 0,
     Listener_type_FILTER_EFFECT_APPLIED_TO_JPEG = 1,
+    Listener_type_FILTER_EFFECT_APPLIED_TO_HDR = 2,
 };
 
 

@@ -110,11 +110,11 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
             Log.d(TAG, "onNativeProcessed: job-${jobId}, type:$type")
         }
         // hdr capture
-        if (type == 0) {
+        if (type == 0 || type == 2 /* apply filter effect to hdr jpeg*/) {
             handler.post {
                 replaceJpegImage(jobId, processedImagePath)
             }
-        } else if (type == 1) {
+        } else if (type == 1) {  // apply filter effect to jpeg
             val job = jobMap[jobId] ?: return
             job.cachedJpegPath = processedImagePath
             saveJpeg(job)
@@ -146,13 +146,8 @@ class CaptureJobManager(val context: Context, val onThumbnailBitmapUpdate: (bitm
                     throw IOException("Failed to create new MediaStore record")
                 }
             }
-        } catch (e: IOException) {
-            throw IOException(e)
         } catch (e: Exception) {
             throw (e)
-        } finally {
-            // 必须关掉, 否则不能连续拍照
-            Log.d(TAG, "close image")
         }
         Kpi.end(Kpi.TYPE.PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE)
     }

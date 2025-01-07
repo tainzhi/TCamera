@@ -36,6 +36,7 @@ private:
         kMessage_ProcessThumbnails = 1,
         kMessage_ClearThumbnails = 2,
         kMessage_ApplyFilterEffectToJpeg = 3,
+        kMessage_ApplyFilterEffectToHdr = 4,
     };
     
     struct ThumbnailMsg {
@@ -52,8 +53,20 @@ private:
         size_t dataSize;
     };
     
+    struct ApplyFilterEffectToHdrMsg {
+        int jobId;
+        int filterTag;
+        Color::YuvBuffer *yuvBuffer;
+        ~ApplyFilterEffectToHdrMsg() {
+            if (yuvBuffer) {
+                delete yuvBuffer;
+            }
+        }
+    };
+    
     bool recvProcessThumbnails(ThumbnailMsg *msg);
     bool recvApplyFilterEffectToJpeg(ApplyFilterEffectMsg *msg);
+    bool recvApplyFilterEffectToHdr(ApplyFilterEffectToHdrMsg *msg);
     bool recvClearThumbnails();
     void renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba);
     void handle(int what, void *data) override;
@@ -64,7 +77,6 @@ private:
     std::vector<Bitmap> thumbnailBitmaps;
     std::unordered_map<int, uint8_t*> lutTables;
     int lutWidth, lutHeight;
-    Engine *engine;
 };
 
 

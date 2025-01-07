@@ -9,7 +9,7 @@
 #define TAG "NativeFilterManager"
 // #define TEST
 
-FilterManager::FilterManager(Engine *engine): engine(engine) {}
+FilterManager::FilterManager(Engine *engine) {}
 
 FilterManager::~FilterManager() {
     std::unique_lock<std::mutex> lock(mutex);
@@ -73,8 +73,8 @@ void FilterManager::sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_
 }
 
 void FilterManager::sendApplyFilterEffectToHdr(int jobId, int filterTag, Color::YuvBuffer *yuv) {
-    // todo: implementation
-    engine->getCaptureManager();
+    auto msg = new ApplyFilterEffectToHdrMsg(jobId, filterTag, yuv);
+    post(kMessage_ApplyFilterEffectToHdr, msg);
 }
 void FilterManager::sendClearThumbnails() {
     LOGD();
@@ -89,6 +89,10 @@ void FilterManager::handle(int what, void *data) {
         }
         case kMessage_ApplyFilterEffectToJpeg: {
             recvApplyFilterEffectToJpeg(static_cast<ApplyFilterEffectMsg *>(data));
+            break;
+        }
+        case kMessage_ApplyFilterEffectToHdr: {
+            recvApplyFilterEffectToHdr(static_cast<ApplyFilterEffectToHdrMsg *>(data));
             break;
         }
         case kMessage_ClearThumbnails: {
@@ -305,6 +309,23 @@ bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffect
     LOGD("dump rendered jpeg to %s", renderedJpegFilePath.c_str());
     cv::imwrite(renderedJpegFilePath, renderedJpegMat);
     Listener::onProcessed(msg->jobId, Listener_type::Listener_type_FILTER_EFFECT_APPLIED_TO_JPEG, renderedJpegFilePath);
+    delete msg;
+    return true;
+}
+
+bool FilterManager::recvApplyFilterEffectToHdr(FilterManager::ApplyFilterEffectToHdrMsg *msg) {
+    int width = msg->yuvBuffer->width;
+    int height = msg->yuvBuffer->height;
+    auto rgba = new uint8_t[width * height * 4];
+    msg->yuvBuffer->convertToRGBA8888(rgba);
+    auto renderedRgba = new uint8_t[width * height * 4];
+    renderFilterEffect(msg->filterTag, rgba, width, height, renderedRgba);
+    auto renderedJpegMat = cv::Mat(height, width, CV_8UC4, renderedRgba);
+    std::string renderedJpegFilePath = std::format("{}/rendered_hdr_{}x{}_{}.jpeg", Util::cachePath, width, height,
+                                                   Util::getCurrentTimestampMs());
+    LOGD("dump rendered jpeg to %s", renderedJpegFilePath.c_str());
+    cv::imwrite(renderedJpegFilePath, renderedJpegMat);
+    Listener::onProcessed(msg->jobId, Listener_type::Listener_type_FILTER_EFFECT_APPLIED_TO_HDR, renderedJpegFilePath);
     delete msg;
     return true;
 }
