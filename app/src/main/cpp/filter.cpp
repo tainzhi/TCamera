@@ -232,13 +232,12 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
     } else if (filterTag >=10) {
 #ifdef TEST
         uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
-            // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储
-            Color::rgba2yuv(this->lutTables[i], lutWidth, lutHeight , yuvlut);
-            std::string lutFilePath = std::format("{}/lut_{}_{}x{}.420sp.yuv", Util::cachePath, filterTags[i],
-                                                  lutWidth,
-                                                  lutHeight);
-            Util::dumpBinary(lutFilePath.c_str(), yuvlut, lutWidth * lutHeight * 3 / 2);
-            delete[] yuvlut;
+        // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储
+        Color::rgba2yuv(this->lutTables[filterTag], lutWidth, lutHeight , yuvlut);
+        std::string lutFilePath = std::format("{}/lut_{}_{}x{}.420sp.yuv", Util::cachePath, filterTag,
+                                              lutWidth, lutHeight);
+        Util::dumpBinary(lutFilePath.c_str(), yuvlut, lutWidth * lutHeight * 3 / 2);
+        delete[] yuvlut;
 #endif
         for (size_t j = 0; j < width * height * 4; j += 4) {
             auto r = rgba[j];
@@ -272,15 +271,6 @@ bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffect
     }
     int width = jpegMat.cols;
     int height = jpegMat.rows;
-#ifdef TEST
-    jint width = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getWidth", "()I"));
-    jint height = env->CallIntMethod(jpegImage, env->GetMethodID(imageClass, "getHeight", "()I"));
-    std::string jpegFilePath = std::format("{}/converted_{}x{}_{}.jpeg", Util::cachePath, width, height,
-                Util::getCurrentTimestampMs());
-    LOGD("dump cv::mat from jpeg image to %s", jpegFilePath.c_str());
-    cv::imwrite(jpegFilePath, jpegMat);
-    cv::Mat yuvMa;
-#endif
     cv::Mat yuvMat;
     // todo: use libjpeg to convert jpeg to yuv420sp, 替换掉opencv的cvtColor
     cv::cvtColor(jpegMat, yuvMat, cv::COLOR_BGR2YUV_I420);
@@ -345,6 +335,7 @@ bool FilterManager::recvClearThumbnails() {
     for (auto &bitmap: thumbnailBitmaps) {
         bitmap.destroy(env);
     }
+    thumbnailBitmaps.clear();
     for (auto &lut: lutTables) {
         delete[] lut.second;
     }
