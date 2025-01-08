@@ -19,6 +19,13 @@ FilterManager::~FilterManager() {
     LOGD("release FilterManager");
 }
 
+/**
+ * 处理缩略图较慢，为了避免阻塞，这里对已经存在的处理缩略图相似任务进行丢弃
+ */
+void FilterManager::addDropMsg() {
+    dropMsgSet.insert(kMessage_ProcessThumbnails);
+}
+
 bool FilterManager::configureThumbnails(JNIEnv *env, jint thumbnail_width, jint thumbnail_height, jobject filter_names,
                                         jobject filter_tags, jobject filter_thumbnail_bitmaps, jobject lut_bitmaps) {
     LOGD("begin");

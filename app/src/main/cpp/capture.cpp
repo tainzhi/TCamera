@@ -19,6 +19,10 @@ CaptureManager::~CaptureManager() {
     LOGD("CaptureManager released");
 }
 
+void CaptureManager::addDropMsg() {
+
+}
+
 
 void
 CaptureManager::addCapture(int jobId, CaptureType captureType, std::string timeStamp, int orientation, int frameSize,

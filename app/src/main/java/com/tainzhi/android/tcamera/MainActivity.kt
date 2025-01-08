@@ -738,15 +738,9 @@ class MainActivity : AppCompatActivity() {
                     }
                 }, imageReaderHandler)
                 previewYuvImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.YUV_420_888, 1)
-                var yuvImageCnt = 0
                 previewYuvImageReader.setOnImageAvailableListener({ reader ->
                     reader.acquireLatestImage()?.let {
-                        yuvImageCnt++
-                        // todo 是否需要降低处理频率，因为 processThumbnails 耗时超过预览帧率间隔，导致发送的msg堵塞在 NativeFilterManager looper
-                        if (yuvImageCnt % 10 == 0) {
-                            filterBar.processThumbnails(it, getMediaOrientation())
-                            yuvImageCnt = 0
-                        }
+                        filterBar.processThumbnails(it, getMediaOrientation())
                         it.close()
                     }
                 }, imageReaderHandler)

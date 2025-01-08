@@ -23,6 +23,7 @@ Looper::~Looper() {
 }
 
 void Looper::run() {
+    addDropMsg();
     loop();
 }
 
@@ -50,11 +51,21 @@ void Looper::addMsg(LooperMessage *msg, bool flush) {
         }
         h = nullptr;
     }
+    bool hasSameTypeMsg = false;
     if (h) {
         while (h->next) {
+            if (h->what == msg->what) {
+                hasSameTypeMsg = true;
+            }
             h = h->next;
         }
-        h->next = msg;
+        if (hasSameTypeMsg && dropMsgSet.contains(msg->what)) {
+            LOGI("drop msg %d", msg->what);
+            // to fix: 有内存泄漏 memory leak
+            delete msg;
+        } else {
+            h->next = msg;
+        }
     } else {
         head = msg;
     }

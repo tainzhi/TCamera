@@ -20,6 +20,7 @@
 
 #include "util.h"
 #include "thread.h"
+#include "unordered_set"
 
 struct LooperMessage;
 
@@ -40,6 +41,8 @@ public:
     void quit();
 
     virtual void handle(int what, void *data) = 0;
+    // 添加需要丢弃的消息
+    virtual void addDropMsg() = 0;
 
 private:
     static bool DEBUG;
@@ -56,6 +59,7 @@ private:
 protected:
     std::mutex mutex;
     std::condition_variable quitCond;
+    std::unordered_set<int> dropMsgSet;
 };
 
 #endif //TCAMERA_LOOPER_H

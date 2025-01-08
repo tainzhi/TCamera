@@ -47,7 +47,8 @@ public:
     void collectFrame(int jobId, int filterTag, cv::Mat frame);
 private:
     Engine *engine;
-    void handle(int what, void *data);
+    void handle(int what, void *data) override;
+    void addDropMsg() override;
     void recvProcess(void *data);
     
     std::unordered_map<int, std::shared_ptr<CaptureJob>> jobs = {};

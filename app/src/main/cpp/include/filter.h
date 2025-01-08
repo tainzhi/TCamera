@@ -70,6 +70,8 @@ private:
     bool recvClearThumbnails();
     void renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba);
     void handle(int what, void *data) override;
+    void addDropMsg() override;
+    
     int thumbnailWidth;
     int thumbnailHeight;
     std::vector<std::string> filterNames;
