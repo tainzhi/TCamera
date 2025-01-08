@@ -29,7 +29,7 @@ public:
     updateRangeEnd);
     void sendApplyFilterEffectToHdr(int jobId, int filterTag, Color::YuvBuffer * yuv);
     void sendApplyFilterEffectToJpeg(int jobId, int filterTag, uint8_t * jpegBytes, int jpegByteSize);
-    void sendClearThumbnails();
+    void sendClearThumbnails(int selectedFilterTag);
     bool quit();
 private:
     enum kMessage {
@@ -44,6 +44,10 @@ private:
         int orientation;
         int updateRangeStart;
         int updateRangeEnd;
+    };
+    
+    struct ClearThumbnailsMsg {
+        int selectedFilterTag;
     };
     
     struct ApplyFilterEffectMsg {
@@ -67,7 +71,7 @@ private:
     bool recvProcessThumbnails(ThumbnailMsg *msg);
     bool recvApplyFilterEffectToJpeg(ApplyFilterEffectMsg *msg);
     bool recvApplyFilterEffectToHdr(ApplyFilterEffectToHdrMsg *msg);
-    bool recvClearThumbnails();
+    bool recvClearThumbnails(ClearThumbnailsMsg *msg);
     void renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba);
     void handle(int what, void *data) override;
     void addDropMsg() override;

@@ -83,9 +83,10 @@ void FilterManager::sendApplyFilterEffectToHdr(int jobId, int filterTag, Color::
     auto msg = new ApplyFilterEffectToHdrMsg(jobId, filterTag, yuv);
     post(kMessage_ApplyFilterEffectToHdr, msg);
 }
-void FilterManager::sendClearThumbnails() {
+void FilterManager::sendClearThumbnails(int selectedFilterTag) {
     LOGD();
-    post(kMessage_ClearThumbnails, nullptr);
+    auto msg = new ClearThumbnailsMsg(selectedFilterTag);
+    post(kMessage_ClearThumbnails, msg);
 }
 
 void FilterManager::handle(int what, void *data) {
@@ -103,7 +104,7 @@ void FilterManager::handle(int what, void *data) {
             break;
         }
         case kMessage_ClearThumbnails: {
-            recvClearThumbnails();
+            recvClearThumbnails(static_cast<ClearThumbnailsMsg *>(data));
             break;
         }
     }
@@ -327,7 +328,7 @@ bool FilterManager::recvApplyFilterEffectToHdr(FilterManager::ApplyFilterEffectT
     return true;
 }
 
-bool FilterManager::recvClearThumbnails() {
+bool FilterManager::recvClearThumbnails(FilterManager::ClearThumbnailsMsg *msg) {
     LOGD();
     // 新的thread，必须要要获取env
     JNIEnv *env;
@@ -336,10 +337,13 @@ bool FilterManager::recvClearThumbnails() {
         bitmap.destroy(env);
     }
     thumbnailBitmaps.clear();
-    for (auto &lut: lutTables) {
-        delete[] lut.second;
+    // 0 即不需要filter效果，那么删除所有lut
+    if (msg->selectedFilterTag == 0) {
+        for (auto &lut: lutTables) {
+            delete[] lut.second;
+        }
+        lutTables.clear();
     }
-    lutTables.clear();
     return true;
 }
 

@@ -64,6 +64,7 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         types.add(FilterType("Vertical", 24, R.raw.lut_vertical))
     }
     private val lutBitmaps = mutableListOf<Bitmap?>()
+    private var needLoadLuts = false
     private var filterChooserShow = false
 
     private var selectedTypePosition = NON_INIT_SELECTED
@@ -105,7 +106,9 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         if (selectedTypePosition != NON_INIT_SELECTED) {
             filterTrigger.setImageResource(R.drawable.ic_filter_selected)
         } else {
+            // 选择了filter，那么就需要重新加载lut
             filterTrigger.setImageResource(R.drawable.ic_filter)
+            needLoadLuts = true
         }
     }
 
@@ -173,23 +176,28 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         }
         types.forEach { t ->
             t.thumbnailBitmap = Bitmap.createBitmap(thumbnailSize, thumbnailSize, Bitmap.Config.ARGB_8888)
-            if (t.tag < 10) {
-                lutBitmaps.add(null)
-            } else {
-                val bitmap = BitmapFactory.decodeResource(
-                    App.getInstance().resources,
-                    t.resId,
-                    bitmapOptions
-                )
-                if (bitmap == null) {
-                    Log.e(TAG, "load bitmap from lut ${t.name} failed: bitmap is null")
+            // 只有第一次configure时才需要加载lut到 native
+            if (!needLoadLuts) {
+                if (t.tag < 10) {
+                    lutBitmaps.add(null)
+                } else {
+                    val bitmap = BitmapFactory.decodeResource(
+                        App.getInstance().resources,
+                        t.resId,
+                        bitmapOptions
+                    )
+                    if (bitmap == null) {
+                        Log.e(TAG, "load bitmap from lut ${t.name} failed: bitmap is null")
+                    }
+                    lutBitmaps.add(bitmap)
                 }
-                lutBitmaps.add(bitmap)
             }
         }
+        Log.d(TAG, "configureFilterThumbnails: types.size:${types.size}")
         ImageProcessor.instance.configureFilterThumbnails(
             thumbnailSize, thumbnailSize, types.map{it.name}, types.map { it.tag}, types.map{it.thumbnailBitmap}, lutBitmaps
         )
+        needLoadLuts = true
         Kpi.end(Kpi.TYPE.CONFIGURE_FILTER_THUMBNAIL)
     }
 
@@ -225,6 +233,9 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
         if (App.DEBUG) {
             Log.d(TAG, "resetEffect: ")
         }
+        if (types.isNotEmpty() && needLoadLuts  ) {
+            ImageProcessor.instance.clearFilterThumbnails(types[selectedTypePosition].tag)
+        }
         types.forEach { t ->
             {
                 t.thumbnailBitmap?.recycle()
@@ -236,9 +247,6 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
                 t?.recycle()
             }
         }
-        lutBitmaps.clear()
-        // todo: 退出后，清空所有的process msg，停止所有的process thumbnail 任务
-        ImageProcessor.instance.clearFilterThumbnails()
     }
 
     fun showTrigger() {

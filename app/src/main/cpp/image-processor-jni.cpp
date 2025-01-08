@@ -283,9 +283,9 @@ ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, ji
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz) {
+ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz, jint selectedFilterTag) {
     LOGD();
-    engine->getFilterManager()->sendClearThumbnails();
+    engine->getFilterManager()->sendClearThumbnails(selectedFilterTag);
 }
 
 
@@ -298,7 +298,8 @@ static JNINativeMethod methods[] = {{"init",                      "(Landroid/con
                                     {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
                                     {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",                                           (void *) ImageProcessor_processFilterThumbnails},
                                     {"applyFilterEffectToJpeg",   "(IILandroid/media/Image;)Z",                                            (void *) ImageProcessor_applyFilterEffectToJpeg},
-                                    {"clearFilterThumbnails",     "()V",                                                                   (void *) ImageProcessor_clearFilterThumbnails},};
+                                    {"clearFilterThumbnails",     "(I)V",
+                                     (void *) ImageProcessor_clearFilterThumbnails},};
 
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

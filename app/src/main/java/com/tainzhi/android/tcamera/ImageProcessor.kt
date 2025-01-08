@@ -107,7 +107,7 @@ class ImageProcessor private constructor(val context: Context) {
 
     external fun applyFilterEffectToJpeg(jobId: Int, filterTypeTag: Int, jpegImage: Image): Boolean
 
-    external fun clearFilterThumbnails()
+    external fun clearFilterThumbnails(selectedFilterTag: Int)
 
     external fun deinit()
 }
