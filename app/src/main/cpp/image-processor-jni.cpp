@@ -11,7 +11,7 @@
 #include "color.h"
 
 #define TAG "NativeImageProcessorJNI"
-// #define TEST
+// #define DEBUG
 
 #define BUILD_CLASS_GLOBAL_REF(FILEDNAME, CLASSNAME) \
     do {                                             \
@@ -144,7 +144,7 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jint filter_
     // // camera2 YUV420_888 的 plane[2] 存储 VUVU...VUV, 最后一个U无效，丢弃了，故需要减1
     // // memcpy(yuvMat.data + width * height, vPlane, height * width / 2 - 1);
 
-#ifdef TEST
+#ifdef DEBUG
     std::string dump_yuv_path = std::format("{}/collect_image_{}x{}_{}.420sp.yuv", Util::cachePath, width, height,
                                             Util::getCurrentTimestampMs());
     LOGD("dump %d x %d hdr yuv to %s", width, height, dump_yuv_path.c_str());

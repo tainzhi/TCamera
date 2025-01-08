@@ -144,8 +144,7 @@ void CaptureManager::recvProcess(void *data) {
                 pYuvBuffer->data[vIndex] = yuvMat.data[i];
                 vIndex += 2;
             }
-#define TEST
-#ifdef TEST
+#ifdef DEBUG
             std::string yuvFilePath = std::format("{}/rotated_yuv_{}x{}_{}.420sp.yuv", Util::cachePath, width, height,
                                           Util::getCurrentTimestampMs());
             LOGD("dump jpeg yuv to %s", yuvFilePath.c_str());

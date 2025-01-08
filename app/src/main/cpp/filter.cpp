@@ -7,7 +7,7 @@
 #include "engine.h"
 
 #define TAG "NativeFilterManager"
-// #define TEST
+// #define DEBUG
 
 FilterManager::FilterManager(Engine *engine) {}
 
@@ -113,7 +113,7 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
     auto yuvBuffer = thumbnailMsg->yuvBuffer;
     LOGD();
     assert(yuvBuffer->width >= thumbnailWidth && yuvBuffer->height >= thumbnailHeight);
-#ifdef TEST
+#ifdef DEBUG
     std::string yuvFilePath = std::format("{}/yuv_{}x{}_{}.420sp.yuv", Util::cachePath, yuvBuffer->width,
                                                 yuvBuffer->height, Util::getCurrentTimestampMs());
     LOGD("save rotate yuv to %s", yuvFilePath.c_str());
@@ -122,7 +122,7 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
     // 从yuvBuffer中截取中心区域的yuv数据
     Color::YuvBuffer centerYuv(thumbnailWidth, thumbnailHeight);
     yuvBuffer->extractCenter(centerYuv);
-#ifdef TEST
+#ifdef DEBUG
     std::string centerYuvFilePath = std::format("{}/center_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
                                                 thumbnailHeight, Util::getCurrentTimestampMs());
     LOGD("save center yuv to %s", centerYuvFilePath.c_str());
@@ -131,7 +131,7 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
     // 旋转
     Color::YuvBuffer rotateYuv;
     centerYuv.rotate(rotateYuv, thumbnailMsg->orientation);
-#ifdef TEST
+#ifdef DEBUG
     std::string rotateYuvFilePath = std::format("{}/rotate_{}x{}_{}.420sp.yuv", Util::cachePath, thumbnailWidth,
                                                 thumbnailHeight, Util::getCurrentTimestampMs());
     LOGD("save rotate yuv to %s", rotateYuvFilePath.c_str());
@@ -230,7 +230,7 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
         }
         delete[] hsl;
     } else if (filterTag >=10) {
-#ifdef TEST
+#ifdef DEBUG
         uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
         // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储
         Color::rgba2yuv(this->lutTables[filterTag], lutWidth, lutHeight , yuvlut);
@@ -290,7 +290,7 @@ bool FilterManager::recvApplyFilterEffectToJpeg(FilterManager::ApplyFilterEffect
         yuvBuffer.data[vIndex] = yuvMat.data[i];
         vIndex += 2;
     }
-#ifdef TEST
+#ifdef DEBUG
     std::string yuvFilePath = std::format("{}/jpeg_yuv_{}x{}_{}.420sp.yuv", Util::cachePath, width, height,
                                           Util::getCurrentTimestampMs());
     LOGD("dump jpeg yuv to %s", yuvFilePath.c_str());
