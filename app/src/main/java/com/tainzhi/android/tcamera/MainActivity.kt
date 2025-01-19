@@ -1,6 +1,7 @@
 package com.tainzhi.android.tcamera
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -208,6 +209,7 @@ class MainActivity : AppCompatActivity() {
             // producer Camera preview stream write frame to buffer
             // then request render the texture
             cameraPreviewView.requestRender()
+            Kpi.end(Kpi.TYPE.OPEN_CAMERA_TO_PREVIEW)
         }
 
     }
@@ -218,6 +220,24 @@ class MainActivity : AppCompatActivity() {
             this@MainActivity.cameraDevice = p0
             Log.i(TAG, "onCameraOpened: ")
             isCameraOpen = true
+//            todo: 优化思路1: 保存previewSize后，无需等待改次previewSize设置，直接开启 setSurface 和 setPreviewSession
+//            todo: 优化思路2: 是否采用 Deferred Surface， 参考 https://cloud.tencent.com/developer/article/1983910
+//            思路2有缺陷，对于SurfaceHolder的surface可以延迟设置大小，但是对于ImageReader.surface无法延迟设置了？
+//            // 1. 根据最终选择的预览size创建OutputConfiguration
+//            OutputConfiguration previewOutputConfig = new OutputConfiguration(previewSize, SurfaceHolder.class);
+//
+//            // 2. 使用createCaptureSessionByOutputConfigurations创建相机会话
+//            List<OutputConfiguration> outputConfigurations = new ArrayList<>();
+//            outputConfigurations.add(previewOutputConfig);
+//            device.createCaptureSessionByOutputConfigurations(outputConfigurations, sessionCallback, null);
+//
+//            // 3. Surface ready后
+//            previewOutputConfig.addSurface(mSurfaceHolder.getSurface());
+//
+//            // 4. 在sessionCallback#onConfigured回调中更新output config
+//            session.finalizeOutputConfigurations(outputConfigurations);
+//            // 5. 启动预览
+//            session.setRepeatingRequest(...);
             previewSizeLock.lock()
             try {
                 while (!isPreviewSizeSet) {
@@ -540,6 +560,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openCamera() {
+        Kpi.start(Kpi.TYPE.OPEN_CAMERA_TO_PREVIEW)
         cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
         if (cameraInfo == null) {
             cameraInfo = CameraInfoCache(cameraManager, useCameraFront)
@@ -620,6 +641,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+    @SuppressLint("ObsoleteSdkInt")
     private fun setFullScreen() {
         // reference https://developer.android.com/develop/ui/views/layout/edge-to-edge
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -997,7 +1019,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-            // if (AFtrigger) {
+            // if (AFTrigger) {
             //     b1.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
             //     mCurrentCaptureSession.capture(b1.build(), mCaptureCallback, mOpsHandler);
             //     b1.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);
@@ -1515,7 +1537,7 @@ class MainActivity : AppCompatActivity() {
             PHOTO;
 
             companion object {
-                private val map = CameraMode.values().associateBy { it.ordinal }
+                private val map = CameraMode.entries.associateBy { it.ordinal }
                 fun fromInt(value: Int): CameraMode = map[value]!!
             }
         }

@@ -9,6 +9,7 @@ object Kpi {
     private val kpis = mutableMapOf<TYPE, Long>()
 
     enum class TYPE {
+        OPEN_CAMERA_TO_PREVIEW, // open camera to first preview frame show
         SHOT_TO_SHOT,
         SHOT_TO_SAVE_IMAGE,
         PROCESSED_IMAGE_TO_REPLACE_JPEG_IMAGE,
