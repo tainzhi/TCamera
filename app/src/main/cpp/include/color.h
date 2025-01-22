@@ -9,6 +9,7 @@
 #include <cstring>
 #include <malloc.h>
 #include <algorithm>
+#include <arm_neon.h>
 #include "util.h"
 
 namespace Color {

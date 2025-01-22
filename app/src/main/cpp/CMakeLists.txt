@@ -37,6 +37,13 @@ add_library( # Specifies the name of the library.
         SHARED
         ${SRC}
 )
+#target_compile_definitions(
+#        image-processor
+#        PRIVATE
+#        NEON_ENABLED
+#        ANDROID_ARM_MODE=arm
+#        ANDROID_ARM_NEON=true
+#)
 target_link_libraries(
         image-processor
         ${OpenCV_LIBS}

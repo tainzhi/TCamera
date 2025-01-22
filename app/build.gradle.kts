@@ -31,6 +31,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags += "-std=c++20"
+                arguments += "-DANDROID_ARM_NEON=ON"
                 abiFilters("arm64-v8a")
             }
         }
