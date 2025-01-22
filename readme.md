@@ -1,5 +1,5 @@
 # info
-A android camera2 based on Camera2API/OpenCV/OpenGL
+A android camera2 based on Camera2API/OpenCV/OpenGL/Neon/OpenCL
 
 <img src="./art/demo.gif" alt="项目demo" height="300">
 
