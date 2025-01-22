@@ -4,6 +4,7 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/core/ocl.hpp"
 #include "opencv2/core.hpp"
+#include "CL/opencl.hpp"
 #include "util.h"
 #include "engine.h"
 #include "capture.h"
@@ -108,6 +109,48 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGD("opencv ipp:%d, version:%s, status:%d", cv::ipp::useIPP(), cv::ipp::getIppVersion().c_str(),
          cv::ipp::getIppStatus());
     LOGD("opencv %d threads, %d cpus to accelerate", cv::getNumThreads(), cv::getNumberOfCPUs());
+    
+    // check opencl
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        LOGE("No OpenCL platforms found.");
+    } else {
+        LOGD("OpenCL has %d platforms", platforms.size());
+    }
+    std::stringstream ss;
+    // Iterate over platforms and list devices
+    for (const auto &platform : platforms) {
+        ss << "Platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
+
+        // Get devices for the current platform
+        std::vector<cl::Device> devices;
+        platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+        if (devices.empty()) {
+            ss << "  No devices found on this platform." << std::endl;
+            continue;
+        }
+
+        // List devices
+        for (const auto &device : devices) {
+            ss << "  Device: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
+            ss << "    Type: ";
+            cl_device_type deviceType = device.getInfo<CL_DEVICE_TYPE>();
+            if (deviceType & CL_DEVICE_TYPE_CPU) {
+                ss << "CPU ";
+            }
+            if (deviceType & CL_DEVICE_TYPE_GPU) {
+                ss << "GPU ";
+            }
+            if (deviceType & CL_DEVICE_TYPE_ACCELERATOR) {
+                ss << "Accelerator ";
+            }
+            ss << std::endl;
+        }
+    }
+    auto result = new std::string(ss.str());
+    LOGD("OpenCL %s", result->c_str());
     
     engine = new Engine();
     engine->init();

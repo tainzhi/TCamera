@@ -12,23 +12,37 @@ project("tcamera")
 # 若是有返回值的function忘记返回值，则报错，停止编译
 # 因为我再开发中有很多次忘记写返回值bool，导致莫名地报错，等尝试完各种方法才发现，导致浪费了很多时间
 # -Wno-unused-function 禁用该警告
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wmissing-method-return-type -Wno-unused-function")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wmissing-method-return-type -Wno-unused-function")
 set(CMAKE_BUILD_TYPE Debug)
+set(EXPORT_COMPILE_COMMANDS ON)
 
 message(DEBUG "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}/..")
 message(DEBUG "CMAKE_PROJECT_DIR: ${CMAKE_PROJECT_PATH}")
 message(DEBUG "ANDROID_ABI: ${ANDROID_ABI}")
 
+# import opencv
 set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/libs/opencv_4.8/sdk/native/jni")
 find_package(OpenCV REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS})
+# not need include_directories
+#include_directories(${OpenCV_INCLUDE_DIRS})
+
+# import opencl
+set(OpenCL_DIR "${CMAKE_SOURCE_DIR}/libs/opencl")
+add_library(OpenCL STATIC IMPORTED)
+set_target_properties(OpenCL PROPERTIES
+        IMPORTED_LOCATION "${OpenCL_DIR}/libOpenCL.a"
+        INTERFACES_INCLUDE_DIRECTORIES "${OpenCL_DIR}/include"
+)
+# not need include_directories
+#include_directories(${OpenCL_DIR}/include)
 
 # 定义源码所在目录
 file(GLOB SRC "*.cpp")
 
 include_directories(
         include
-        #        ${OpenCV_}
+        ${OpenCV_INCLUDE_DIRS}
+        "${OpenCL_DIR}/src/include"
 ) # Not needed for CMake >= 2.8.11
 
 add_library( # Specifies the name of the library.
@@ -50,4 +64,5 @@ target_link_libraries(
         android
         jnigraphics # for AndroidBitmap_*
         log
+        OpenCL #  add this opencl stub, then can use libOpenCL.so, set by uses-native-library in AndroidManifest.xml
 )
