@@ -19,7 +19,7 @@ message(DEBUG "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}/..")
 message(DEBUG "CMAKE_PROJECT_DIR: ${CMAKE_PROJECT_PATH}")
 message(DEBUG "ANDROID_ABI: ${ANDROID_ABI}")
 
-set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/opencv_4.8/sdk/native/jni")
+set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/libs/opencv_4.8/sdk/native/jni")
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
