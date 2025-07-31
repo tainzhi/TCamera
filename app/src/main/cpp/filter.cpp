@@ -165,6 +165,7 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
 }
 
 void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba) {
+    clProcessor.setBufferSize(width * height * 4);
     if (filterTag == 0) {
         LOGE("not need to apply filter effect with tag=%d", filterTag);
     } else if (filterTag == 1) {
