@@ -16,6 +16,7 @@
 #include "looper.h"
 #include "color.h"
 #include "listener.h"
+#include "cl-processor.h"
 
 class Engine;
 
@@ -83,6 +84,7 @@ private:
     std::vector<Bitmap> thumbnailBitmaps;
     std::unordered_map<int, uint8_t*> lutTables;
     int lutWidth, lutHeight;
+    ClProcessor clProcessor;
 };
 
 

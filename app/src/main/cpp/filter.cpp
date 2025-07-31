@@ -5,6 +5,7 @@
 
 #include "filter.h"
 #include "engine.h"
+#include "cl-processor.h"
 
 #define TAG "NativeFilterManager"
 // #define DEBUG
@@ -167,14 +168,24 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
     if (filterTag == 0) {
         LOGE("not need to apply filter effect with tag=%d", filterTag);
     } else if (filterTag == 1) {
-        // grey
-        for (size_t j = 0; j < width * height * 4; j += 4) {
-            uint8_t wm = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
-            renderedRgba[j] = wm;
-            renderedRgba[j + 1] = wm;
-            renderedRgba[j + 2] = wm;
-            renderedRgba[j + 3] = rgba[j + 3];
-        }
+        // 使用 std::chrono 记录开始时间
+        auto start_t = std::chrono::high_resolution_clock::now();
+        clProcessor.run(rgba, width, height, renderedRgba);
+        
+        // // grey
+        // for (size_t j = 0; j < width * height * 4; j += 4) {
+        //     uint8_t wm = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
+        //     renderedRgba[j] = wm;
+        //     renderedRgba[j + 1] = wm;
+        //     renderedRgba[j + 2] = wm;
+        //     renderedRgba[j + 3] = rgba[j + 3];
+        // }
+        
+        // 使用 std::chrono 记录结束时间
+        auto end_t = std::chrono::high_resolution_clock::now();
+        // 计算耗时，单位为纳秒
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_t - start_t).count();
+        LOGD("processing cost %lld ns", duration);
     } else if (filterTag == 2) {
         // black and white
         uint8_t threshold = 0.5 * 255;

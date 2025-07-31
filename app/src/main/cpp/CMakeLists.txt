@@ -65,4 +65,5 @@ target_link_libraries(
         jnigraphics # for AndroidBitmap_*
         log
         OpenCL #  add this opencl stub, then can use libOpenCL.so, set by uses-native-library in AndroidManifest.xml
+        vulkan
 )

@@ -9,6 +9,7 @@
 #include <jni.h>
 #include "util.h"
 #include "thread.h"
+#include "cl-processor.h"
 
 class FilterManager;
 class CaptureManager;
