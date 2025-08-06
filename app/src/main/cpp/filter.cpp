@@ -166,9 +166,9 @@ bool FilterManager::recvProcessThumbnails(FilterManager::ThumbnailMsg *thumbnail
 
 void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width, int height, uint8_t *renderedRgba) {
     clProcessor.setBufferSize(width * height * 4);
-    if (filterTag == 0) {
+    if (filterTag == static_cast<int>(FilterTag::ORIGINAL)) {
         LOGE("not need to apply filter effect with tag=%d", filterTag);
-    } else if (filterTag == 1) {
+    } else if (filterTag == static_cast<int>(FilterTag::GREY)) {
         // 使用 std::chrono 记录开始时间
         auto start_t = std::chrono::high_resolution_clock::now();
         clProcessor.run(rgba, width, height, renderedRgba);
@@ -187,7 +187,7 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
         // 计算耗时，单位为纳秒
         auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_t - start_t).count();
         LOGD("processing cost %lld ns", duration);
-    } else if (filterTag == 2) {
+    } else if (filterTag == static_cast<int>(FilterTag::BLACK_WHITE)) {
         // black and white
         uint8_t threshold = 0.5 * 255;
         uint8_t mean;
@@ -205,7 +205,7 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
                 renderedRgba[j + 3] = rgba[j + 3];
             }
         }
-    } else if (filterTag == 3) {
+    } else if (filterTag == static_cast<int>(FilterTag::REVERSE)) {
         // reverse
         for (size_t j = 0; j < width * height * 4; j += 4) {
             renderedRgba[j] = 255 - rgba[j];
@@ -213,7 +213,7 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
             renderedRgba[j + 2] = 255 - rgba[j + 2];
             renderedRgba[j + 3] = rgba[j + 3];
         }
-    } else if (filterTag == 4) {
+    } else if (filterTag == static_cast<int>(FilterTag::BRIGHTNESS)) {
         // light
         float *hsl = new float[width * height * 4];
         for (size_t j = 0; j < width * height * 4; j += 4) {
@@ -222,7 +222,7 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
             Color::hsl2rgba(hsl + j, renderedRgba + j);
         }
         delete[] hsl;
-    } else if (filterTag == 5) {
+    } else if (filterTag == static_cast<int>(FilterTag::POSTERIZATION)) {
         // posterization
         float *hsl = new float[width * height * 4];
         for (size_t j = 0; j < width * height * 4; j+=4 ) {
@@ -242,7 +242,7 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
             Color::hsl2rgba(hsl + j, reinterpret_cast<uint8_t *>(renderedRgba + j));
         }
         delete[] hsl;
-    } else if (filterTag >=10) {
+    } else if (filterTag >= static_cast<int>(FilterTag::AMATORKA)) {
 #ifdef DEBUG
         uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
         // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储

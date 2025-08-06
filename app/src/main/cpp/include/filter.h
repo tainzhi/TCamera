@@ -20,6 +20,32 @@
 
 class Engine;
 
+enum class FilterTag {
+    ORIGINAL = 0,
+    GREY = 1,
+    BLACK_WHITE = 2,
+    REVERSE = 3,
+    BRIGHTNESS = 4,
+    POSTERIZATION = 5,
+    // non-lut < 10, lut filter >= 10
+    AMATORKA = 10,
+    BEAGLE = 11,
+    BIRMAN = 12,
+    CORGIS = 13,
+    HIGH_KEY = 14,
+    LABRADOR = 15,
+    MAINE = 16,
+    MONO = 17,
+    PERSIAN = 18,
+    POODLE = 19,
+    PUG = 20,
+    PURITY = 21,
+    SHORT_HAIR = 22,
+    SIAMESE = 23,
+    VERTICAL = 24,
+};
+
+
 class FilterManager: public Looper {
 public:
     FilterManager(Engine *engine);

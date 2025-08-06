@@ -23,14 +23,41 @@ import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.viewholder.BaseViewHolder
 import com.tainzhi.android.tcamera.App
 import com.tainzhi.android.tcamera.ImageProcessor
-import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.R
+import com.tainzhi.android.tcamera.databinding.ActivityMainBinding
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.NON_INIT_SELECTED
 import com.tainzhi.android.tcamera.ui.FilterBar.Companion.TAG
 import com.tainzhi.android.tcamera.util.Kpi
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+enum class FilterTag(val value: Int) {
+    ORIGINAL(0),
+    GREY(1),
+    BLACK_WHITE(2),
+    REVERSE(3),
+    BRIGHTNESS(4),
+    POSTERIZATION(5),
+
+    // non-lut < 10, lut filter >= 10
+    AMATORKA(10),
+    BEAGLE(11),
+    BIRMAN(12),
+    CORGIS(13),
+    HIGH_KEY(14),
+    LABRADOR(15),
+    MAINE(16),
+    MONO(17),
+    PERSIAN(18),
+    POODLE(19),
+    PUG(20),
+    PURITY(21),
+    SHORT_HAIR(22),
+    SIAMESE(23),
+    VERTICAL(24)
+}
+
 
 class FilterBar(val context: Context, val binding: ActivityMainBinding, private val onFilterTypeSelected: (type: FilterType) -> Unit) {
     private lateinit var filterTypeTV: TextView
@@ -40,28 +67,28 @@ class FilterBar(val context: Context, val binding: ActivityMainBinding, private 
     private val types =  mutableListOf<FilterType>()
     private var shouldUpdateAllThumbnails = false
     init {
-        types.add(FilterType("Original", 0, 0))
-        types.add(FilterType("Grey", 1, 0))
-        types.add(FilterType("BlackWhite", 2, 0))
-        types.add(FilterType("Reverse", 3, 0))
-        types.add(FilterType("Brightness", 4, 0))
-        types.add(FilterType("Posterization", 5, 0))
-        // non-lut < 10, lut filter >= 10
-        types.add(FilterType("Amatorka", 10, R.raw.lut_amatorka))
-        types.add(FilterType("Beagle", 11, R.raw.lut_beagle))
-        types.add(FilterType("Birman", 12, R.raw.lut_birman))
-        types.add(FilterType("Corgis", 13, R.raw.lut_corgis))
-        types.add(FilterType("HighKey", 14, R.raw.lut_highkey))
-        types.add(FilterType("Labrador", 15, R.raw.lut_labrador))
-        types.add(FilterType("Maine", 16, R.raw.lut_maine))
-        types.add(FilterType("Mono", 17, R.raw.lut_mono))
-        types.add(FilterType("Persian", 18, R.raw.lut_persian))
-        types.add(FilterType("Poodle", 19, R.raw.lut_poodle))
-        types.add(FilterType("Pug", 20, R.raw.lut_pug))
-        types.add(FilterType("Purity", 21, R.raw.lut_purity))
-        types.add(FilterType("ShortHair", 22, R.raw.lut_shorthair))
-        types.add(FilterType("Siamese", 23, R.raw.lut_siamese))
-        types.add(FilterType("Vertical", 24, R.raw.lut_vertical))
+
+        types.add(FilterType("Original", FilterTag.ORIGINAL.value, 0))
+        types.add(FilterType("Grey", FilterTag.GREY.value, 0))
+        types.add(FilterType("BlackWhite", FilterTag.BLACK_WHITE.value, 0))
+        types.add(FilterType("Reverse", FilterTag.REVERSE.value, 0))
+        types.add(FilterType("Brightness", FilterTag.BRIGHTNESS.value, 0))
+        types.add(FilterType("Posterization", FilterTag.POSTERIZATION.value, 0))
+        types.add(FilterType("Amatorka", FilterTag.AMATORKA.value, R.raw.lut_amatorka))
+        types.add(FilterType("Beagle", FilterTag.BEAGLE.value, R.raw.lut_beagle))
+        types.add(FilterType("Birman", FilterTag.BIRMAN.value, R.raw.lut_birman))
+        types.add(FilterType("Corgis", FilterTag.CORGIS.value, R.raw.lut_corgis))
+        types.add(FilterType("HighKey", FilterTag.HIGH_KEY.value, R.raw.lut_highkey))
+        types.add(FilterType("Labrador", FilterTag.LABRADOR.value, R.raw.lut_labrador))
+        types.add(FilterType("Maine", FilterTag.MAINE.value, R.raw.lut_maine))
+        types.add(FilterType("Mono", FilterTag.MONO.value, R.raw.lut_mono))
+        types.add(FilterType("Persian", FilterTag.PERSIAN.value, R.raw.lut_persian))
+        types.add(FilterType("Poodle", FilterTag.POODLE.value, R.raw.lut_poodle))
+        types.add(FilterType("Pug", FilterTag.PUG.value, R.raw.lut_pug))
+        types.add(FilterType("Purity", FilterTag.PURITY.value, R.raw.lut_purity))
+        types.add(FilterType("ShortHair", FilterTag.SHORT_HAIR.value, R.raw.lut_shorthair))
+        types.add(FilterType("Siamese", FilterTag.SIAMESE.value, R.raw.lut_siamese))
+        types.add(FilterType("Vertical", FilterTag.VERTICAL.value, R.raw.lut_vertical))
     }
     private val lutBitmaps = mutableListOf<Bitmap?>()
     private var needLoadLuts = false
