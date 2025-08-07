@@ -6,6 +6,7 @@
 #include "engine.h"
 #include "capture.h"
 #include "filter.h"
+#include "cl-processor.h"
 
 #define TAG "NativeEngine"
 

@@ -6,9 +6,8 @@
 #define TCAMERA_CL_PROCESSOR_H
 
 #include <CL/cl.h>
+#include <unordered_map>
 #include "util.h"
-
-#define TAG "CLProcessor"
 
 /**
  * @brief 定义一个可变参数宏 OPENCL_SOURCE，用于将传入的参数转换为字符串。
@@ -21,6 +20,15 @@
  */
 #define OPENCL_SOURCE(...) #__VA_ARGS__
 
+struct ClKernelInfo {
+    const char *kernelName;
+    const char *programSource;
+    cl_program clProgram;
+    cl_kernel clKernel;
+};
+
+
+enum class FilterTag;
 
 class ClProcessor {
 
@@ -28,232 +36,288 @@ private:
     cl_context clContext = nullptr;
     cl_command_queue clCommandQueue = nullptr;
     cl_device_id deviceId = nullptr;
-    cl_program clProgram = nullptr;
-    cl_kernel clKernel = nullptr; // 新增 cl_kernel 成员变量
-    std::string kernelName = "basic";
     cl_mem clInputBuffer = nullptr;
+    cl_mem clLutTableInputBuffer = nullptr;
     cl_mem clOutputBuffer = nullptr;
-    
     size_t bufferSize = 0;
+    std::unordered_map<FilterTag, ClKernelInfo> kernelInfoMap;
     
-    [[nodiscard]] const char *getProgramSource() const {
-        return OPENCL_SOURCE(__kernel void
-                                     basic(__global const uchar *rgba, unsigned int width, unsigned int height, __global uchar
-                                     *renderedRgba) {
-                                     int x = get_global_id(0);
-                                     int y = get_global_id(1);
-                                     if (x < width && y < height) {
-                                     int index = y * width + x;
-                                     uchar gray = (uchar) (0.299 * rgba[index * 4] + 0.587 * rgba[index * 4 + 1] + 0.114 * rgba[index * 4 + 2]);
-                                     renderedRgba[index * 4] = gray;
-                                     renderedRgba[index * 4 + 1] = gray;
-                                     renderedRgba[index * 4 + 2] = gray;
-                                     renderedRgba[index * 4 + 3] = rgba[index * 4 + 3];
-                             }
-                             }
-        
-        );
+    // @formatter:off
+    [[nodiscard]] const char *greyProgramSource() const {
+        return OPENCL_SOURCE(__kernel void grey(__global const uchar *rgba,
+                                                unsigned int width,
+                                                unsigned int height,
+                                                __global uchar *renderedRgba) {
+             int x = get_global_id(0);
+             int y = get_global_id(1);
+             if (x < width && y < height) {
+                 int index = y * width + x;
+                 uchar gray = (uchar) (0.299 * rgba[index * 4] + 0.587 * rgba[index * 4 + 1] + 0.114 * rgba[index * 4 + 2]);
+                 renderedRgba[index * 4] = gray;
+                 renderedRgba[index * 4 + 1] = gray;
+                 renderedRgba[index * 4 + 2] = gray;
+                 renderedRgba[index * 4 + 3] = rgba[index * 4 + 3];
+             }
+       });
+   };
+    
+    
+    [[nodiscard]] const char *blackWhiteProgramSource() const {
+        return OPENCL_SOURCE(__kernel void blackWhite(__global const uchar *rgba,
+                                                      unsigned int width,
+                                                      unsigned int height,
+                                                      __global uchar *renderedRgba) {
+            uchar threshold = 0.5 * 255;
+            int x = get_global_id(0);
+            int y = get_global_id(1);
+            if (x < width && y < height) {
+                int index = y * width + x;
+                uchar mean = (uchar) (0.299 * rgba[index * 4] + 0.587 * rgba[index * 4 + 1] + 0.114 * rgba[index * 4 +
+                                                                                                         2]);
+                if (mean > threshold) {
+                    renderedRgba[index * 4] = 255;
+                    renderedRgba[index * 4 + 1] = 255;
+                    renderedRgba[index * 4 + 2] = 255;
+                } else {
+                    renderedRgba[index * 4] = 0;
+                    renderedRgba[index * 4 + 1] = 0;
+                    renderedRgba[index * 4 + 2] = 0;
+                }
+                renderedRgba[index * 4 + 3] = rgba[index * 4 + 3];
+            }
+       });
     };
+    
+    
+    [[nodiscard]] const char *reverseProgramSource() const {
+    return OPENCL_SOURCE(__kernel void reverse(__global const uchar *rgba,
+                                                   unsigned int width,
+                                                   unsigned int height,
+                                                   __global uchar *renderedRgba) {
+        int x = get_global_id(0);
+        int y = get_global_id(1);
+        if (x < width && y < height) {
+            int index = y * width + x;
+            renderedRgba[index * 4] = 255 - rgba[index * 4];
+            renderedRgba[index * 4 + 1] = 255 - rgba[index * 4 + 1];
+            renderedRgba[index * 4 + 2] = 255 - rgba[index * 4 + 2];
+            renderedRgba[index * 4 + 3] = rgba[index * 4 + 3];
+        }
+        });
+    };
+
+    [[nodiscard]] const char *brightnessProgramSource() const {
+        return OPENCL_SOURCE(__kernel void brightness(
+            __global const uchar *rgba,
+            unsigned int width,
+            unsigned int height,
+            __global uchar *renderedRgba
+        ) {
+            int x = get_global_id(0);
+            int y = get_global_id(1);
+            if (x < width && y < height) {
+                int index = (y * width + x) * 4;
+                float r = rgba[index] / 255.0f;
+                float g = rgba[index + 1] / 255.0f;
+                float b = rgba[index + 2] / 255.0f;
+                float a = rgba[index + 3] / 255.0f;
+
+                // RGBA to HSL
+                float k0 = 0.0f;
+                float k1 = -1.0f / 3.0f;
+                float k2 = 2.0f / 3.0f;
+                float k3 = -1.0f;
+                float p0, p1, p2, p3;
+                if (b < g) {
+                    p0 = g;
+                    p1 = b;
+                    p2 = k0;
+                    p3 = k1;
+                } else {
+                    p0 = b;
+                    p1 = g;
+                    p2 = k3;
+                    p3 = k2;
+                }
+                float q0, q1, q2, q3;
+                if (p0 < r) {
+                    q0 = r;
+                    q1 = p1;
+                    q2 = p2;
+                    q3 = p0;
+                } else {
+                    q0 = p0;
+                    q1 = p1;
+                    q2 = p3;
+                    q3 = r;
+                }
+                float d = q0 - min(q3, q1);
+                float e = 1.0e-10f;
+                float h = fabs(q2 + (q3 - q1) / (6.0f * d + e));
+                float s = d / (q0 + e);
+                float l = q0;
+
+                // Adjust brightness
+                l += 0.15f;
+                l = clamp(l, 0.0f, 1.0f);
+
+                // HSL to RGBA
+                float k4 = 1.0f;
+                float k5 = 2.0f / 3.0f;
+                float k6 = 1.0f / 3.0f;
+                float k7 = 3.0f;
+                float p4 = fabs((h + k4 - floor(h + k4)) * 6.0f - k7);
+                float p5 = fabs((h + k5 - floor(h + k5)) * 6.0f - k7);
+                float p6 = fabs((h + k6 - floor(h + k6)) * 6.0f - k7);
+                float q4 = clamp(p4 - k4, 0.0f, 1.0f);
+                float q5 = clamp(p5 - k4, 0.0f, 1.0f);
+                float q6 = clamp(p6 - k4, 0.0f, 1.0f);
+
+                renderedRgba[index] = (uchar)(l * ((1 - s) * k4 + s * q4) * 255);
+                renderedRgba[index + 1] = (uchar)(l * ((1 - s) * k4 + s * q5) * 255);
+                renderedRgba[index + 2] = (uchar)(l * ((1 - s) * k4 + s * q6) * 255);
+                renderedRgba[index + 3] = (uchar)(a * 255);
+            }
+        });
+    }
+
+    [[nodiscard]] const char *posterizationProgramSource() const {
+        return OPENCL_SOURCE(__kernel void posterization(
+            __global const uchar *rgba,
+            unsigned int width,
+            unsigned int height,
+            __global uchar *renderedRgba
+        ) {
+            int x = get_global_id(0);
+            int y = get_global_id(1);
+            if (x < width && y < height) {
+                int index = (y * width + x) * 4;
+
+                // Calculate grey value
+                float grey = (float)(rgba[index] * 0.3f + rgba[index + 1] * 0.59f + rgba[index + 2] * 0.11f);
+
+                // Convert RGBA to HSL
+                float r = (float)rgba[index] / 255.0f;
+                float g = (float)rgba[index + 1] / 255.0f;
+                float b = (float)rgba[index + 2] / 255.0f;
+                float a = (float)rgba[index + 3] / 255.0f;
+
+                float k0 = 0.0f;
+                float k1 = -1.0f / 3.0f;
+                float k2 = 2.0f / 3.0f;
+                float k3 = -1.0f;
+                float p0, p1, p2, p3;
+                if (b < g) {
+                    p0 = g;
+                    p1 = b;
+                    p2 = k0;
+                    p3 = k1;
+                } else {
+                    p0 = b;
+                    p1 = g;
+                    p2 = k3;
+                    p3 = k2;
+                }
+                float q0, q1, q2, q3;
+                if (p0 < r) {
+                    q0 = r;
+                    q1 = p1;
+                    q2 = p2;
+                    q3 = p0;
+                } else {
+                    q0 = p0;
+                    q1 = p1;
+                    q2 = p3;
+                    q3 = r;
+                }
+                float d = q0 - min(q3, q1);
+                float e = 1.0e-10f;
+                float h = fabs(q2 + (q3 - q1) / (6.0f * d + e));
+                float s = d / (q0 + e);
+                float l = q0;
+
+                // Adjust HSL based on grey value
+                if (grey < 0.3f * 255.0f) {
+                    if (h < 0.68f || h > 0.66f) {
+                        h = 0.67f;
+                    }
+                    s += 0.3f;
+                } else if (grey > 0.7f * 255.0f) {
+                    if (h < 0.18f || h > 0.16f) {
+                        h = 0.17f;
+                    }
+                    s -= 0.3f;
+                }
+
+                // Convert HSL back to RGBA
+                float k4 = 1.0f;
+                float k5 = 2.0f / 3.0f;
+                float k6 = 1.0f / 3.0f;
+                float k7 = 3.0f;
+                float p4 = fabs((h + k4 - floor(h + k4)) * 6.0f - k7);
+                float p5 = fabs((h + k5 - floor(h + k5)) * 6.0f - k7);
+                float p6 = fabs((h + k6 - floor(h + k6)) * 6.0f - k7);
+                float q4 = clamp(p4 - k4, 0.0f, 1.0f);
+                float q5 = clamp(p5 - k4, 0.0f, 1.0f);
+                float q6 = clamp(p6 - k4, 0.0f, 1.0f);
+
+                renderedRgba[index] = (uchar)(l * ((1 - s) * k4 + s * q4) * 255.0f);
+                renderedRgba[index + 1] = (uchar)(l * ((1 - s) * k4 + s * q5) * 255.0f);
+                renderedRgba[index + 2] = (uchar)(l * ((1 - s) * k4 + s * q6) * 255.0f);
+                renderedRgba[index + 3] = (uchar)(a * 255.0f);
+            }
+        });
+    }
+    
+    [[nodiscard]] const char *lutFilterProgramSource() const {
+        return OPENCL_SOURCE(__kernel void lutFilter(__global const uchar *rgba,
+                                                     unsigned int width,
+                                                     unsigned int height,
+                                                     __global const uchar *lutTable,
+                                                     __global uchar *renderedRgba) {
+            int x = get_global_id(0);
+            int y = get_global_id(1);
+            if (x < width && y < height) {
+                int index = (y * width + x) * 4;
+                uchar r = rgba[index];
+                uchar g = rgba[index + 1];
+                uchar b = rgba[index + 2];
+                int b_div_4 = b / 4;
+                int g_div_4 = g / 4;
+                int r_div_4 = r / 4;
+                int b_div_4_mod_8 = b_div_4 % 8;
+                size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
+                renderedRgba[index] = lutTable[lutIndex];     // r
+                renderedRgba[index + 1] = lutTable[lutIndex + 1]; // g
+                renderedRgba[index + 2] = lutTable[lutIndex + 2]; // b
+                renderedRgba[index + 3] = rgba[index + 3];    // a
+            }
+        });
+    }
+    // @formatter:on
     
     [[nodiscard]] const std::string getBuildOptions() const {
         return "-cl-fast-relaxed-math -DQC_OPT -cl-mad-enable";
     }
     
-    cl_int createKernelHelper(const char *kernelName, cl_kernel &clKernel) const {
-        cl_int clError = CL_SUCCESS;
-        clKernel = clCreateKernel(clProgram, kernelName, &clError);
-        if (clError != CL_SUCCESS) {
-            LOGE("clCreateKernel failed: %d", clError);
-        }
-        return clError;
-    }
+    cl_int createKernelHelper(cl_program clProgram, const char *kernelName, cl_kernel &clKernel) const;
     
     // 初始化 OpenCL 上下文、程序和内核
-    bool initOpenCL() {
-        cl_int clError = CL_SUCCESS;
-        cl_uint numPlatforms = 0;
-        cl_platform_id platformArray[10];
-        clError = clGetPlatformIDs(0, nullptr, &numPlatforms);
-        clError = clGetPlatformIDs(numPlatforms, platformArray, &numPlatforms);
-        if (clError != CL_SUCCESS) {
-            LOGE("clGetPlatformIDs(%i) failed", clError);
-            return false;
-        }
-        LOGD("%u platforms found", numPlatforms);
-
-        for (auto i = 0; i < numPlatforms; i++) {
-            auto version = getClString([&](size_t size, char *str, size_t *len) {
-                clGetPlatformInfo(platformArray[i], CL_PLATFORM_VERSION, size, str, len);
-            });
-            LOGD("found platform version: %s", version.c_str());
-        }
-
-        cl_uint num_devices;
-        clError = clGetDeviceIDs(platformArray[0], CL_DEVICE_TYPE_DEFAULT, 1, &deviceId, &num_devices);
-        if (clError != CL_SUCCESS) {
-            LOGE("clGetDeviceIDs(%i) failed", clError);
-            return false;
-        }
-        LOGD("clGetDeviceIDs success, device_id:%p", (void *) deviceId); // 修正格式说明符
-
-        cl_context_properties contextProperties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties) platformArray[0], 0};
-        clContext = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_GPU, nullptr, nullptr, &clError);
-        if (clError != CL_SUCCESS) {
-            LOGE("creating cl_context with GPU failed: %d", clError);
-            clContext = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_CPU, nullptr, nullptr, &clError);
-            if (clError != CL_SUCCESS) {
-                LOGE("creating cl_context with CPU failed: %d", clError);
-                return false;
-            }
-        }
-        
-        auto temp = (size_t)
-        nullptr;
-        clError = clGetContextInfo(clContext, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &deviceId, &temp);
-        if (clError != CL_SUCCESS) {
-            LOGE("clGetContextInfo failed: %d", clError);
-            return false;
-        }
-        
-        clCommandQueue = clCreateCommandQueue(clContext, deviceId, 0, &clError);
-        if (clError != CL_SUCCESS) {
-            LOGE("clCreateCommandQueue failed: %d", clError);
-            clError = clReleaseContext(clContext);
-            if (clError != CL_SUCCESS) {
-                LOGE("clReleaseContext failed: %d", clError);
-            }
-        }
-
-        auto clProgramSrc = getProgramSource();
-        auto clProgramSrcLen = strlen(clProgramSrc);
-        clProgram = clCreateProgramWithSource(clContext, 1, (const char **) &clProgramSrc, &clProgramSrcLen, &clError);
-        if (clError != CL_SUCCESS) {
-            LOGE("clCreateProgramWithSource failed: %d", clError);
-            return false;
-        }
-
-        auto buildOptions = getBuildOptions();
-        clError = clBuildProgram(clProgram, 1, &deviceId, buildOptions.c_str(), nullptr, nullptr);
-        if (clError != CL_SUCCESS) {
-            auto log = getClString([&](size_t size, char *str, size_t *len) {
-                clGetProgramBuildInfo(clProgram, deviceId, CL_PROGRAM_BUILD_LOG, size, str, len);
-            });
-            LOGE("clBuildProgram failed: %d, %s", clError, log.c_str());
-            return false;
-        }
-
-        clError = createKernelHelper(kernelName.c_str(), clKernel);
-        if (clError != CL_SUCCESS) {
-            LOGE("clCreateKernel failed: %d", clError);
-            return false;
-        }
-        
-        return true;
-    }
+    bool initOpenCL();
 
 public:
-    typedef std::function<void(size_t, char * , size_t * )> ClStringFn;
-    
-    [[nodiscard]] std::string getClString(const ClStringFn &clStringFn) {
-        size_t strSize = 0;
-        clStringFn(0, nullptr, &strSize);
-        std::string str(strSize, 0);
-        if (!str.empty()) {
-            clStringFn(strSize, str.data(), nullptr);
-        }
-        return str;
-    }
-    
     // 构造函数中调用初始化方法
-    ClProcessor() {
-        if (!initOpenCL()) {
-            deinit();
-        }
-    }
+    ClProcessor();
     
-    void setBufferSize(size_t size) {
-        bufferSize = size;
-    }
+    void setBufferSize(size_t size);
     
-    void run(uint8_t *rgba, int width, int height, uint8_t *renderedRgba) {
-        if (!clContext || !clCommandQueue || !clKernel) {
-            LOGE("OpenCL components not initialized properly");
-            return;
-        }
-        
-        cl_int clError = CL_SUCCESS;
-        // 创建缓冲区
-        if (!clInputBuffer) {
-            clInputBuffer = clCreateBuffer(clContext, CL_MEM_READ_ONLY, bufferSize, nullptr, &clError);
-            if (clError != CL_SUCCESS) {
-                LOGE("clCreateBuffer input failed: %d", clError);
-                return;
-            }
-        }
-        if (!clOutputBuffer) {
-            clOutputBuffer = clCreateBuffer(clContext, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &clError);
-            if (clError != CL_SUCCESS) {
-                LOGE("clCreateBuffer output failed: %d", clError);
-                clReleaseMemObject(clInputBuffer);
-                return;
-            }
-        }
-        
-        clError = clEnqueueWriteBuffer(clCommandQueue, clInputBuffer, CL_TRUE, 0, bufferSize, rgba, 0, nullptr,
-                                       nullptr);
-        if (clError != CL_SUCCESS) {
-            LOGE("clEnqueueWriteBuffer failed: %d", clError);
-            return;
-        }
-
-        clSetKernelArg(clKernel, 0, sizeof(cl_mem), &clInputBuffer);
-        clSetKernelArg(clKernel, 1, sizeof(cl_uint), &width);
-        clSetKernelArg(clKernel, 2, sizeof(cl_uint), &height);
-        clSetKernelArg(clKernel, 3, sizeof(cl_mem), &clOutputBuffer);
-        
-        size_t globalWorkSize[2] = {static_cast<size_t>(width), static_cast<size_t>(height)};
-        clEnqueueNDRangeKernel(clCommandQueue, clKernel, 2, nullptr, globalWorkSize, nullptr, 0, nullptr, nullptr);
-        
-        // 等待命令队列完成
-        clFinish(clCommandQueue);
-        
-        clError = clEnqueueReadBuffer(clCommandQueue, clOutputBuffer, CL_TRUE, 0, bufferSize, renderedRgba, 0, nullptr,
-                                      nullptr);
-        if (clError != CL_SUCCESS) {
-            LOGE("clEnqueueReadBuffer failed: %d", clError);
-        }
-        
-    }
+    void run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *renderedRgba);
     
-    void deinit() {
-        if (clInputBuffer) {
-            clReleaseMemObject(clInputBuffer);
-        }
-        if (clOutputBuffer) {
-            clReleaseMemObject(clOutputBuffer);
-        }
-        if (clKernel) {
-            clReleaseKernel(clKernel);
-            clKernel = nullptr;
-        }
-        if (clProgram) {
-            clReleaseProgram(clProgram);
-            clProgram = nullptr;
-        }
-        if (clCommandQueue) {
-            clReleaseCommandQueue(clCommandQueue);
-            clCommandQueue = nullptr;
-        }
-        if (clContext) {
-            clReleaseContext(clContext);
-            clContext = nullptr;
-        }
-    }
+    void run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *lutTable, int lutTableSize,
+             uint8_t *renderedRgba);
     
-    // 析构函数中调用释放资源方法
-    ~ClProcessor() {
-        deinit();
-    }
+    void deinit();
+    
+    ~ClProcessor();
 };
-
 #endif //TCAMERA_CL_PROCESSOR_H

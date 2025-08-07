@@ -27,24 +27,24 @@ enum class FilterTag {
     REVERSE = 3,
     BRIGHTNESS = 4,
     POSTERIZATION = 5,
-    // non-lut < 10, lut filter >= 10
-    AMATORKA = 10,
-    BEAGLE = 11,
-    BIRMAN = 12,
-    CORGIS = 13,
-    HIGH_KEY = 14,
-    LABRADOR = 15,
-    MAINE = 16,
-    MONO = 17,
-    PERSIAN = 18,
-    POODLE = 19,
-    PUG = 20,
-    PURITY = 21,
-    SHORT_HAIR = 22,
-    SIAMESE = 23,
-    VERTICAL = 24,
+    // non-lut < 10, lut filter > 10
+    LUT_FILTER = 10,
+    AMATORKA = 11,
+    BEAGLE = 12,
+    BIRMAN = 13,
+    CORGIS = 14,
+    HIGH_KEY = 15,
+    LABRADOR = 16,
+    MAINE = 17,
+    MONO = 18,
+    PERSIAN = 19,
+    POODLE = 20,
+    PUG = 21,
+    PURITY = 22,
+    SHORT_HAIR = 23,
+    SIAMESE = 24,
+    VERTICAL = 25,
 };
-
 
 class FilterManager: public Looper {
 public:

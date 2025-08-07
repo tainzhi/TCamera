@@ -5,7 +5,6 @@
 
 #include "filter.h"
 #include "engine.h"
-#include "cl-processor.h"
 
 #define TAG "NativeFilterManager"
 // #define DEBUG
@@ -170,10 +169,8 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
         LOGE("not need to apply filter effect with tag=%d", filterTag);
     } else if (filterTag == static_cast<int>(FilterTag::GREY)) {
         // 使用 std::chrono 记录开始时间
-        auto start_t = std::chrono::high_resolution_clock::now();
-        clProcessor.run(rgba, width, height, renderedRgba);
-        
-        // // grey
+        // auto start_t = std::chrono::high_resolution_clock::now();
+        // grey
         // for (size_t j = 0; j < width * height * 4; j += 4) {
         //     uint8_t wm = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
         //     renderedRgba[j] = wm;
@@ -181,68 +178,71 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
         //     renderedRgba[j + 2] = wm;
         //     renderedRgba[j + 3] = rgba[j + 3];
         // }
-        
-        // 使用 std::chrono 记录结束时间
-        auto end_t = std::chrono::high_resolution_clock::now();
-        // 计算耗时，单位为纳秒
-        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_t - start_t).count();
-        LOGD("processing cost %lld ns", duration);
+        clProcessor.run(FilterTag::GREY, rgba, width, height, renderedRgba);
+        // // 使用 std::chrono 记录结束时间
+        // auto end_t = std::chrono::high_resolution_clock::now();
+        // // 计算耗时，单位为纳秒
+        // auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_t - start_t).count();
+        // LOGD("processing cost %lld ns", duration);
     } else if (filterTag == static_cast<int>(FilterTag::BLACK_WHITE)) {
-        // black and white
-        uint8_t threshold = 0.5 * 255;
-        uint8_t mean;
-        for (size_t j = 0; j < width * height * 4; j += 4) {
-            mean = (rgba[j] + rgba[j + 1] + rgba[j + 2]) / 3.0;
-            if (mean > threshold) {
-                renderedRgba[j] = 255;
-                renderedRgba[j + 1] = 255;
-                renderedRgba[j + 2] = 255;
-                renderedRgba[j + 3] = rgba[j + 3];
-            } else {
-                renderedRgba[j] = 0;
-                renderedRgba[j + 1] = 0;
-                renderedRgba[j + 2] = 0;
-                renderedRgba[j + 3] = rgba[j + 3];
-            }
-        }
+        clProcessor.run(FilterTag::BLACK_WHITE, rgba, width, height, renderedRgba);
+        // uint8_t threshold = 0.5 * 255;
+        // uint8_t mean;
+        // for (size_t j = 0; j < width * height * 4; j += 4) {
+        //     mean = (rgba[j] + rgba[j + 1] + rgba[j + 2]) / 3.0;
+        //     if (mean > threshold) {
+        //         renderedRgba[j] = 255;
+        //         renderedRgba[j + 1] = 255;
+        //         renderedRgba[j + 2] = 255;
+        //         renderedRgba[j + 3] = rgba[j + 3];
+        //     } else {
+        //         renderedRgba[j] = 0;
+        //         renderedRgba[j + 1] = 0;
+        //         renderedRgba[j + 2] = 0;
+        //         renderedRgba[j + 3] = rgba[j + 3];
+        //     }
+        // }
     } else if (filterTag == static_cast<int>(FilterTag::REVERSE)) {
-        // reverse
-        for (size_t j = 0; j < width * height * 4; j += 4) {
-            renderedRgba[j] = 255 - rgba[j];
-            renderedRgba[j + 1] = 255 - rgba[j + 1];
-            renderedRgba[j + 2] = 255 - rgba[j + 2];
-            renderedRgba[j + 3] = rgba[j + 3];
-        }
+        // // reverse
+        // for (size_t j = 0; j < width * height * 4; j += 4) {
+        //     renderedRgba[j] = 255 - rgba[j];
+        //     renderedRgba[j + 1] = 255 - rgba[j + 1];
+        //     renderedRgba[j + 2] = 255 - rgba[j + 2];
+        //     renderedRgba[j + 3] = rgba[j + 3];
+        // }
+        clProcessor.run(FilterTag::REVERSE, rgba, width, height, renderedRgba);
     } else if (filterTag == static_cast<int>(FilterTag::BRIGHTNESS)) {
-        // light
-        float *hsl = new float[width * height * 4];
-        for (size_t j = 0; j < width * height * 4; j += 4) {
-            Color::rgba2hsl(rgba + j, hsl + j);
-            hsl[j + 2] += 0.15;
-            Color::hsl2rgba(hsl + j, renderedRgba + j);
-        }
-        delete[] hsl;
+        // // light
+        // float *hsl = new float[width * height * 4];
+        // for (size_t j = 0; j < width * height * 4; j += 4) {
+        //     Color::rgba2hsl(rgba + j, hsl + j);
+        //     hsl[j + 2] += 0.15;
+        //     Color::hsl2rgba(hsl + j, renderedRgba + j);
+        // }
+        // delete[] hsl;
+        clProcessor.run(FilterTag::BRIGHTNESS, rgba, width, height, renderedRgba);
     } else if (filterTag == static_cast<int>(FilterTag::POSTERIZATION)) {
-        // posterization
-        float *hsl = new float[width * height * 4];
-        for (size_t j = 0; j < width * height * 4; j+=4 ) {
-            float grey = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
-            Color::rgba2hsl(rgba + j, hsl + j);
-            if (grey < 0.3 * 255) {
-                if (hsl[j] < 0.68 || hsl[j] > 0.66) {
-                    hsl[j] = 0.67;
-                }
-                hsl[j + 1] += 0.3;
-            } else if (grey > 0.7 * 255) {
-                if (hsl[j] < 0.18 || hsl[j] > 0.16) {
-                    hsl[j] = 0.17;
-                }
-                hsl[j + 1] -= 0.3;
-            }
-            Color::hsl2rgba(hsl + j, reinterpret_cast<uint8_t *>(renderedRgba + j));
-        }
-        delete[] hsl;
-    } else if (filterTag >= static_cast<int>(FilterTag::AMATORKA)) {
+        // // posterization
+        // float *hsl = new float[width * height * 4];
+        // for (size_t j = 0; j < width * height * 4; j+=4 ) {
+        //     float grey = rgba[j] * 0.3 + rgba[j + 1] * 0.59 + rgba[j + 2] * 0.11;
+        //     Color::rgba2hsl(rgba + j, hsl + j);
+        //     if (grey < 0.3 * 255) {
+        //         if (hsl[j] < 0.68 || hsl[j] > 0.66) {
+        //             hsl[j] = 0.67;
+        //         }
+        //         hsl[j + 1] += 0.3;
+        //     } else if (grey > 0.7 * 255) {
+        //         if (hsl[j] < 0.18 || hsl[j] > 0.16) {
+        //             hsl[j] = 0.17;
+        //         }
+        //         hsl[j + 1] -= 0.3;
+        //     }
+        //     Color::hsl2rgba(hsl + j, reinterpret_cast<uint8_t *>(renderedRgba + j));
+        // }
+        // delete[] hsl;
+        clProcessor.run(FilterTag::POSTERIZATION, rgba, width, height, renderedRgba);
+    } else if (filterTag > static_cast<int>(FilterTag::LUT_FILTER)) {
 #ifdef DEBUG
         uint8_t *yuvlut = new uint8_t[lutWidth * lutHeight * 3 / 2];
         // lut png to bitmap argb888 后，存储为 r，g，b，a分别8bit依次存储
@@ -252,21 +252,23 @@ void FilterManager::renderFilterEffect(int filterTag, uint8_t * rgba, int width,
         Util::dumpBinary(lutFilePath.c_str(), yuvlut, lutWidth * lutHeight * 3 / 2);
         delete[] yuvlut;
 #endif
-        for (size_t j = 0; j < width * height * 4; j += 4) {
-            auto r = rgba[j];
-            auto g = rgba[j + 1];
-            auto b = rgba[j + 2];
-            int b_div_4 = b / 4;
-            int g_div_4 = g / 4;
-            int r_div_4 = r / 4;
-            int b_div_4_mod_8 = b_div_4 % 8;
-            size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
-            auto lutPixel = lutTables[filterTag] + lutIndex;
-            renderedRgba[j] = lutPixel[0]; // r
-            renderedRgba[j + 1] = lutPixel[1]; //g
-            renderedRgba[j + 2] = lutPixel[2]; //b
-            renderedRgba[j + 3] = rgba[j]; //a
-        }
+        // for (size_t j = 0; j < width * height * 4; j += 4) {
+        //     auto r = rgba[j];
+        //     auto g = rgba[j + 1];
+        //     auto b = rgba[j + 2];
+        //     int b_div_4 = b / 4;
+        //     int g_div_4 = g / 4;
+        //     int r_div_4 = r / 4;
+        //     int b_div_4_mod_8 = b_div_4 % 8;
+        //     size_t lutIndex = ((b_div_4 / 8 * 64 + g_div_4) * 512 + (b_div_4_mod_8 * 64 + r_div_4)) * 4;
+        //     auto lutPixel = lutTables[filterTag] + lutIndex;
+        //     renderedRgba[j] = lutPixel[0]; // r
+        //     renderedRgba[j + 1] = lutPixel[1]; //g
+        //     renderedRgba[j + 2] = lutPixel[2]; //b
+        //     renderedRgba[j + 3] = rgba[j]; //a
+        // }
+        clProcessor.run(FilterTag::LUT_FILTER, rgba, width, height, lutTables[filterTag], lutWidth * lutHeight * 4,
+                        renderedRgba);
     } else {
         LOGE("unsupported filter tag: %d", filterTag);
     }

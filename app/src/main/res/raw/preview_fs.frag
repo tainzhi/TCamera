@@ -166,8 +166,8 @@ void main() {
         posterization(mixColor);
         outColor = mixColor;
         return;
-    } else if (u_filterType >= 10) {
-        //lut, >== 10 是 lut filter
+    } else if (u_filterType > 10) {
+        //lut, > 10 是 lut filter
         outColor = lookupTable(mixColor);
         return;
     } else {
