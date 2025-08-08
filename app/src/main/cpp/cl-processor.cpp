@@ -120,10 +120,24 @@ ClProcessor::ClProcessor() : kernelInfoMap() {
 }
 
 void ClProcessor::setBufferSize(size_t size) {
+    // 缓冲区大小变化时，需要重新创建缓冲区
+    // 为什么了?
+    // processor同时用来处理滤镜和拍照, 滤镜和拍照的图片大小不一样
+    // 当然了, 最好的实现方式是针对滤镜和拍照分别使用不同的路径, 避免这种同一路径而导致的缓冲区创建销毁的额外操作
+    if (size != bufferSize) {
+        if (clInputBuffer) {
+            clReleaseMemObject(clInputBuffer);
+            clInputBuffer = nullptr;
+        }
+        if (clOutputBuffer) {
+            clReleaseMemObject(clOutputBuffer);
+            clOutputBuffer = nullptr;
+        }
+    }
     bufferSize = size;
 }
 
-void ClProcessor::run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *renderedRgba) {
+void ClProcessor::process(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *renderedRgba) {
     
     if (!clContext || !clCommandQueue || !kernelInfoMap[filterTag].clKernel) {
         LOGE("OpenCL components not initialized properly");
@@ -174,7 +188,8 @@ void ClProcessor::run(FilterTag filterTag, uint8_t *rgba, int width, int height,
 }
 
 
-void ClProcessor::run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *lutTable, int lutTableSize,
+void
+ClProcessor::process(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *lutTable, int lutTableSize,
                       uint8_t *renderedRgba) {
     
     if (!clContext || !clCommandQueue || !kernelInfoMap[filterTag].clKernel) {
@@ -240,8 +255,8 @@ void ClProcessor::run(FilterTag filterTag, uint8_t *rgba, int width, int height,
     }
 }
 
-void ClProcessor::init() {
-    initOpenCL();
+[[nodiscard]] bool ClProcessor::init() {
+    return initOpenCL();
 }
 
 void ClProcessor::deinit() {

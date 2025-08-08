@@ -8,6 +8,7 @@
 #include <CL/cl.h>
 #include <unordered_map>
 #include "util.h"
+#include "processor.h"
 
 /**
  * @brief 定义一个可变参数宏 OPENCL_SOURCE，用于将传入的参数转换为字符串。
@@ -30,7 +31,7 @@ struct ClKernelInfo {
 
 enum class FilterTag;
 
-class ClProcessor {
+class ClProcessor : public BaseProcessor {
 
 private:
     cl_context clContext = nullptr;
@@ -311,12 +312,12 @@ public:
     
     void setBufferSize(size_t size);
     
-    void run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *renderedRgba);
+    void process(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *renderedRgba) override;
     
-    void run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *lutTable, int lutTableSize,
-             uint8_t *renderedRgba);
+    void process(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *lutTable, int lutTableSize,
+                 uint8_t *renderedRgba) override;
     
-    void init();
+    [[nodiscard]] bool init();
     void deinit();
     
     ~ClProcessor();

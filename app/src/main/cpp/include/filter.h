@@ -11,12 +11,14 @@
 #include <opencv2/core/mat.hpp>
 #include "opencv2/imgcodecs.hpp"
 #include <opencv2/imgproc.hpp>
+#include "processor.h"
+#include "cl-processor.h"
+#include "cpu-processor.h"
 #include "bitmap.h"
 #include "util.h"
 #include "looper.h"
 #include "color.h"
 #include "listener.h"
-#include "cl-processor.h"
 
 class Engine;
 
@@ -110,7 +112,7 @@ private:
     std::vector<Bitmap> thumbnailBitmaps;
     std::unordered_map<int, uint8_t*> lutTables;
     int lutWidth, lutHeight;
-    ClProcessor clProcessor;
+    BaseProcessor *processor;
 };
 
 

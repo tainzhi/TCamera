@@ -66,25 +66,6 @@ namespace Color {
                 free(data);
         }
         
-        // void convertToRGBA8888(uint8_t *rgba) {
-        //     int yIndex = 0;
-        //     int uvIndex = width * height;
-        //     int rgbaIndex = 0;
-        //     for (int y = 0; y < height; y++) {
-        //         for (int x = 0; x < width; x++) {
-        //             int yValue = data[yIndex++];
-        //             int uValue = data[uvIndex + (y / 2) * width + (x / 2) * 2];
-        //             int vValue = data[uvIndex + (y / 2) * width + (x / 2) * 2 + 1];
-        //             int rValue = yValue + (1.370705 * (vValue - 128));
-        //             int gValue = yValue - (0.698001 * (vValue - 128)) - (0.337633 * (uValue - 128));
-        //             int bValue = yValue + (1.732446 * (uValue - 128));
-        //             rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, rValue));
-        //             rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, gValue));
-        //             rgba[rgbaIndex++] = (uint8_t) std::max(0, std::min(255, bValue));
-        //             rgba[rgbaIndex++] = 255; // Alpha channel is set to 255 (fully opaque)
-        //         }
-        //     }
-        // }
         
         void convertToRGBA8888(uint8_t *rgba) {
             int yIndex = 0;
@@ -207,81 +188,6 @@ namespace Color {
     typedef struct vec4 {
         double x, y, z, w;
     } vec4;
-    
-    // /**
-    //  * reference: https://gist.github.com/emanuel-sanabria-developer/5793377
-    //  * @param rgba 4个字节，32位的像素rgba的地址
-    //  * @param hsl 单像素的hsl(a)的地址
-    //  */
-    // static void rgba2hsl(uint8_t *rgba, float *hsl) {
-    //     float r = static_cast<float>(rgba[0]) / 255.0f;
-    //     float g = static_cast<float>(rgba[1]) / 255.0f;
-    //     float b = static_cast<float>(rgba[2]) / 255.0f;
-    //     float a = static_cast<float>(rgba[3]) / 255.0f;
-    //     float max = MAX(MAX(r, g), b);
-    //     float min = MIN(MIN(r, g), b);
-    //     float h, s, l;
-    //
-    //     h = s = l = (max + min) / 2;
-    //
-    //     if (max == min) {
-    //         h = s = 0; // achromatic
-    //     } else {
-    //         float d = max - min;
-    //         s = (l > 0.5) ? d / (2 - max - min) : d / (max + min);
-    //
-    //         if (max == r) {
-    //             h = (g - b) / d + (g < b ? 6 : 0);
-    //         } else if (max == g) {
-    //             h = (b - r) / d + 2;
-    //         } else if (max == b) {
-    //             h = (r - g) / d + 4;
-    //         }
-    //
-    //         h /= 6;
-    //     }
-    //     hsl[0] = h;
-    //     hsl[1] = s;
-    //     hsl[2] = l;
-    //     hsl[3] = a;
-    // }
-    //
-    // static float hue2rgb(float p, float q, float t) {
-    //     if (t < 0)
-    //         t += 1;
-    //     if (t > 1)
-    //         t -= 1;
-    //     if (t < 1./6)
-    //         return p + (q - p) * 6 * t;
-    //     if (t < 1./2)
-    //         return q;
-    //     if (t < 2./3)
-    //         return p + (q - p) * (2./3 - t) * 6;
-    //
-    //     return p;
-    // }
-    //
-    // static void hsl2rgba(float *hsl, uint8_t *rgba) {
-    //     float r, g, b, a;
-    //     float h = hsl[0];
-    //     float s = hsl[1];
-    //     float l = hsl[2];
-    //     a = hsl[3];
-    //     if(0 == s) {
-    //         r = g = b = l; // achromatic
-    //     }
-    //     else {
-    //         float q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    //         float p = 2 * l - q;
-    //         r = hue2rgb(p, q, h + 1./3) * 255;
-    //         g = hue2rgb(p, q, h) * 255;
-    //         b = hue2rgb(p, q, h - 1./3) * 255;
-    //     }
-    //     rgba[0] = static_cast<uint8_t>(r * 255);
-    //     rgba[1] = static_cast<uint8_t>(g * 255);
-    //     rgba[2] = static_cast<uint8_t>(b * 255);
-    //     rgba[3] = static_cast<uint8_t>(a * 255);
-    // }
     
     static void rgba2hsl(uint8_t *rgba, float *hsl) {
         float r = rgba[0] / 255.0f;
