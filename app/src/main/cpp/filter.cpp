@@ -9,7 +9,9 @@
 #define TAG "NativeFilterManager"
 // #define DEBUG
 
-FilterManager::FilterManager(Engine *engine) {}
+FilterManager::FilterManager(Engine *engine) {
+    clProcessor.init();
+}
 
 FilterManager::~FilterManager() {
     std::unique_lock<std::mutex> lock(mutex);

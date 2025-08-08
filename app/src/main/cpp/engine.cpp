@@ -12,7 +12,6 @@
 
 
 void Engine::init(){
-    ClProcessor processor;
 }
 
 std::shared_ptr<CaptureManager> Engine::getCaptureManager() {

@@ -117,9 +117,6 @@ bool ClProcessor::initOpenCL() {
 }
 
 ClProcessor::ClProcessor() : kernelInfoMap() {
-    if (!initOpenCL()) {
-        deinit();
-    }
 }
 
 void ClProcessor::setBufferSize(size_t size) {
@@ -243,6 +240,9 @@ void ClProcessor::run(FilterTag filterTag, uint8_t *rgba, int width, int height,
     }
 }
 
+void ClProcessor::init() {
+    initOpenCL();
+}
 
 void ClProcessor::deinit() {
     if (clInputBuffer) {

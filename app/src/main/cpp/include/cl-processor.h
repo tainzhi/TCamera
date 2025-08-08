@@ -316,6 +316,7 @@ public:
     void run(FilterTag filterTag, uint8_t *rgba, int width, int height, uint8_t *lutTable, int lutTableSize,
              uint8_t *renderedRgba);
     
+    void init();
     void deinit();
     
     ~ClProcessor();
