@@ -11,7 +11,7 @@
 #include "filter.h"
 #include "color.h"
 
-#define TAG "NativeImageProcessorJNI"
+#define TAG "NativeEngineJNI"
 // #define DEBUG
 
 #define BUILD_CLASS_GLOBAL_REF(FILEDNAME, CLASSNAME) \
@@ -43,7 +43,7 @@ Engine *engine = nullptr;
 fields_t fields;
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
+Engine_init(JNIEnv *env, jobject thiz, jobject context) {
     LOGV("init");
     
     fields.image_processor = env->FindClass(kImageProcessorClassPathName);
@@ -158,7 +158,7 @@ ImageProcessor_init(JNIEnv *env, jobject thiz, jobject context) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
+Engine_deinit(JNIEnv *env, jobject thiz) {
     LOGV("deinit");
     if (fields.image_processor != nullptr) {
         env->DeleteGlobalRef(fields.image_processor);
@@ -172,7 +172,7 @@ ImageProcessor_deinit(JNIEnv *env, jobject thiz) {
  * @exposure_time in nanoseconds
  */
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jint filter_tag, jobject y_plane, jobject u_plane,
+Engine_collectImage(JNIEnv *env, jobject thiz, jint job_id, jint filter_tag, jobject y_plane, jobject u_plane,
                             jobject v_plane, jint width, jint height) {
     LOGD("begin");
     jbyte *yPlane = (jbyte *) env->GetDirectBufferAddress(y_plane);
@@ -199,7 +199,7 @@ ImageProcessor_collectImage(JNIEnv *env, jobject thiz, jint job_id, jint filter_
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type, jstring time_stamp, jint orientation,
+Engine_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type, jstring time_stamp, jint orientation,
                        jint frame_size, jobject exposure_times) {
     LOGD();
     // java 传过来的exposure_time 是纳秒，需要转换为秒
@@ -219,12 +219,12 @@ ImageProcessor_capture(JNIEnv *env, jobject thiz, jint job_id, jint capture_type
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
+Engine_abortCapture(JNIEnv *env, jobject thiz, jint job_id) {
     LOGD("abort job-%d", job_id);
 };
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbnail_width, jint thumbnail_height,
+Engine_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbnail_width, jint thumbnail_height,
                                          jobject filter_names, jobject filter_tags, jobject filter_thumbnail_bitmaps,
                                          jobject lut_bitmaps) {
     LOGD();
@@ -234,7 +234,7 @@ ImageProcessor_configureFilterThumbnails(JNIEnv *env, jobject thiz, jint thumbna
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation,
+Engine_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image, jint orientation,
                                        jint updateRangeStart, jint updateRangeEnd) {
     LOGD();
     // 获取 Image 类的类对象
@@ -292,7 +292,7 @@ ImageProcessor_processFilterThumbnails(JNIEnv *env, jobject thiz, jobject image,
 
 
 extern "C" JNIEXPORT jboolean JNICALL
-ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, jint filterTag, jobject jpegImage) {
+Engine_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, jint filterTag, jobject jpegImage) {
     LOGD();
     // 获取 Image 类的类对象
     jclass imageClass = env->GetObjectClass(jpegImage);
@@ -326,23 +326,22 @@ ImageProcessor_applyFilterEffectToJpeg(JNIEnv *env, jobject thiz, jint jobId, ji
 }
 
 extern "C" JNIEXPORT void JNICALL
-ImageProcessor_clearFilterThumbnails(JNIEnv *env, jobject thiz, jint selectedFilterTag) {
+Engine_clearFilterThumbnails(JNIEnv *env, jobject thiz, jint selectedFilterTag) {
     LOGD();
     engine->getFilterManager()->sendClearThumbnails(selectedFilterTag);
 }
 
 
-static JNINativeMethod methods[] = {{"init",                      "(Landroid/content/Context;)V",                                          (void *) ImageProcessor_init},
-                                    {"deinit",                    "()V",                                                                   (void *) ImageProcessor_deinit},
+static JNINativeMethod methods[] = {{"init",                      "(Landroid/content/Context;)V",                                          (void *) Engine_init},
+                                    {"deinit",                    "()V",                                                                   (void *) Engine_deinit},
                                     {"collectImage",              "(IILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;"
-                                                                  "Ljava/nio/ByteBuffer;II)V",                                             (void *) ImageProcessor_collectImage},
-                                    {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) ImageProcessor_capture},
-                                    {"abortCapture",              "(I)V",                                                                  (void *) ImageProcessor_abortCapture},
-                                    {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) ImageProcessor_configureFilterThumbnails},
-                                    {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",                                           (void *) ImageProcessor_processFilterThumbnails},
-                                    {"applyFilterEffectToJpeg",   "(IILandroid/media/Image;)Z",                                            (void *) ImageProcessor_applyFilterEffectToJpeg},
-                                    {"clearFilterThumbnails",     "(I)V",
-                                     (void *) ImageProcessor_clearFilterThumbnails},};
+                                                                  "Ljava/nio/ByteBuffer;II)V",                                             (void *) Engine_collectImage},
+                                    {"capture",                   "(IILjava/lang/String;IILjava/util/List;)V",                             (void *) Engine_capture},
+                                    {"abortCapture",              "(I)V",                                                                  (void *) Engine_abortCapture},
+                                    {"configureFilterThumbnails", "(IILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Z", (void *) Engine_configureFilterThumbnails},
+                                    {"processFilterThumbnails",   "(Landroid/media/Image;III)Z",                                           (void *) Engine_processFilterThumbnails},
+                                    {"applyFilterEffectToJpeg",   "(IILandroid/media/Image;)Z",                                            (void *) Engine_applyFilterEffectToJpeg},
+                                    {"clearFilterThumbnails",     "(I)V",                                                                  (void *) Engine_clearFilterThumbnails},};
 
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

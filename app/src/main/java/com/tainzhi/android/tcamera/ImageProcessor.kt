@@ -6,17 +6,16 @@ import android.graphics.ImageFormat
 import android.media.Image
 import android.util.Log
 import java.nio.ByteBuffer
-import kotlin.jvm.javaClass
 
 
 class ImageProcessor private constructor(val context: Context) {
     
     fun create() {
-        // 加载 libimage-processor.so
+        // 加载 libnative-engine.so
         // 不需要prefix lib，和suffix .so
         // 不存在unloadLibrary()库，因为加载后lib成为程序的一部分，若unload可能导致程序崩溃
         Log.d(TAG, "create: ")
-        System.loadLibrary("image-processor")
+        System.loadLibrary("native-engine")
         init(context)
     }
 

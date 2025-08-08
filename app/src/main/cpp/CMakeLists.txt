@@ -46,20 +46,20 @@ include_directories(
 ) # Not needed for CMake >= 2.8.11
 
 add_library( # Specifies the name of the library.
-        image-processor
+        native-engine
         # Sets the library as a shared library.
         SHARED
         ${SRC}
 )
 #target_compile_definitions(
-#        image-processor
+#        native-engine
 #        PRIVATE
 #        NEON_ENABLED
 #        ANDROID_ARM_MODE=arm
 #        ANDROID_ARM_NEON=true
 #)
 target_link_libraries(
-        image-processor
+        native-engine
         ${OpenCV_LIBS}
         android
         jnigraphics # for AndroidBitmap_*
